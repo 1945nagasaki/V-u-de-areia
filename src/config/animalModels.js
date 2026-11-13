@@ -71,7 +71,8 @@ export const ANIMAL_MODELS = {
   urso: { ...file('urso'), ...RAP, length: 2.2, rig: { kind: 'quadruped', tail: false } },
   arara: { ...file('arara'), length: 0.85, rig: { kind: 'bird', jaw: false } },
   avestruz: { ...file('avestruz'), height: 2.4, rig: { kind: 'biped', jaw: false } },
-  jacare: { ...file('jacare'), ...RAP, length: 3.4, rig: { kind: 'quadruped', lateralLegs: true, spineBones: 4, tailBones: 4 } },
+  // yaw: o corpo deste modelo vem ~8° torto em relação ao próprio eixo (cauda curva): corrige para o focinho apontar para a frente.
+  jacare: { ...file('jacare'), yaw: -Math.PI / 2 - 0.14, length: 3.4, rig: { kind: 'quadruped', lateralLegs: true, spineBones: 4, tailBones: 4 } },
   // Cérbero: o lobo animado, maior, quase preto e com brilho vermelho (cão paranormal).
   cerbero: { ...file('cerbero'), length: 2.6, clips: QUATERNIUS, tint: 0x1c1618, emissive: 0x2a0404 },
 };

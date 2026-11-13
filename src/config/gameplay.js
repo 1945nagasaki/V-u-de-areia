@@ -1,3 +1,5 @@
+import { COFFEE } from './gear.js';
+
 /**
  * Valores de jogabilidade (data-driven). Ajuste aqui sem mexer na lógica.
  */
@@ -98,6 +100,15 @@ export const GAMEPLAY = {
 
 /** Efeitos de status (buffs e doenças). */
 export const STATUS_EFFECTS = {
+  /** Café (config/gear.js → COFFEE): só velocidade de andar/correr; renovar não acumula. */
+  cafe: {
+    name: 'Café',
+    kind: 'buff',
+    icon: 'cup',
+    description: '+25% de velocidade de movimento.',
+    duration: COFFEE.seconds,
+    modifiers: { speed: COFFEE.speedMultiplier },
+  },
   febre_mendigo: {
     name: 'Febre do Mendigo',
     kind: 'disease',

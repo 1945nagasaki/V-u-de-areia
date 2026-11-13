@@ -169,6 +169,7 @@ export const Mechanics = {
         },
         { label: 'Comida e água…', onSelect: () => Mechanics.shopList(game, name, 'Mantimentos', SHOP_FOOD) },
         { label: 'Materiais de sobrevivência…', onSelect: () => Mechanics.shopList(game, name, 'Materiais', SHOP_MATERIALS) },
+        { label: 'Comida, café e recursos novos…', onSelect: () => game.gear.openShop({ key: `${village || 'vila'}:lojista:${name}`, name, kind: 'mercador', title: village }) },
         { label: 'Só olhando' },
       ],
     });

@@ -1,6 +1,7 @@
 import { MACROS, MACRO_NAMES } from '../systems/Nutrition.js';
 import { NUTRITION, SANITY, DIRT, WOUNDS, CONDITIONS, LIMBS } from '../config/survival.js';
 import { icon, iconAt } from './Icons.js';
+import { DISEASE_STAGES } from '../config/afflictions.js';
 
 const el = (tag, cls, parent, html) => {
   const e = document.createElement(tag);
@@ -104,7 +105,8 @@ export class SurvivalHUD {
     this.faint.classList.toggle('on', s.fainted);
     const fever = s.body.fever;
     const key = [Math.round(s.sanity), Math.round(s.stamina), Math.round(s.staminaMax), Math.round(s.dirt), ...MACROS.map((k) => Math.round(v[k])),
-      fever.toFixed(1), s.body.wounds.map((w) => w.type + (w.bandage ? 'b' : '')).join(), [...s.body.conditions.keys()].join()].join('|');
+      fever.toFixed(1), s.body.wounds.map((w) => w.type + (w.bandage ? 'b' : '')).join(), [...s.body.conditions.keys()].join(),
+      s.diseases.list().map((d) => d.id + d.stage).join(), s.phobias.list().map((p) => p.id).join(), s.phobias.effects.triggered.join()].join('|');
     if (key === this._key) return;
     this._key = key;
     this.sanityVal.textContent = Math.round(s.sanity);
@@ -120,6 +122,13 @@ export class SurvivalHUD {
     for (const id of s.body.conditions.keys()) chips.push(`<span class="cond" title="${CONDITIONS[id].name}">${icon(CONDITIONS[id].icon)}</span>`);
     for (const w of s.body.wounds) {
       chips.push(`<span class="cond wound${w.bandage ? ' bandaged' : ''}" title="${WOUNDS[w.type].name} — ${LIMBS[w.limb].name}${w.bandage ? ' (coberta)' : ''}">${icon(WOUNDS[w.type].icon)}</span>`);
+    }
+    // Doenças zoonóticas: ícone discreto (incubação = só um ponto pulsando); fobias: ícone roxo, aceso quando o gatilho está ativo.
+    for (const d of s.diseases.list()) {
+      chips.push(`<span class="cond disease stage-${d.stage}" title="${d.stage ? `${d.def.name} — ${DISEASE_STAGES[d.stage]}` : 'Algo não vai bem… (Tab: ficha)'}">${d.stage ? icon(d.def.icon) : '•'}</span>`);
+    }
+    for (const p of s.phobias.list()) {
+      chips.push(`<span class="cond phobia${s.phobias.effects.triggered.includes(p.id) ? ' on' : ''}" title="${p.def.name}">${icon(p.def.icon)}</span>`);
     }
     this.conds.innerHTML = chips.join('');
     this.watch.classList.toggle('alarm', s.body.wounds.some((w) => !w.bandage) || fever > 0);

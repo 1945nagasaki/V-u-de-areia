@@ -214,6 +214,10 @@ export const FOODS = {
   agua_poco: { name: 'Água do Poço', icon: 'bucket', water: 30, contamination: 'wellWater' },
   mel: { sweet: true, name: 'Mel', icon: 'jar', carbs: 22 },
   folha_tabaco: { name: 'Folha de Tabaco', icon: 'leaf', cures: ['veneno'], sanity: -6 },
+  // Remédios das doenças zoonóticas (config/afflictions.js → DISEASES[x].cure).
+  cha_ervas: { name: 'Chá de Ervas Medicinais', icon: 'bowl', water: 15 },
+  soro_antirrabico: { name: 'Soro Antirrábico', icon: 'syringe' },
+  cataplasma_antibiotico: { name: 'Cataplasma Antibiótico', icon: 'bandage' },
   refeicao_vila: { name: 'Refeição da Vila', icon: 'bowl', proteins: 30, carbs: 30, fats: 22, water: 10 },
 };
 

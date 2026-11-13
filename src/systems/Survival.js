@@ -4,6 +4,9 @@ import {
 import { Body } from './Body.js';
 import { Nutrition, MACRO_NAMES } from './Nutrition.js';
 import { SanityManager } from './SanityManager.js';
+import { PhobiaManager } from './PhobiaManager.js';
+import { DiseaseManager } from './DiseaseManager.js';
+import { WATER_LEPTO, TICKS, DISEASE_STAGES } from '../config/afflictions.js';
 
 /**
  * Sobrevivência avançada: junta corpo (ferimentos/doenças), nutrição,
@@ -13,12 +16,19 @@ import { SanityManager } from './SanityManager.js';
  *
  * Integração no loop (Game.update):
  * ```js
- * const r = survival.update(dt, { moving, sprinting, swimming, rain, sand, ash, nearFire, inVillage, jungle });
+ * const r = survival.update(dt, { moving, sprinting, swimming, rain, sand, ash, nearFire, inVillage, jungle,
+ *   biome, dark, nearAnimal, nearCorpse });
  * if (r.died) game.killPlayer(r.died);
  * ```
  *
  * Eventos (`on`): 'alert' { icon, title, text, inspect } — pop-up de
- * condição nova; 'whisper' (texto de alucinação); 'faint' (s); 'message'.
+ * condição nova; 'whisper' (texto de alucinação); 'faint' (s); 'message';
+ * 'infection' { id, def } (contágio: aviso discreto); 'spasm' (hidrofobia).
+ *
+ * Fobias (PhobiaManager) e doenças zoonóticas (DiseaseManager) moram aqui:
+ * `this.phobias`, `this.diseases`. Os efeitos de ambos entram na stamina,
+ * na vida, na sanidade e na cura das feridas; os visuais (tremor, desfoque,
+ * controles) o jogo lê de `phobias.effects` / `diseases.effects`.
  *
  * @example
  * const s = new Survival({ state, rng: Math.random });
@@ -39,6 +49,12 @@ export class Survival {
     this.exhausted = false;
     /** Dono da sanidade: gatilhos de trauma, ficha do personagem, níveis de alucinação. */
     this.sanityMgr = new SanityManager({ start: SANITY.start, max: SANITY.max });
+    /** Fobias permanentes por trauma (só a morte limpa). */
+    this.phobias = new PhobiaManager({ sanity: this.sanityMgr, rng });
+    /** Doenças zoonóticas (2% por mordida de vetor; só remédio ou morte curam). */
+    this.diseases = new DiseaseManager({ rng });
+    /** Mochila acima do limite de carga de uma doença (Febre Maculosa): sem correr. */
+    this.overloaded = false;
     this.clock = 0; // s de jogo (recargas das atividades de conforto)
     this.dirt = 0;
     this.faintLeft = 0;
@@ -57,6 +73,14 @@ export class Survival {
     });
     this.body.on('condition-added', ({ def }) => this.emit('alert', { icon: def.icon, title: def.name, text: 'Você ficou doente. Coma Cogumelo Azul/Roxo ou Guanábana.', inspect: false }));
     this.body.on('condition-removed', ({ def }) => this.emit('message', `${def.name}: curado.`));
+    this.phobias.on('acquired', ({ def, cause }) => this.emit('alert', { icon: def.icon, title: `Fobia: ${def.name}`, text: `${def.description} (Trauma: ${cause}.) Permanente até a morte.`, inspect: false }));
+    this.diseases.on('contracted', (d) => this.emit('infection', d));
+    this.diseases.on('stage', ({ def, stage }) => {
+      if (stage > 0) this.emit('alert', { icon: def.icon, title: `${def.name}: ${DISEASE_STAGES[stage].toLowerCase()}`, text: `${def.debuffs[stage].symptoms.join(' · ')}. Veja a ficha (Tab).`, inspect: false });
+    });
+    this.diseases.on('cured', ({ def }) => this.emit('message', `${def.name}: curada.`));
+    this.diseases.on('spasm', () => this.emit('spasm'));
+    this.diseases.on('infect-bite', () => this.body.addWound('infeccao', 'any'));
   }
 
   on(event, fn) {
@@ -94,7 +118,7 @@ export class Survival {
 
   /** Correr: precisa de stamina (zerou → espera recuperar `recoverThreshold`). */
   canSprint() {
-    return !this.exhausted && this.stamina > 0 && this.faintLeft <= 0;
+    return !this.exhausted && this.stamina > 0 && this.faintLeft <= 0 && !this.diseases.effects.sprintBlocked && !this.overloaded;
   }
 
   /** 0..1: força da distorção visual (começa no nível 1 de alucinação, sanidade < 50). */
@@ -126,6 +150,7 @@ export class Survival {
   onAnimalHit(speciesId) {
     const rule = ANIMAL_WOUNDS[speciesId] ?? ANIMAL_WOUNDS.default;
     this.addDirt(DIRT.perAnimalHit);
+    this.diseases.onAnimalBite(speciesId); // 2% de contágio se a espécie for vetor
     if (this.rng() >= rule.chance) return null;
     return this.body.addWound(rule.type, rule.limbs);
   }
@@ -142,6 +167,7 @@ export class Survival {
     const parts = [food.name];
     if (food.sanity) this.sanity = this.sanity + food.sanity;
     if (food.sweet && this.sanityMgr.comfort('COMER_DOCES', 0, this.clock) > 0) parts.push('a mente acalma');
+    for (const d of this.diseases.cure(id)) parts.push(`${this.diseases.defs[d].name.toLowerCase()} curada`);
     for (const c of food.cures ?? []) {
       if (c === 'veneno') {
         const venom = this.body.wounds.filter((w) => w.type === 'veneno');
@@ -150,6 +176,7 @@ export class Survival {
       } else if (this.body.cureCondition(c)) parts.push(`${CONDITIONS[c].name.toLowerCase()} curado`);
     }
     if (food.contamination && this.rng() < CONTAMINATION[food.contamination]) this.body.addCondition('parasitas');
+    if (WATER_LEPTO[id]) this.diseases.roll('leptospirose', WATER_LEPTO[id], id);
     return parts.join(' · ');
   }
 
@@ -169,6 +196,10 @@ export class Survival {
     this.dirt = 0;
     this.faintLeft = 0;
     this._hpDebt = 0;
+    // PlayerDeathEvent: a morte é a única coisa que apaga fobias; doenças: renasce curado.
+    this.phobias.clearOnDeath();
+    this.diseases.clearOnDeath();
+    this.overloaded = false;
   }
 
   // ------------------------------------------------------------ simulação
@@ -177,8 +208,10 @@ export class Survival {
    * Um quadro de sobrevivência.
    * @param {number} dt s
    * @param {{ moving?: boolean, sprinting?: boolean, swimming?: boolean, rain?: number, sand?: number, ash?: number,
-   *   nearFire?: boolean, inVillage?: boolean, jungle?: boolean, freshWater?: boolean, paused?: boolean }} env
-   *   rain/sand/ash = intensidade 0..1 do clima no jogador
+   *   nearFire?: boolean, inVillage?: boolean, jungle?: boolean, freshWater?: boolean, paused?: boolean,
+   *   biome?: string, dark?: boolean, nearAnimal?: number, nearCorpse?: number }} env
+   *   rain/sand/ash = intensidade 0..1 do clima no jogador; dark = escuro sem luz;
+   *   nearAnimal/nearCorpse = 0..1 (proximidade, já normalizada pelo raio da fobia)
    * @returns {{ died: string|null, hpPerSecond: number, fever: number }}
    */
   update(dt, env = {}) {
@@ -195,6 +228,16 @@ export class Survival {
     }
     this.dirt = Math.max(0, Math.min(DIRT.max, this.dirt));
 
+    // Fobias e doenças: efeitos do quadro (entram na stamina, vida, sanidade e cura).
+    const openWound = this.body.wounds.some((w) => !w.bandage);
+    const ph = this.phobias.update(dt, { dark: !!env.dark, nearAnimal: env.nearAnimal ?? 0, nearCorpse: env.nearCorpse ?? 0, openWound });
+    const dz = this.diseases.update(dt, { swimming: !!env.swimming, maxHealth: this.state.maxHealth });
+    if (dz.sanityPerSecond) this.sanityMgr.drainSanity(dz.sanityPerSecond * dt, 'Hidrofobia', { quiet: true });
+    let carried = 0;
+    if (dz.carryLimit < Infinity) for (const n of this.state.inventory.values()) carried += n;
+    this.overloaded = carried > dz.carryLimit;
+    if (env.moving && TICKS.biomes.includes(env.biome) && this.rng() < TICKS.perMinuteMoving * min) this.diseases.roll(TICKS.disease, 1, 'carrapato');
+
     // Desmaio: sem controle até passar.
     if (this.faintLeft > 0) this.faintLeft -= dt;
 
@@ -208,8 +251,9 @@ export class Survival {
       this._restFor += dt;
       if (this._restFor >= STAMINA.regenDelay) {
         const regen = STAMINA.regenPerSecond * (this.nutrition.deficits().length ? DEFICIENCY.staminaRegenDeficit : 1);
-        this.stamina += regen * dt;
+        this.stamina += regen * ph.staminaRegenMult * dz.staminaRegenMult * dt;
       }
+      if (dz.staminaDrainPerSecond) this.stamina = Math.max(0, this.stamina - dz.staminaDrainPerSecond * dt);
       if (this.exhausted && this.stamina >= STAMINA.recoverThreshold) this.exhausted = false;
     }
     this.stamina = Math.min(this.stamina, max);
@@ -220,7 +264,7 @@ export class Survival {
     const deficits = this.nutrition.deficits();
 
     // Corpo (sangramento, infecção, veneno, febre).
-    const b = this.body.update(dt, { dirt: this.dirt });
+    const b = this.body.update(dt, { dirt: this.dirt, healRate: ph.healRate });
 
     // Ambiente: sanguessugas na água doce, larvas na mata fechada.
     if (env.swimming && env.freshWater !== false && this.rng() < HAZARDS.leechPerMinuteSwimming * min) this.body.addWound('sanguessuga', 'legs');
@@ -250,9 +294,9 @@ export class Survival {
     // Vida: sangue, veneno, infecção, fome/sede, colapso mental.
     const starving = this.nutrition.emptyDamage();
     const breakdown = this.sanity < SANITY.breakdown ? SANITY.breakdownDamagePerSecond : 0;
-    const hps = b.hpPerSecond + starving + breakdown;
+    const hps = b.hpPerSecond + starving + breakdown + dz.hpPerSecond;
     if (hps > 0) {
-      this.lastCause = this.causeOf(b, starving, breakdown);
+      this.lastCause = dz.hpPerSecond > Math.max(b.hpPerSecond, starving, breakdown) ? this.diseases.deathCause() : this.causeOf(b, starving, breakdown);
       this._hpDebt += hps * dt;
       if (this._hpDebt >= 1) {
         const n = Math.floor(this._hpDebt);

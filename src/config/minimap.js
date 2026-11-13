@@ -30,5 +30,22 @@ export const MINIMAP = {
     fire: 0xff8a3a,
     mine: 0x3a3632,
     tree: 0x2f5a2a,
+    workshop: 0xc8945a, // locais de trabalho (config/workplaces.js)
   },
+};
+
+/**
+ * Mapa grande (tecla M): foto do continente inteiro, na mesma versão do
+ * minimapa (mundo 3D visto de cima) — ver render/WorldMapRenderer.js.
+ * - width/height: tamanho da foto (px), na proporção do continente (16:9)
+ * - supersample: a foto é tirada N× maior e reduzida (bordas lisas)
+ * - sea: mar plano (cor e opacidade sobre o fundo raso) e a cor do mar aberto
+ * - light: luz fixa de cima (o mapa não escurece de noite nem na tempestade)
+ */
+export const WORLD_MAP = {
+  width: 1024,
+  height: 576,
+  supersample: 2,
+  sea: { color: 0x4a9fd0, opacity: 0.8, deep: 0x2a6f9c },
+  light: { sun: 3.6, sunColor: 0xfff4e0, direction: [-0.35, 1, -0.3], hemi: 2.2, sky: 0xe8f0ff, ground: 0xa89a80 },
 };

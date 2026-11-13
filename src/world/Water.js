@@ -109,8 +109,51 @@ export class Water {
     this.mainCamera = null;
     this.frameTex = null;
     this._size = new THREE.Vector2();
-    this.mesh.onBeforeRender = (r, scene, camera) => this.copyFrame(r, camera);
+    /**
+     * Visibilidade da água na tela (occlusion query do WebGL2): `visible` = no último
+     * quadro medido, algum pixel da água passou no teste de profundidade.
+     */
+    this.occlusion = { query: null, active: false, pending: false, drawn: false, visible: true, skipped: 0 };
+    this.mesh.onBeforeRender = (r, scene, camera) => { this.copyFrame(r, camera); this.beginVisibilityQuery(r, camera); };
+    this.mesh.onAfterRender = (r) => this.endVisibilityQuery(r);
     this.setReflection(OCEAN.optics.reflection);
+  }
+
+  /** Começa a contar os pixels da água desenhados pela câmera principal. */
+  beginVisibilityQuery(r, camera) {
+    const o = this.occlusion, gl = r.getContext();
+    if (camera !== this.mainCamera || !gl.createQuery) return;
+    o.drawn = true;
+    if (o.active || o.pending) return; // uma medição por vez
+    o.query ??= gl.createQuery();
+    gl.beginQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE, o.query);
+    o.active = true;
+  }
+
+  endVisibilityQuery(r) {
+    const o = this.occlusion;
+    if (!o.active) return;
+    const gl = r.getContext();
+    gl.endQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE);
+    o.active = false;
+    o.pending = true;
+  }
+
+  /**
+   * A água apareceu na tela no último quadro? Lê a medição quando a GPU a
+   * entrega (sem esperar). Na dúvida (sem WebGL2, medição pendente no começo)
+   * responde `true`: nunca deixa de refletir por engano além de 1–2 quadros.
+   * @returns {boolean}
+   */
+  waterOnScreen() {
+    const o = this.occlusion, gl = this.renderer.getContext();
+    if (!gl.createQuery) return true;
+    if (o.pending && gl.getQueryParameter(o.query, gl.QUERY_RESULT_AVAILABLE)) {
+      o.visible = gl.getQueryParameter(o.query, gl.QUERY_RESULT) !== 0;
+      o.pending = false;
+    } else if (!o.pending && !o.drawn && o.query) o.visible = false; // nem foi desenhada (fora do quadro/escondida)
+    o.drawn = false;
+    return o.visible;
   }
 
   /**
@@ -268,7 +311,10 @@ export class Water {
     }
     // Reflexo planar: a cena espelhada no plano da água (a água fica de fora).
     u.uHasRefl.value = 0;
-    if (this.reflector && this.reflectionMode === 'planar' && !this.underwater && env.scene) {
+    // O reflexo redesenha a cena inteira espelhada: só vale a pena com água na tela.
+    const onScreen = this.waterOnScreen();
+    if (!onScreen) this.occlusion.skipped++;
+    if (this.reflector && this.reflectionMode === 'planar' && !this.underwater && env.scene && onScreen) {
       // Limpa com alfa 0: onde a câmera espelhada não vê nada (abaixo do horizonte espelhado)
       // o alfa fica 0 e a água usa o céu — sem isso aparecia uma faixa preta (manchas escuras).
       const r = this.renderer, cc = r.getClearColor(this._cc ??= new THREE.Color()), ca = r.getClearAlpha();

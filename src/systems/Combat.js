@@ -68,7 +68,25 @@ export class Combat {
     const cfg = this.config.punch;
     if (!this.canPunch(time)) return { ready: false, hit: null };
     this.nextPunchAt = time + cfg.cooldown;
+    const hit = this.strike(origin, direction, cfg);
+    this.log(hit ? `Soco desferido! Acertou: ${hit.name} (${hit.distance.toFixed(2)} m)` : 'Soco desferido! Não acertou nada.');
+    return { ready: true, hit };
+  }
 
+  /**
+   * Um golpe com alcance e dano dados (armas brancas e ferramentas do pacote de
+   * itens). Não tem intervalo próprio: quem chama controla o ritmo. O alvo
+   * atingido recebe `onHit` uma única vez.
+   *
+   * @example
+   *   const hit = combat.strike(origin, dir, { range: 2.3, damage: 30 });
+   *   hit?.target; // alvo registrado, ou null se bateu num obstáculo
+   * @param {THREE.Vector3} origin
+   * @param {THREE.Vector3} direction
+   * @param {{ range: number, damage: number, rayHeights?: number[] }} cfg
+   * @returns {null | { name: string, distance: number, point: THREE.Vector3, direction: THREE.Vector3, damage: number, target: object|null }}
+   */
+  strike(origin, direction, cfg) {
     const dir = direction.clone().normalize();
     this.raycaster.near = 0;
     this.raycaster.far = cfg.range;
@@ -97,8 +115,7 @@ export class Combat {
       };
       target?.onHit?.(hit);
     }
-    this.log(hit ? `Soco desferido! Acertou: ${hit.name} (${hit.distance.toFixed(2)} m)` : 'Soco desferido! Não acertou nada.');
-    return { ready: true, hit };
+    return hit;
   }
 
   /**

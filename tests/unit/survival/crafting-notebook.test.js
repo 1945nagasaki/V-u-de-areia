@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { Crafting } from '../../../src/systems/Crafting.js';
 import { Notebook } from '../../../src/systems/Notebook.js';
 import { PlayerState } from '../../../src/systems/PlayerState.js';
-import { RECIPES, ITEM_CATALOG } from '../../../src/config/items.js';
+import { ITEM_CATALOG } from '../../../src/config/items.js';
+import { TABLE_RECIPES as RECIPES } from '../../../src/systems/crafting/RecipeRegistry.js';
 
 test('crafting_matchIgnoresOrder_andRejectsUnknownCombos', () => {
   const c = new Crafting();

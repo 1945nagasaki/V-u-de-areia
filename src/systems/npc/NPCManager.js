@@ -7,6 +7,9 @@ import { PERCEPTION, SOCIAL } from '../../config/dialogues.js';
 import { mulberry32 } from '../../world/Noise.js';
 import { BIOMES } from '../../config/biomes.js';
 import { WORLD } from '../../config/worldConfig.js';
+import { VillageWork } from '../work/VillageWork.js';
+import { WorkTools } from '../../render/WorkTools.js';
+import { WorkFx } from '../../render/WorkFx.js';
 
 const local = (x, z, rot, lx, lz) => {
   const c = Math.cos(rot), s = Math.sin(rot);
@@ -18,8 +21,10 @@ const local = (x, z, rot, lx, lz) => {
  *
  * - Casas: cada interior de casa/cabana da vila vira um lar (`homeId`) com
  *   porta, quintal e ponto de dormir.
- * - Postos de trabalho por profissão: plantação (borda), barracas (praça),
- *   forja, quintal, mata, margem d'água e ronda dos guardas.
+ * - Trabalho (systems/work): cada vila tem prédios com ESTAÇÕES (ferraria,
+ *   fazenda, capela, mina…); os adultos ganham vagas nesses prédios e vão de
+ *   estação em estação a pé (A* na grade da vila), com ferramenta na mão. Sem
+ *   estação válida não há gesto de trabalho. Guardas continuam na ronda.
  * - LOD de IA: vila longe = parada (ao chegar perto, cada morador é colocado
  *   direto onde a rotina manda); vila perto = simulada; só os
  *   `NPC_LOD.maxRendered` mais próximos do jogador têm boneco 3D animado.
@@ -54,6 +59,17 @@ export class NPCManager {
     this.bubbles = null;
     this.rng = mulberry32(4242);
     this._logicHours = 0;
+    /** Relógio comum (s de jogo) — prazos das estações compartilhadas. */
+    this.clockSeconds = 0;
+    /** Prédios, estações, empregos, estoque, plantações e navegação das vilas. */
+    this.work = new VillageWork(game);
+    this.registry = this.work.registry;
+    this.floorAt = (x, z) => this.work.floorAt(x, z);
+    this.stationClear = (x, z) => this.work.isClearAt(x, z);
+    this.onWorkStep = (a, r) => this.work.onWorkStep(a, r);
+    this.tools = new WorkTools();
+    this.toolFor = (id) => this.tools.create(id);
+    this.fx = new WorkFx(game.scene);
     for (const v of Object.values(game.villages)) {
       if (v.config.abandoned) continue;
       const vs = this.setupVillage(v);
@@ -80,6 +96,9 @@ export class NPCManager {
     });
     if (!homes.length) return null;
     const people = generatePopulation({ villageId: v.config.id, biome, homes, rng });
+    // empregos nos prédios que a vila realmente tem (antes de criar os agentes: muda a profissão)
+    const holder = {};
+    this.work.setupVillage(Object.assign(holder, { village: v }), people, rng);
     const homeById = new Map(homes.map((h) => [h.id, h]));
     const R = v.radius, cx = v.x, cz = v.z;
     // Ponto sorteado num anel em volta do centro — em terra firme e fora de paredes (ex.: o lago do oásis).
@@ -107,7 +126,7 @@ export class NPCManager {
       if (!dry(cx + Math.cos(a) * r, cz + Math.sin(a) * r)) { const q = ring(R * 0.3, R * 0.9); return { x: q.x, z: q.z }; } // vila de rio: ponto seco qualquer
       return { x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r };
     }));
-    const vs = { village: v, biome, homes, homeById, people, agents: [], active: false, center: { x: cx, z: cz }, forge, water };
+    const vs = { village: v, biome, homes, homeById, people, agents: [], active: false, center: { x: cx, z: cz }, forge, water, work: holder.work };
     for (const p of people) {
       const home = homeById.get(p.homeId) ?? homes[0];
       const prof = PROFESSIONS[p.profession];
@@ -134,6 +153,10 @@ export class NPCManager {
         village: v, manager: this, rng,
       });
       if (agent.patrol && p.patrolPair % 2) agent.patrolIndex = 3; // a dupla começa do outro lado
+      agent.vs = vs;
+      agent.villageState = vs;
+      agent.job = this.work.jobFor(vs, agent);
+      if (!agent.job) agent.villageWork = vs.work; // sem ofício também visita taverna/capela
       vs.agents.push(agent);
       this.agents.push(agent);
     }
@@ -190,6 +213,16 @@ export class NPCManager {
    * rua) → rua do destino → (entra pela porta) → destino.
    */
   route(agent, from, goal) {
+    // Vila com grade de navegação: A* de verdade (entra e sai pelas portas, contorna paredes e móveis).
+    if (agent.vs?.work?.nav) {
+      const path = this.work.route(agent.vs, from, goal);
+      if (path !== null || goal.noTeleport) return path; // null em trabalho/visita = sem caminho (o morador espera)
+    }
+    return this.legacyRoute(agent, from, goal);
+  }
+
+  /** Rota antiga pelas ruas (vilas sem grade, ou destino de casa que o A* não alcançou). */
+  legacyRoute(agent, from, goal) {
     const v = agent.village, h = agent.home, pts = [];
     const fromInside = agent.indoors || Math.hypot(from.x - h.inside.x, from.z - h.inside.z) < 1.5;
     if (fromInside) pts.push({ x: h.door.x, z: h.door.z });
@@ -234,6 +267,21 @@ export class NPCManager {
       for (const vs of this.villages) if (vs.active) for (const a of vs.agents) a.snap(hour, vs.env ?? {});
     }
     const over = game.areaId === 'overworld';
+    this.clockSeconds += dt;
+    // plantações crescem em todas as vilas; vila longe produz por simulação abstrata
+    const workHours = (hour >= 7 && hour < 12) || (hour >= 13 && hour < 17);
+    let smokeKey = '';
+    for (const vs of this.villages) {
+      this.work.grow(vs, hoursPassed);
+      if (!vs.active) this.work.abstract(vs, hoursPassed, workHours);
+      else smokeKey += vs.village.config.id;
+    }
+    if (smokeKey !== this._smokeKey) {
+      this._smokeKey = smokeKey;
+      this.fx.setSmoke(this.villages.filter((vs) => vs.active).flatMap((vs) => vs.work?.buildings.flatMap((b) => b.smoke) ?? []));
+    }
+    this.fx.update(dt);
+    for (const vs of this.villages) for (const b of vs.active ? vs.work?.buildings ?? [] : []) if (b.sails) b.sails.rotation.z += dt * 0.35;
     this._logicT += dt;
     this._logicHours += hoursPassed;
     const logicTick = this._logicT >= NPC_LOD.logicTick;

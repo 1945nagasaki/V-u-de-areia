@@ -8,6 +8,7 @@ import { VILLAGE_LAYOUT, CLUTTER } from '../config/settlements.js';
 import { poissonAnnulus, faceStreet, randInt } from './Layout.js';
 import * as B from './Builders.js';
 import { Mechanics } from '../systems/Mechanics.js';
+import { placeWorkplaces } from './Workplaces.js';
 
 const SHIRTS = [0xb5382a, 0x2f5d8a, 0xd9a02a, 0x4a7a3a, 0x7a3a6a, 0xe0d8c8, 0x8a5a2a, 0x1f6a6a, 0xc0602a];
 const PANTS = [0x3a3028, 0x2a2a30, 0x5a4a3a, 0x4a3a2a, 0x2e3a4a];
@@ -205,6 +206,8 @@ export class Village {
    * });
    */
   scatterHouses(build, overrides = {}) {
+    // Locais de trabalho primeiro: praça, ruas e marcos já existem; as casas se acomodam em volta.
+    if (!this.workplaces) placeWorkplaces(this);
     const cfg = { ...VILLAGE_LAYOUT[this.config.id], ...overrides };
     const outer = cfg.outer <= 0 ? this.radius + cfg.outer : cfg.outer;
     const pts = poissonAnnulus({
@@ -295,8 +298,14 @@ export class Village {
     }
   }
 
-  /** Une a geometria estática e adiciona a vila à cena. */
+  /**
+   * Une a geometria estática e adiciona a vila à cena. Antes, constrói os
+   * locais de trabalho (ferraria, fazenda, capela…) nos espaços que as casas
+   * deixaram livres — ver villages/Workplaces.js.
+   */
   finalize() {
+    if (!this.workplaces) placeWorkplaces(this); // vila sem scatterHouses
+    
     this.ctx.batch.build(this.group);
     this.game.scene.add(this.group);
   }

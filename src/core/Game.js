@@ -44,7 +44,7 @@ import { buildRuinasKaelen } from '../villages/RuinasKaelen.js';
 import { FireLights } from '../render/FireLights.js';
 import { Surfaces } from '../world/Surfaces.js';
 import { Ladders } from '../world/Ladders.js';
-import { PhysicsWorld } from '../physics/PhysicsWorld.js';
+import { PhysicsWorld, initPhysics } from '../physics/PhysicsWorld.js';
 import { applyWorldPhysics } from '../physics/WorldColliders.js';
 import { PropMeshes } from '../physics/PropMeshes.js';
 import { InteriorManager } from '../render/Interiors.js';
@@ -58,6 +58,9 @@ import { ReflectionProbe } from '../render/lighting/ReflectionProbe.js';
 import { PROBE } from '../config/lighting.js';
 import { Thunder } from '../audio/Thunder.js';
 import { Minimap } from '../render/Minimap.js';
+import { WorldMapRenderer } from '../render/WorldMapRenderer.js';
+import { WorkDebug } from '../ui/WorkDebug.js';
+import { WORK_DEBUG } from '../config/workplaces.js';
 import { MINIMAP } from '../config/minimap.js';
 import { Clouds } from '../world/Clouds.js';
 import { VILLAGE_SHELTER, WEATHER_CYCLE, DEBUFFS, DEBUFF_RULES } from '../config/weather.js';
@@ -81,13 +84,12 @@ import { Crafting } from '../systems/Crafting.js';
 import { BackpackUI } from '../ui/BackpackUI.js';
 import { NotebookUI } from '../ui/NotebookUI.js';
 import { BodyInspection } from '../ui/BodyInspection.js';
-import { RecipeBookUI } from '../ui/RecipeBookUI.js';
 import { NPCManager } from '../systems/npc/NPCManager.js';
 import { PROFESSIONS } from '../config/npcLife.js';
 import { DialogueEngine } from '../systems/npc/DialogueEngine.js';
 import { DIALOGUE_MENU, PERCEPTION } from '../config/dialogues.js';
 import { SpeechBubbles } from '../ui/SpeechBubbles.js';
-import { SHOP_SMITH } from '../config/items.js';
+import { GearController } from '../systems/gear/GearController.js';
 import { Mechanics } from '../systems/Mechanics.js';
 import { Projectiles, classifyZone, zoneDamage } from '../systems/Projectiles.js';
 import { Resources } from '../systems/Resources.js';
@@ -102,6 +104,8 @@ import { CHARACTER_PROFILE, SANITY_TRIGGERS, CURSED_AREAS, PHANTOMS, PHANTOM_SOU
 import { Hallucinations } from '../render/Hallucinations.js';
 import { Skeletons } from '../render/Skeletons.js';
 import { PhantomSounds } from '../audio/PhantomSounds.js';
+import { Heartbeat } from '../audio/Heartbeat.js';
+import { PHOBIAS } from '../config/afflictions.js';
 import { LAW } from '../config/law.js';
 import { CrimeLog, humanZone, rollLoot, TrespassTracker } from '../systems/law/Crimes.js';
 import { findWitnesses, WitnessSystem } from '../systems/law/Witness.js';
@@ -118,6 +122,7 @@ import { payQuote } from '../systems/law/Redemption.js';
 import { grudgeReaction } from '../systems/law/Grudge.js';
 import { BountyHunter } from '../entities/BountyHunter.js';
 import { BoatController } from '../systems/boat/BoatController.js';
+import { WaterSurface } from '../world/WaterSurface.js';
 import { PauseMenu } from '../ui/PauseMenu.js';
 import { MaterialFactory } from '../render/lighting/MaterialFactory.js';
 
@@ -201,6 +206,8 @@ export class Game {
     const ui = this.ui;
     const step = async (pct, text) => { ui.setLoading(pct, text); await nextFrame(); };
 
+    await initPhysics(); // WebAssembly do Rapier: precisa estar carregado antes de criar o mundo físico (e do loop simular)
+
     await step(0.02, 'Lendo o mapa de referência…');
     // >>> IMAGEM BASE: configure REFERENCE_MAP em src/config/worldConfig.js
     //     (textura do minimapa, máscara de biomas e/ou heightmap).
@@ -262,6 +269,8 @@ export class Game {
     this.scene.add(this.terrain.buildMesh(this.materials.textures, paints, this.photos));
 
     this.water = new Water({ renderer: this.renderer, terrain: this.terrain });
+    /** Altura/normal/profundidade da água para quem boia ou nada (animais, objetos): ver WaterSurface. */
+    this.waterSurface = new WaterSurface({ query: this.water.query ?? null, ocean: this.water.ocean ?? null, level: WORLD.waterLevel, terrainAt: (x, z) => this.terrain.heightAt(x, z) });
     this.water.installUnderwater(this.terrain.material); // cáusticas e luz debaixo d'água no fundo
     if (this.water.fft) this.scene.add(this.water.buildOceanFloor(this.terrain)); // fundo além da borda do mapa
     // L2: materiais PBR por superfície (metais, Kaelen, gelo) e chão molhado na chuva
@@ -341,7 +350,7 @@ export class Game {
     });
     console.info(`[física] ${auto.added} colisores automáticos de ${auto.pieces} peças`, auto.skipped);
 
-    // Física (cannon-es): objetos dinâmicos das vilas + estáticos transmitidos em volta do jogador.
+    // Física (Rapier): objetos dinâmicos das vilas + estáticos transmitidos em volta do jogador.
     // O terreno físico ignora plataformas altas (feetY = −∞): só chão, pontes e píeres.
     this.physics = new PhysicsWorld({ groundAt: (x, z) => this.groundHeight(x, z, -Infinity), collisions: this.collisions, surfaces: this.surfaces });
     for (const v of Object.values(this.villages)) {
@@ -365,6 +374,8 @@ export class Game {
     this.minimap.show(this.terrain.mesh, this.water.mesh, this.bridges.group);
     this.minimap.setLighting(this.environment.sun, this.environment.hemi);
     this.minimap.buildIcons(this.collisions.all, (x, z) => this.terrain.heightAt(x, z));
+    // Mapa grande (M) na mesma versão do minimapa: foto do continente inteiro visto de cima.
+    this.worldMapRenderer = new WorldMapRenderer(this.renderer, this.scene, { hide: [this.water.mesh], lights: [this.environment.sun, this.environment.hemi] });
 
     await step(0.97, 'Acordando os moradores…');
     this.player = new Player({
@@ -392,6 +403,18 @@ export class Game {
     this.survival.on('whisper', (t) => this.survivalHUD.whisper(t));
     this.survival.on('message', (t) => ui.toast(t));
     this.survival.on('faint', () => ui.toast('Fraqueza: você desmaiou. Coma e beba algo.'));
+    // Fobias e doenças zoonóticas: contágio é discreto (só o relógio pisca e um ponto aparece).
+    this.survival.on('infection', () => {
+      this.survivalHUD.watch.classList.remove('infected');
+      void this.survivalHUD.watch.offsetWidth;
+      this.survivalHUD.watch.classList.add('infected');
+    });
+    this.survival.on('spasm', () => { this.cameraRig.kick(0.14); this.player.status?.apply({ stun: 0.5 }); });
+    this.heartbeat = new Heartbeat({ volume: 0.35 });
+    this.afflictionFx = document.createElement('div');
+    this.afflictionFx.className = 'affliction-fx';
+    ui.root.prepend(this.afflictionFx); // primeiro filho: borra só o mundo 3D, a HUD fica nítida por cima
+    this._fxKey = '';
     // Caderneta, mochila (I) com mesa de crafting livre e inspeção corporal 3D (C).
     this.notebook = new Notebook();
     this.notebook.on('entry', ({ section, id }) => ui.toast(`Caderneta: ${notebookLabel(section, id)}`));
@@ -400,7 +423,6 @@ export class Game {
     for (const [id, n] of Object.entries(STARTER_KIT)) this.state.addItem(id, n);
     this.backpack = new BackpackUI(this);
     this.notebookUI = new NotebookUI(this);
-    this.recipeBook = new RecipeBookUI(this); // estilo JEI: J
     this.setupHunting();
     this.setupSanity();
     this.setupLivingWorld();
@@ -422,12 +444,19 @@ export class Game {
     this.setupCamera();
     this.inspection = new BodyInspection(this); // precisa da câmera, do braço de 1ª pessoa e da mochila
     this.setupCombat();
+    // Pacote de itens (armas, ferramentas, munição, comida, relíquias): regras, item na mão, HUD e save.
+    this.gear = new GearController(this);
     // Animais: cache já cheio (preloader acima); espécie sem modelo usa o corpo procedural.
     await animalsReady;
     this.fauna = new Fauna(this, { rng: this.random, models: this.animalModels });
-    this.fauna.warmup(this.renderer, this.camera); // compila os shaders de todas as espécies agora
-
-    applyGraphics(this, this.graphics);
+    applyGraphics(this, this.graphics); // antes de compilar: o nível gráfico muda os shaders (sombras, reflexos)
+    await step(0.99, 'Compilando shaders…');
+    // Compila tudo em paralelo aqui, com a barra na tela, em vez de travar o primeiro quadro.
+    // O céu/iluminação ambiente (scene.environment) entra na chave de cada shader PBR: precisa
+    // existir ANTES de compilar, senão o primeiro quadro recompila tudo com o mapa de ambiente.
+    this.environment.setHour(this.gameClock.hour);
+    this.environment.update(0, this.player.position, this.camera, this.terrain.weightsAt(this.player.position.x, this.player.position.z, this._w), false);
+    await this.fauna.warmup(this.renderer, this.camera, this.pipeline.sceneRT);
     this.ready = true;
     ui.setLoading(1, 'Pronto! Pressione ALT para travar a câmera no mouse.');
     ui.hideLoading();
@@ -557,6 +586,7 @@ export class Game {
 
   /** Usa o item do slot ativo (`ITEM_USES`); se ele for gasto, sai da hotbar. Armas de caça arremessam/atiram. */
   useEquipped(item) {
+    if (this.gear.handles(item)) { this.gear.use(item); return; } // pacote de itens (config/gear.js)
     if (WEAPONS[item.id]) { this.throwWeapon(item); return; }
     if (ITEMS[item.id]?.comfort) { this.useComfortItem(item.id); return; }
     const use = ITEM_USES[item.id];
@@ -696,7 +726,8 @@ export class Game {
     this._nearFire = nearFire;
     const d = this.dead || this.player.flying ? null : computeDebuffs(this.weather.climates, DEBUFFS, DEBUFF_RULES, { nearFire });
     this.debuffs = d;
-    this.state.setEnvironmentModifiers(d ? { speed: d.speed, jump: d.jump } : null);
+    const sick = this.survival.diseases.effects.speed; // dores articulares/musculares
+    this.state.setEnvironmentModifiers(d || sick < 1 ? { speed: (d?.speed ?? 1) * sick, jump: d?.jump ?? 1 } : null);
     if (!d) return;
     this._weatherDamage += d.dps * dt;
     if (this._weatherDamage >= 1) {
@@ -730,6 +761,9 @@ export class Game {
       nearFire: !!this._nearFire,
       inVillage: over && this.villageShelter(p.position) >= 1,
       jungle: over && HAZARDS.jungleBiomes.includes(BIOMES[this._biome]?.id),
+      biome: over ? BIOMES[this._biome]?.id : null,
+      dark: !!this._darkNoLight,
+      ...this.phobiaProximity(),
     });
     if (r.died && !this.dead) this.killPlayer(r.died);
     this.ui.sickOverlay.classList.toggle('on', r.fever > 0 || this.state.effects.some((e) => e.def.kind === 'disease'));
@@ -745,6 +779,7 @@ export class Game {
   /** Tira um item equipável da mochila e põe na hotbar (se houver vaga). */
   equipFromBackpack(id) {
     const d = ITEMS[id];
+    if (d?.gear) return this.gear.equip(id); // equipamento com instância / atalho de pilha
     if (!d?.hotbar || !this.state.hasItem(id)) return false;
     const slot = this.inventory.adicionarItem({ id, nome: d.name, icone: d.icon, tipo: d.kind });
     if (slot < 0) { this.ui.toast('Hotbar cheia: o item fica na mochila.'); return false; }
@@ -783,6 +818,8 @@ export class Game {
   /** Moradores com rotina de 24 h (NPCManager) e a conversa com E. */
   setupLivingWorld() {
     this.npcManager = new NPCManager(this);
+    /** Depuração do trabalho dos moradores (F9 ou ?debugwork): estações, rotas, colisores, estados. */
+    this.workDebug = new WorkDebug(this);
     this.bubbles = new SpeechBubbles(this.ui.root);
     this.npcManager.bubbles = this.bubbles;
     this._prevPos = { x: this.player.position.x, z: this.player.position.z };
@@ -1194,7 +1231,7 @@ export class Game {
     this.updateHunters(dt);
     if (this.areaId === 'overworld') this.npcManager.updateSocial(dt, this.playerPerceptionState(dt));
     // Balões somem atrás de diálogos e painéis (não tampam a caixa de texto).
-    this.bubbles.root.style.display = this.ui.dialogue.isOpen || this.backpack.open || this.notebookUI.open || this.recipeBook.open || this.inspection.active ? 'none' : '';
+    this.bubbles.root.style.display = this.ui.dialogue.isOpen || this.backpack.open || this.notebookUI.open || this.inspection.active ? 'none' : '';
     this.bubbles.update(this.camera, dt);
     let a = this.areaId === 'overworld' ? (this.nearestWitness(LAW.witness.interceptRadius) ?? this.npcManager.nearest(this.player.position)) : null;
     if (a && this.guardAI?.engaged(a)) a = null; // guarda em perseguição não conversa
@@ -1214,7 +1251,7 @@ export class Game {
     const eq = this.inventory.equipado.id;
     return {
       x: p.x, z: p.z, vx, vz,
-      armed: !!WEAPONS[eq] || eq === 'faca_osso' || eq === 'faca_pedra',
+      armed: !!WEAPONS[eq] || eq === 'faca_osso' || eq === 'faca_pedra' || this.gear.isWeapon(eq),
       dirt: this.survival.dirt,
       bleeding: this.survival.body.wounds.some((w) => !w.bandage && (WOUNDS_BLEED[w.type] ?? 0) >= 0.1),
       sanity: this.sanity.value,
@@ -1274,8 +1311,8 @@ export class Game {
     if (id === 'trade') {
       const line = DialogueEngine.line('trade', ctx, this.random);
       if (ctx.memory.includes('agredido') || ctx.memory.includes('parente_agredido')) { this.talkToAgent(a, line); return; }
-      const list = a.person.profession === 'ferreiro' ? SHOP_SMITH : [...SHOP_FOOD_LIST, ...SHOP_MATERIALS_LIST];
-      Mechanics.shopList(this, a.name, a.person.profession === 'ferreiro' ? 'Forja' : 'Banca', list);
+      const kind = a.person.profession === 'ferreiro' ? 'ferreiro' : 'mercador';
+      this.gear.openShop({ key: `${a.village?.config?.id ?? a.village?.id ?? 'vila'}:${kind}`, name: a.name, kind });
       return;
     }
     this.talkToAgent(a, DialogueEngine.line(id, ctx, this.random));
@@ -1366,10 +1403,11 @@ export class Game {
     const cursed = over && this.cursedAreas.some((c) => Math.hypot(pos.x - c.x, pos.z - c.z) < c.r);
     const sheltered = this._nearFire || (over && this.villageShelter(pos) >= 1);
     const dark = !sheltered && (!over || this.environment.night > T.darkNight);
-    this.sanity.update(dt, { paranormal, cursed, dark });
+    this._darkNoLight = dark; // Nictofobia (sem fogo/vila por perto = sem luz)
+    this.sanity.update(dt, { paranormal, cursed, dark, darkMult: this.survival.phobias.effects.darkDrainMult });
     if (this._nearFire) this.sanity.comfort('FOGUEIRA', dt);
     // Ossada à vista: trauma, uma vez por ossada.
-    if (over && this.skeletons.noticed(pos, this.viewForward())) this.sanity.drainSanity(T.corpseFound, 'Você encontrou uma ossada');
+    if (over && this.skeletons.noticed(pos, this.viewForward())) this.sanity.drainSanity(T.corpseFound, 'Você encontrou uma ossada', { tags: ['MORTE'] });
     // Alucinações: criaturas fantasmas (nível 3) e sons (nível ≥ 2).
     const level = this.sanity.level;
     this.hallucinations.update(dt, { level, player: pos, groundAt: (x, z) => this.groundHeight(x, z, -Infinity), rng: this.random, active: over });
@@ -1404,7 +1442,7 @@ export class Game {
   onAnimalDeath(a) {
     const q = a.root.position;
     if (!this.inView(q.x, q.z, SANITY_TRIGGERS.witnessRadius, SANITY_TRIGGERS.witnessDot)) return;
-    this.sanity.drainSanity(SANITY_TRIGGERS.animalDeath, `Morte: ${a.spec.nome}`, { tags: ['SANGUE'] });
+    this.sanity.drainSanity(SANITY_TRIGGERS.animalDeath, `Morte: ${a.spec.nome}`, { tags: ['SANGUE', 'MORTE'] });
   }
 
   /**
@@ -1414,17 +1452,75 @@ export class Game {
   onNpcDeath(npc) {
     const q = npc.root?.position ?? npc.position;
     const seen = !q || this.inView(q.x, q.z, SANITY_TRIGGERS.witnessRadius, SANITY_TRIGGERS.witnessDot);
-    if (seen) this.sanity.drainSanity(SANITY_TRIGGERS.npcDeath, `Morte de ${npc.name ?? 'alguém'}`, { tags: ['SANGUE'] });
+    if (seen) this.sanity.drainSanity(SANITY_TRIGGERS.npcDeath, `Morte de ${npc.name ?? 'alguém'}`, { tags: ['SANGUE', 'MORTE'] });
   }
 
   /** Dano recebido: ataque surpresa (atacante fora da vista) e dano crítico abalam a mente. */
   onPlayerHurt(amount, source, attacker) {
     const T = SANITY_TRIGGERS;
-    if (amount >= this.state.maxHealth * T.criticalFraction) this.sanity.drainSanity(T.criticalHit, `Golpe crítico: ${source}`, { tags: ['SANGUE'] });
+    const beast = attacker?.spec ? ['ANIMAL'] : [];
+    if (amount >= this.state.maxHealth * T.criticalFraction) this.sanity.drainSanity(T.criticalHit, `Golpe crítico: ${source}`, { tags: ['SANGUE', ...beast] });
     if (attacker) {
       const q = attacker.root?.position ?? attacker.position;
-      if (q && !this.inView(q.x, q.z, Infinity, T.surpriseDot)) this.sanity.drainSanity(T.surpriseAttack, `Ataque surpresa: ${source}`);
+      if (q && !this.inView(q.x, q.z, Infinity, T.surpriseDot)) this.sanity.drainSanity(T.surpriseAttack, `Ataque surpresa: ${source}`, { tags: beast });
     }
+  }
+
+  /** Preso nas mandíbulas de um animal (Fauna): algo extremamente aterrorizante → checagem de fobia. */
+  onPlayerClamped(a) {
+    this.sanity.drainSanity(SANITY_TRIGGERS.clamped, `Preso: ${a.combat.clamp.label ?? a.spec.nome}`, { tags: ['ANIMAL', 'SANGUE'], severe: true });
+  }
+
+  /**
+   * Proximidade (0..1) do animal vivo e do cadáver mais perto, normalizada
+   * pelo raio da fobia. Só varre quando a fobia correspondente existe.
+   * @returns {{ nearAnimal: number, nearCorpse: number }}
+   */
+  phobiaProximity() {
+    const out = this._prox ?? (this._prox = { nearAnimal: 0, nearCorpse: 0 });
+    out.nearAnimal = 0; out.nearCorpse = 0;
+    const ph = this.survival.phobias, pos = this.player.position;
+    if (this.dead || this.areaId !== 'overworld') return out;
+    const dist = (p) => Math.hypot(p.x - pos.x, p.z - pos.z);
+    if (ph.has('zoofobia')) {
+      const R = PHOBIAS.zoofobia.effects.radius;
+      let d = R;
+      for (const a of this.fauna.animals) if (a.alive) d = Math.min(d, dist(a.root.position));
+      for (const v of Object.values(this.villages)) for (const a of v.animals) d = Math.min(d, dist(a.position));
+      out.nearAnimal = 1 - d / R;
+    }
+    if (ph.has('necrofobia')) {
+      const R = PHOBIAS.necrofobia.effects.radius;
+      let d = R;
+      for (const a of this.fauna.animals) if (!a.alive) d = Math.min(d, dist(a.root.position));
+      for (const s of this.skeletons.sites) d = Math.min(d, dist(s));
+      out.nearCorpse = 1 - d / R;
+    }
+    return out;
+  }
+
+  /**
+   * Efeitos de fobias e doenças que não são números de sobrevivência:
+   * tremor de câmera, batimentos, controles (pânico / confusão) e a película
+   * de visão (desfoque do enjoo, vermelho da febre). Roda a cada quadro.
+   */
+  updateAfflictions(dt) {
+    const ph = this.survival.phobias.effects, dz = this.survival.diseases.effects, off = this.dead;
+    const shake = off ? 0 : ph.shake + dz.chills;
+    if (shake > 0) this.cameraRig.kick(shake * (0.4 + 0.6 * this.random()));
+    this.heartbeat.update(dt, off || !ph.heartbeat ? 0 : this._prox?.nearAnimal ?? 0);
+    this.player.invertControls = !off && dz.invertControls;
+    this.player.wobble = off ? 0 : ph.wobble;
+    const blur = off ? 0 : Math.max(ph.nausea * 4, dz.fever * 2.5);
+    const red = off ? 0 : dz.fever * 0.35;
+    const key = `${blur.toFixed(1)}|${red.toFixed(2)}|${ph.nausea > 0}`;
+    if (key === this._fxKey) return;
+    this._fxKey = key;
+    const st = this.afflictionFx.style;
+    st.setProperty('--blur', `${blur.toFixed(1)}px`);
+    st.setProperty('--red', red.toFixed(2));
+    this.afflictionFx.classList.toggle('on', blur > 0 || red > 0);
+    this.afflictionFx.classList.toggle('nausea', ph.nausea > 0);
   }
 
   /** Flauta (TOCAR_INSTRUMENTO) e livro (LER_LIVROS): atividades de conforto. */
@@ -1532,6 +1628,7 @@ export class Game {
     const events = this.projectiles.step(dt, { groundAt: (x, z) => this.groundHeight(x, z, -Infinity), hitTest: (a, b) => this.projectileHit(a, b) });
     for (const { p, hit } of events) {
       if (p.gone) { this.projectiles.remove(p); continue; }
+      if (p.gear) { this.gear.onProjectileEvent(p, hit); continue; } // flechas/balas do pacote: dano fixo, sem recuperar
       if (hit) {
         if (hit.hunter) { hit.hunter.kill(); this.ui.showHit(`Acertou: ${hit.hunter.name} · morto`, true); }
         else if (hit.agent) this.onAgentShot(hit, p); else this.onAnimalShot(hit, p);
@@ -1719,7 +1816,7 @@ export class Game {
     if (!this.ready) return;
     // Esc abre/fecha o menu quando nenhum outro painel está aberto (os outros fecham com Esc antes)
     const ui0 = this.ui, othersOpen = ui0.graphicsOpen || ui0.dialogue.isOpen || !ui0.worldMap.classList.contains('hidden')
-      || this.inspection.active || this.backpack.open || this.notebookUI.open || this.recipeBook.open;
+      || this.inspection.active || this.backpack.open || this.notebookUI.open;
     if (this.input.pressed('Escape') && (this.pauseMenu.open || !othersOpen)) { this.pauseMenu.toggle(); this.input.consume?.('Escape'); }
     // menu aberto = jogo pausado (dt 0: nada anda, a cena continua desenhada)
     const dt = this.pauseMenu.open ? 0 : Math.min(rawDt, 0.1);
@@ -1740,15 +1837,20 @@ export class Game {
       if (input.pressed('ArrowRight')) this.setGraphics(stepPreset(this.graphics.id, 1).id);
       if (input.pressed('Escape')) ui.toggleGraphics(false);
     }
-    const panels = this.inspection.active || this.backpack.open || this.notebookUI.open || this.recipeBook.open;
+    const panels = this.inspection.active || this.backpack.open || this.notebookUI.open;
     const busy = this.dead || this.survival.fainted || panels || ui.dialogue.isOpen || ui.graphicsOpen || this.pauseMenu.open || !ui.worldMap.classList.contains('hidden');
     // Painéis de sobrevivência: C inspeção, I mochila, N caderneta, Esc fecha.
     if (!this.dead && !ui.dialogue.isOpen && !ui.graphicsOpen) {
       if (input.pressed('KeyC')) { if (this.inspection.active) this.inspection.close(); else if (!busy) this.inspection.open(); }
-      if (input.pressed('KeyI') && !this.inspection.active && !this.notebookUI.open) { this.recipeBook.toggle(false); this.backpack.toggle(); }
-      if (input.pressed('KeyJ') && !this.inspection.active) { this.backpack.hide(); this.notebookUI.toggle(false); this.recipeBook.toggle(); }
-      if (input.pressed('KeyN') && !this.inspection.active) { this.backpack.hide(); this.recipeBook.toggle(false); this.notebookUI.toggle(); }
-      if (input.pressed('Escape')) { this.inspection.close(); this.backpack.hide(); this.notebookUI.toggle(false); this.recipeBook.toggle(false); }
+      // Hub de crafting (mochila + catálogo JEI): I ou Tab; J abre já na busca.
+      if ((input.pressed('KeyI') || input.pressed('Tab')) && !this.inspection.active && !this.notebookUI.open) this.backpack.toggle();
+      if (input.pressed('KeyJ') && !this.inspection.active) { this.notebookUI.toggle(false); this.backpack.openSearch(); }
+      if (input.pressed('KeyN') && !this.inspection.active) { this.backpack.hide(); this.notebookUI.toggle(); }
+      // Esc fecha primeiro a janela de receita; de novo, o resto.
+      if (input.pressed('Escape')) {
+        if (this.backpack.viewer.open) this.backpack.viewer.close();
+        else { this.inspection.close(); this.backpack.hide(); this.notebookUI.toggle(false); }
+      }
       if (this.inspection.active) {
         [...Object.keys(LIMBS), null].forEach((id, i) => { if (input.pressed(`Digit${i + 1}`) || input.pressed(`Numpad${i + 1}`)) this.inspection.selectLimb(id); });
       }
@@ -1782,7 +1884,7 @@ export class Game {
     const inspecting = this.inspection.active;
     if (busy) { if (!inspecting) this.player.model.update(dt, 0); } // na inspeção a pose é da BodyInspection
     else {
-      if (!this.boat?.piloting) this.player.update(dt, input, this.cameraRig);
+      if (!this.boat?.busy) this.player.update(dt, input, this.cameraRig);
       this.slopeHint ??= new SlopeHint(ui.root);
       this.slopeHint.update(this.player.slope, this.player.status);
       // Em 1ª pessoa o corpo acompanha para onde se olha (o soco sai daí).
@@ -1832,6 +1934,7 @@ export class Game {
       this.vegetation.update(this.camera.position, true);
       this.grass.update(pos, !this.player.fastTravel && pos.y - this.terrain.heightAt(pos.x, pos.z) < 40);
       this.water.update(this.time, this.environment, this.camera);
+      this.waterSurface.tick();
       if (this._playerWaterSlot) this.water.query.set(this._playerWaterSlot, this.player.position.x, this.player.position.z);
       if (this.weather.group) this.weather.group.visible = !this.water.underwater; // chuva não cai debaixo d'água
       let near = null;
@@ -1862,6 +1965,8 @@ export class Game {
     this.applyWeatherDebuffs(dt);
     this.updateSurvival(dt);
     this.updateSanity(dt);
+    this.updateAfflictions(dt);
+    this.backpack.tick();
     this.updateLivingWorld(dt);
     ui.setWeather(this.gameClock.label(), this.weather.status, this.weather.overlays, this.weather.flash, this.debuffs);
     this.dungeons.update(dt, this.time, this.areaId);
@@ -1882,6 +1987,9 @@ export class Game {
       for (const a of this.fauna.animals) if (a.alive && (a.root.position.x - pos.x) ** 2 + (a.root.position.z - pos.z) ** 2 < R2) this.notebook.record('fauna', a.speciesId);
     }
     this.updateHunting(dt);
+    this.gear.update(dt, busy);
+    if (input.pressed(WORK_DEBUG.key)) this.workDebug.toggle();
+    this.workDebug.update(dt);
     if (this.cameraRig.isFirstPerson) this.fpArm.update(dt, busy ? 0 : this.player.speed, this.player.sprinting);
     ui.update(dt);
 

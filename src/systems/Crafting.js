@@ -1,4 +1,4 @@
-import { RECIPES } from '../config/items.js';
+import { TABLE_RECIPES } from './crafting/RecipeRegistry.js';
 
 /**
  * Crafting livre por descoberta (regra pura): o jogador põe até `maxSlots`
@@ -13,7 +13,7 @@ import { RECIPES } from '../config/items.js';
  * c.apply(recipe, state);                          // consome e entrega
  */
 export class Crafting {
-  constructor({ recipes = RECIPES, maxSlots = 4 } = {}) {
+  constructor({ recipes = TABLE_RECIPES, maxSlots = 4 } = {}) {
     this.recipes = recipes;
     this.maxSlots = maxSlots;
     this.keys = new Map(recipes.map((r) => [Crafting.key(Crafting.expand(r)), r]));

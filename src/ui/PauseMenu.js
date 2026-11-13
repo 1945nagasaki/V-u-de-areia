@@ -192,8 +192,9 @@ const CONTROLS_HTML = `<div class="pause-cols controls">
     <li>${key('Ctrl')} descer nadando</li><li>${key('V')} voar (teste)</li><li>${key('F')} viagem rápida</li></ul>
   <h4>Câmera</h4><ul><li>${key('T')} 1ª / 3ª pessoa</li><li>${key('Alt')} trava/destrava a câmera</li><li>${key('Roda')} zoom</li></ul></section>
   <section><h4>Ações</h4><ul>
-    <li>${key('E')} interagir · embarcar</li><li>${key('Clique')} bater / arremessar</li><li>${key('1–8')} escolher item</li><li>${key('H')} poção</li></ul>
-  <h4>Painéis</h4><ul><li>${key('I')} mochila</li><li>${key('J')} receitas</li><li>${key('N')} caderneta</li><li>${key('C')} corpo</li>
+    <li>${key('E')} interagir · embarcar</li><li>${key('Clique')} bater / arremessar</li><li>${key('1–8')} escolher item</li><li>${key('H')} poção</li>
+    <li>${key('Clique')} golpear · atirar · preparar o arco · comer/beber (de novo cancela)</li><li>${key('R')} recarregar (com arma de fogo na mão)</li><li>${key('X')} trocar o tipo de flecha</li></ul>
+  <h4>Painéis</h4><ul><li>${key('I')}/${key('Tab')} mochila e crafting</li><li>${key('J')} buscar receita · ${key('R')}/${key('U')} receita/usos do item</li><li>${key('N')} caderneta</li><li>${key('C')} corpo</li>
     <li>${key('M')} mapa</li><li>${key('G')} gráficos</li><li>${key('Esc')} este menu</li></ul></section>
   <section><h4>Barco</h4><ul>
     <li>${key('W')} alavanca para frente</li><li>${key('S')} alavanca para trás (ré)</li><li>${key('A')}${key('D')} leme</li><li>${key('E')} sair do barco</li></ul>

@@ -28,8 +28,8 @@ test('activityAt_childrenPlay_eldersRest_nightGuardsWorkAtNight', () => {
 });
 
 test('activityAt_jitterShiftsTransitions', () => {
-  assert.equal(activityAt(7.6, { jitter: 0.3 }), 'WAKE', 'atrasado: ainda em casa');
-  assert.equal(activityAt(7.4, { jitter: -0.3 }), 'WORK', 'adiantado: já no trabalho');
+  assert.equal(activityAt(7.2, { jitter: 0.3 }), 'WAKE', 'atrasado: ainda em casa');
+  assert.equal(activityAt(6.9, { jitter: -0.3 }), 'WORK', 'adiantado: já no trabalho');
 });
 
 test('energy_dropsDuringWorkday_toTiredByEvening_andSleepRestores', () => {

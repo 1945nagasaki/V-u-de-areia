@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { BOAT } from '../../config/boat.js';
 
 /**
@@ -128,4 +129,64 @@ export function buildBoatModel(cfg = BOAT) {
     setRudder(a) { rudder.rotation.y = a; },
     spin(dt, rpm, time) { prop.rotation.y += rpm * dt * 40; radar.rotation.y = time * 2.5; },
   };
+}
+
+/**
+ * Encaixa um modelo carregado no referencial do barco: comprimento `length` m ao longo de Z
+ * (proa em +Z), centrado em x/z, com `draft` m de casco abaixo de y = 0 (linha d'água).
+ * Não altera a malha nem os materiais: só a transformação do nó raiz.
+ * @param {THREE.Object3D} object cena do GLB (Y para cima)
+ * @param {{ length: number, draft: number, flip?: boolean, offsetZ?: number }} o `offsetZ`: desloca ao longo do barco (m)
+ * @returns {{ holder: THREE.Group, size: THREE.Vector3, scale: number }} `size` já em metros do jogo
+ * @example
+ *   const { holder, size } = fitBoatModel(gltf.scene, { length: 8.2, draft: 0.28 });
+ */
+export function fitBoatModel(object, { length, draft, flip = false, offsetZ = 0 }) {
+  const holder = new THREE.Group();
+  holder.add(object);
+  object.updateMatrixWorld(true);
+  let box = new THREE.Box3().setFromObject(object);
+  const s0 = box.getSize(new THREE.Vector3());
+  // O eixo horizontal mais comprido é o comprimento: leva-o para Z.
+  if (s0.x > s0.z) object.rotation.y += Math.PI / 2;
+  if (flip) object.rotation.y += Math.PI;
+  object.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(object);
+  const size = box.getSize(new THREE.Vector3()), scale = length / size.z;
+  const c = box.getCenter(new THREE.Vector3());
+  object.position.x -= c.x; object.position.z -= c.z; object.position.y -= box.min.y;
+  holder.scale.setScalar(scale);
+  holder.position.set(0, -draft, offsetZ);
+  return { holder, size: size.multiplyScalar(scale), scale };
+}
+
+/**
+ * Troca o lagosteiro procedural pelo modelo GLB de `cfg.model` (se houver). O barco já
+ * existe e funciona enquanto o arquivo carrega; se o carregamento falhar, o procedural fica.
+ * O GLB é uma malha só: leme e hélice continuam existindo (a física os usa), mas invisíveis.
+ * @param {ReturnType<typeof buildBoatModel>} model
+ * @param {typeof BOAT} [cfg]
+ * @returns {Promise<boolean>} true se o modelo novo entrou
+ * @example
+ *   const model = buildBoatModel();
+ *   loadBoatModel(model).then((ok) => console.log(ok ? 'GLB' : 'procedural'));
+ */
+export async function loadBoatModel(model, cfg = BOAT) {
+  const m = cfg.model;
+  if (!m?.url) return false;
+  try {
+    const base = import.meta.env?.BASE_URL ?? '/';
+    const gltf = await new GLTFLoader().loadAsync(base + m.url);
+    const { holder, size } = fitBoatModel(gltf.scene, m);
+    holder.name = 'barco-glb';
+    holder.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    for (const child of model.group.children) child.visible = false; // peças do procedural
+    model.group.add(holder);
+    model.glb = holder;
+    model.size = size;
+    return true;
+  } catch (err) {
+    console.warn(`Modelo do barco não carregou (${m.url}); usando o procedural.`, err);
+    return false;
+  }
 }

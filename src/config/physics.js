@@ -1,27 +1,28 @@
 /**
- * Física (cannon-es). O mundo de física é "transmitido": só existe perto do
+ * Física (Rapier, @dimforge/rapier3d-compat). Escala real: 1 unidade = 1 metro. O mundo de física é "transmitido": só existe perto do
  * jogador — um pedaço de terreno (heightfield), os colisores estáticos
  * (paredes, rochas, poços, cercas, plataformas) e os objetos dinâmicos num
  * raio `radius`. Ao andar `rebuildDistance` metros, tudo é refeito em volta.
  * Objetos fora do raio ficam congelados onde pararam.
  *
  * - gravity: m/s²
- * - step: passo fixo da simulação (s); maxSubSteps: limite por quadro
+ * - step: passo fixo da simulação (s); maxFrame: tempo máximo simulado por quadro (aba sem foco não dá salto)
+ * - dynamic: resistência do ar e CCD (anti-atravessamento) dos objetos móveis
  * - heightfieldStep: resolução do terreno físico (m)
  * - staticHeight: altura (m) dos colisores sem faixa definida (paredes "infinitas" do controle 2D)
  * - player: raio do corpo cinemático que empurra os objetos e força do soco
  */
 export const PHYSICS = {
-  gravity: -9.82,
+  gravity: -9.81,
   step: 1 / 60,
-  maxSubSteps: 3,
+  maxFrame: 0.25,
+  dynamic: { linearDamping: 0.08, angularDamping: 0.2, ccd: true },
   radius: 55,
-  /** Colisores gerados automaticamente (WorldColliders) só viram corpo no cannon neste raio (m): são muitos e pequenos. */
+  /** Colisores gerados automaticamente (WorldColliders) só viram corpo físico neste raio (m): são muitos e pequenos. */
   staticRadius: 30,
   rebuildDistance: 18,
   heightfieldStep: 2,
   staticHeight: 7,
-  sleep: { speed: 0.12, time: 0.6 },
   friction: 0.45,
   restitution: 0.08,
   player: { radius: 0.42, height: 1.2, punchForce: 26, punchLift: 0.35, punchRange: 2.2 },

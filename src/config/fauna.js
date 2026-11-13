@@ -63,7 +63,11 @@ export const SPECIES = {
     walk: 0.5, run: 8, health: 4, sense: 7, soarRadius: 11, soarHeight: [9, 16], group: [2, 5] },
   avestruz: { nome: 'Avestruz', behavior: 'flee', model: 'ostrich', size: 1.3, color: 0x1e1a18,
     walk: 1.4, run: 15, health: 30, sense: 16, group: [2, 4] },
+  // swim: quanto do corpo fica debaixo d'água (m, medidos da barriga): nadando só o dorso, os olhos e o
+  // focinho ficam de fora; à espreita (lurk) afunda mais e sobra a linha dos olhos; `hysteresis` evita
+  // que ele fique trocando andar/nadar na beira; `rate` = suavidade de afundar/emergir (1/s) [jogo].
   jacare: { nome: 'Jacaré do Rio', behavior: 'ambush', model: 'croc', size: 0.45, color: 0x3a4228, swims: true, aquatic: true, landSpeed: 0.3, shoreRange: 9,
+    swim: { depth: 0.36, lurk: 0.47, lurkRange: 22, hysteresis: 0.06, rate: 1.6 },
     walk: 0.7, run: 6, health: 70, damage: 24, attackRange: 1.9, strikeRange: 5, attackCooldown: 1.6, sense: 9, giveUp: 12, group: [1, 2] },
   cerbero: { nome: 'Cérbero', behavior: 'guardian', model: 'cerberus', size: 1.25, color: 0x18141a, glow: 0xff3a2a,
     walk: 1.4, run: 10, health: 160, damage: 28, attackRange: 2.2, attackCooldown: 1.2, sense: 26, guardRadius: 70, giveUp: 90, group: [1, 1] },

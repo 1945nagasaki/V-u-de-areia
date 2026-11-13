@@ -271,13 +271,14 @@ export class WeatherManager {
       if (w < 0.01 || this.indoor) { l.points.visible = false; continue; }
       this.windOf(l.biome, time, wind);
       if (!l.state.seeded) seedParticles(l.state, center, this.rng);
-      stepParticles(l.state, dt, center, wind.x, wind.z, time, this.rng);
       // Menos partículas E mais transparentes conforme a intensidade.
-      l.points.geometry.setDrawRange(0, Math.ceil(l.state.active * Math.min(1, w * 1.3)));
+      const drawn = Math.ceil(l.state.active * Math.min(1, w * 1.3));
+      stepParticles(l.state, dt, center, wind.x, wind.z, time, this.rng, drawn); // só as que aparecem
+      l.points.geometry.setDrawRange(0, drawn);
       const u = l.points.material.uniforms;
       u.uOpacity.value = l.opacity * Math.sqrt(w);
       if (l.spec.shape === 'streak') u.uAngle.value = this.screenAngle(camera, wind.x, -l.spec.fall, wind.z);
-      l.posAttr.addUpdateRange(0, l.state.active * 3);
+      l.posAttr.addUpdateRange(0, drawn * 3);
       l.posAttr.needsUpdate = true;
       l.points.visible = true;
     }

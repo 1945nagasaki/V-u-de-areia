@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { BOAT } from '../../config/boat.js';
 import { WORLD } from '../../config/worldConfig.js';
 import { BoatPhysics } from './BoatPhysics.js';
-import { buildBoatModel } from '../../render/boat/BoatModel.js';
+import { buildBoatModel, loadBoatModel } from '../../render/boat/BoatModel.js';
+import { findLanding, hopPath } from './Boarding.js';
 import { WakeSim } from '../../render/ocean/WakeSim.js';
 import { BoatSpray } from '../../render/boat/BoatSpray.js';
 import { WAKE } from '../../config/ocean.js';
@@ -32,6 +33,12 @@ export class BoatController {
     this.model = buildBoatModel(cfg);
     game.scene.add(this.model.group);
     this.model.group.userData.noCollide = true;
+    // Modelo GLB (config BOAT.model): entra quando terminar de carregar; o leme e a saída passam a ser os dele.
+    loadBoatModel(this.model, cfg).then((ok) => {
+      if (!ok) return;
+      if (cfg.model.helm) this._helm.set(...cfg.model.helm);
+      if (cfg.model.exit) this._exit.set(...cfg.model.exit);
+    });
     this.piloting = false;
     this.throttle = 0; // posição da alavanca −1..1
     this.steer = 0;
@@ -100,23 +107,66 @@ export class BoatController {
     this.sync();
   }
 
-  /** Jogador assume o leme. */
+  /** O jogador está no barco ou pulando para dentro/fora dele (sem controle a pé). */
+  get busy() {
+    return this.piloting || !!this.hop;
+  }
+
+  /** Jogador assume o leme: pula da posição atual até o leme (arco de `boarding.hop` s). */
   enter() {
+    const pl = this.game.player;
     this.piloting = true;
     this.throttle = 0;
     this.board.enabled = false;
+    // Origem do pulo em coordenadas do BARCO: o barco balança durante o pulo e o destino vai junto.
+    this.hop = { t: 0, dir: 'in', fromWorld: pl.position.clone() };
     this.game.ui?.toast?.('Pilotando: W/S alavanca · A/D leme · E sai do barco');
   }
 
-  /** Jogador sai: vai para a borda do barco (ou o píer/terra mais próxima). */
+  /**
+   * Jogador sai: pula para a terra firme mais próxima (píer, margem) ou, sem terra ao alcance, para a
+   * água ao lado do barco (nada). Lugar inválido (parede, barranco alto, encosta) não serve; se não
+   * houver nenhum, continua no barco com um aviso.
+   * @returns {boolean} true se saiu
+   */
   exit() {
+    const g = this.game, ph = this.physics, B = this.cfg.boarding;
+    const c = ph.renderPosition, yaw = ph.angles().yaw;
+    const deck = this._p.copy(this._helm).applyQuaternion(ph.renderQuaternion).add(c);
+    const waterExit = ph.toWorld(this._exit, new THREE.Vector3());
+    // Chão alcançável a partir do assoalho: terreno, píer, ponte ou plataforma até `maxClimb` acima (não telhados).
+    const ground = (x, z) => g.groundHeight?.(x, z, deck.y + B.maxClimb) ?? g.terrain.heightAt(x, z);
+    const isWater = (x, z) => ground(x, z) < WORLD.waterLevel - 0.05; // píer sobre a água conta como chão
+    const blocked = (x, z) => !!g.collisions?.overlaps(x, z, B.playerRadius);
+    const spot = findLanding(c, yaw, { groundAt: ground, isWater, blocked, deckY: deck.y, waterExit }, B);
+    if (!spot) { g.ui?.toast?.('Não há onde descer aqui: chegue mais perto da margem.'); return false; }
     this.piloting = false;
     this.throttle = 0;
     this.steer = 0;
     this.board.enabled = true;
-    const p = this.physics.toWorld(this._exit, this._p);
-    const pl = this.game.player;
-    pl.teleport(p.x, p.z, pl.facing ? Math.atan2(pl.facing.x, pl.facing.z) : 0, Math.max(p.y, this.game.terrain.heightAt(p.x, p.z)));
+    const to = new THREE.Vector3(spot.x, spot.water ? this.waterAt(spot.x, spot.z).h - 0.9 : spot.y, spot.z);
+    this.hop = { t: 0, dir: 'out', fromWorld: deck.clone(), to, water: spot.water };
+    return true;
+  }
+
+  /** Avança o pulo de embarque/desembarque (o jogador fica sem controle durante `boarding.hop` s). */
+  updateHop(dt) {
+    const h = this.hop, pl = this.game.player, B = this.cfg.boarding;
+    h.t += dt / B.hop;
+    const helm = this._p.copy(this._helm).applyQuaternion(this.physics.renderQuaternion).add(this.physics.renderPosition);
+    const a = h.fromWorld, b = h.dir === 'in' ? helm : h.to; // entrando, o destino (leme) acompanha o balanço
+    hopPath(a, b, h.t, B.lift, pl.position);
+    pl.root?.position.copy(pl.position);
+    const dx = b.x - a.x, dz = b.z - a.z;
+    if (Math.hypot(dx, dz) > 0.05 && pl.root) pl.root.rotation.y = Math.atan2(dx, dz);
+    pl.velocity?.set(0, 0, 0);
+    pl.model?.update?.(0, 0);
+    if (h.t < 1) return;
+    this.hop = null;
+    if (h.dir === 'out') {
+      const yaw = pl.root ? pl.root.rotation.y : 0;
+      pl.teleport(h.to.x, h.to.z, yaw, h.water ? h.to.y : undefined); // em terra: o chão decide a altura
+    }
   }
 
   /**
@@ -132,13 +182,14 @@ export class BoatController {
       this.throttle = Math.max(-1, Math.min(1, this.throttle + (up - down) * c.throttleRate * dt));
       if (!up && !down && Math.abs(this.throttle) < 0.04) this.throttle = 0; // ponto morto
       this.steer = (input.isDown('KeyA') || input.isDown('ArrowLeft') ? 1 : 0) - (input.isDown('KeyD') || input.isDown('ArrowRight') ? 1 : 0);
-      if (input.pressed('KeyE')) { this.exit(); input.consume?.('KeyE'); }
+      if (input.pressed('KeyE') && !this.hop) { this.exit(); input.consume?.('KeyE'); }
     } else { this.steer = 0; this.throttle = 0; }
     this.requestWater();
     ph.update(dt, { throttle: this.throttle, steer: this.steer }, { water: this.water, ground: this.ground });
     this.sync(dt);
     this.updateWake(dt);
-    if (this.piloting) this.placePilot();
+    if (this.hop) this.updateHop(dt);
+    else if (this.piloting) this.placePilot();
     this.updateHud();
   }
 

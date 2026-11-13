@@ -66,18 +66,19 @@ export class SanityManager {
    * Tira sanidade.
    * @param {number} amount
    * @param {string} reason causa (vai no log/HUD)
-   * @param {{ tags?: string[], quiet?: boolean }} [o] tags (ex.: 'SANGUE') multiplicam
-   *   se o personagem detesta; `quiet` = não registra no log (drenos contínuos)
+   * @param {{ tags?: string[], quiet?: boolean, severe?: boolean }} [o] tags (ex.: 'SANGUE') multiplicam
+   *   se o personagem detesta e dão o contexto do trauma (PhobiaManager); `quiet` = não registra
+   *   no log (drenos contínuos); `severe` = algo extremamente aterrorizante (checa fobia na hora)
    * @returns {number} quanto saiu de fato
    */
-  drainSanity(amount, reason, { tags = [], quiet = false } = {}) {
+  drainSanity(amount, reason, { tags = [], quiet = false, severe = false } = {}) {
     if (amount <= 0) return 0;
     const mult = this.dislikes(tags) ? DISLIKE_MULTIPLIER : 1;
     const before = this.value;
     this.value = Math.max(0, this.value - amount * mult);
     const lost = before - this.value;
     if (!quiet && lost > 0) this.record(-lost, reason);
-    if (lost > 0) this.emit('drain', { amount: lost, reason, disliked: mult > 1, quiet });
+    if (lost > 0) this.emit('drain', { amount: lost, reason, disliked: mult > 1, quiet, tags, severe });
     this.checkLevel();
     return lost;
   }
@@ -116,15 +117,16 @@ export class SanityManager {
   /**
    * Drenos contínuos do quadro.
    * @param {number} dt
-   * @param {{ paranormal?: {dist:number, reach:number}[], cursed?: boolean, dark?: boolean }} env
+   * @param {{ paranormal?: {dist:number, reach:number}[], cursed?: boolean, dark?: boolean, darkMult?: number }} env
+   *   darkMult: multiplica o dreno da escuridão (Nictofobia = 3)
    */
-  update(dt, { paranormal = [], cursed = false, dark = false } = {}) {
+  update(dt, { paranormal = [], cursed = false, dark = false, darkMult = 1 } = {}) {
     const T = SANITY_TRIGGERS;
     let near = 0;
     for (const p of paranormal) if (p.dist < p.reach) near = Math.max(near, 1 - p.dist / p.reach);
     if (near > 0) this.drainSanity(T.paranormalPerSecond * near * dt, 'Presença paranormal', { quiet: true });
     if (cursed) this.drainSanity(T.cursedPerSecond * dt, 'Local amaldiçoado', { quiet: true });
-    if (dark) this.drainSanity(T.darkPerSecond * dt, 'Escuridão', { tags: ['ESCURIDAO'], quiet: true });
+    if (dark) this.drainSanity(T.darkPerSecond * darkMult * dt, 'Escuridão', { tags: ['ESCURIDAO'], quiet: true });
   }
 
   record(delta, reason) {

@@ -375,7 +375,10 @@ function analyzeLegged(S, box, cfg, kind, opts) {
   let tail = null, tailTip = null;
   if (opts.tail !== false) {
     const zRear = Math.min(zPelvis, zBackLegs) - L * 0.05;
-    const T = select(S, (x, y, z) => z < zRear && y > legTop * 0.3 && Math.abs(x) < W * 0.28
+    // Patas abertas para o lado (jacaré): a cauda é grossa, rente ao chão e pode vir CURVA no modelo —
+    // vale tudo o que está atrás do quadril (sem exigir que fique sobre o eixo nem acima do jarrete).
+    const curved = !!opts.lateralLegs;
+    const T = select(S, (x, y, z) => z < zRear && (curved || (y > legTop * 0.3 && Math.abs(x) < W * 0.28))
       && !legs.some((l) => !l.front && y < legTop && Math.hypot(x - l.foot.x, z - l.foot.z) < l.radius * 1.4));
     if (T.length > 20) {
       const P = spine[0];
@@ -387,10 +390,12 @@ function analyzeLegged(S, box, cfg, kind, opts) {
         tail = [];
         for (let i = 0; i < nT; i++) {
           const ids = band(i / nT - (i ? 0.04 : 0), i / nT + 0.08);
-          tail.push(ids.length ? centroid(S, ids).setX(0) : P.clone());
+          // Cauda curva: os ossos seguem a linha do meio REAL (x do centroide); reta: ficam no eixo.
+          const c = ids.length ? centroid(S, ids) : P.clone();
+          tail.push(curved ? c : c.setX(0));
         }
         const tipIds = band(0.94, 1.01);
-        tailTip = tipIds.length ? centroid(S, tipIds).setX(0) : tail[tail.length - 1].clone();
+        tailTip = tipIds.length ? (curved ? centroid(S, tipIds) : centroid(S, tipIds).setX(0)) : tail[tail.length - 1].clone();
         // Base da cauda nunca dentro do quadril: começa na traseira.
         tail[0].z = Math.min(tail[0].z, zRear + L * 0.02);
       }
@@ -497,6 +502,7 @@ function weighGeometry(geometry, ctx) {
   const w = new Map();
   const add = (bone, v) => { if (bone && v > 0) w.set(bone, (w.get(bone) ?? 0) + v); };
   const pelvis = spineBones[0], chest = spineBones[spineBones.length - 1], mid = spineBones[Math.floor((spineBones.length - 1) / 2)];
+  const tailSegs = segs.filter(([bone]) => /^ar_tail/.test(bone.name));
 
   for (let v = 0; v < n; v++) {
     _p.fromBufferAttribute(pos, v);
@@ -514,8 +520,18 @@ function weighGeometry(geometry, ctx) {
         const d = Math.hypot(_p.x - ax, _p.z - az) / l.radius;
         if (d < bd) { bd = d; leg = l; }
       }
+      // Cauda grossa e rente ao chão (jacaré): vértice mais perto da linha da cauda do que do eixo
+      // da pata é cauda — senão a pata traseira arrastava a cauda para cima e para baixo a cada passo.
+      if (leg && A.lateral && tailSegs.length) {
+        let dt = Infinity;
+        for (const [, a, b] of tailSegs) dt = Math.min(dt, segDist(_p, a, b));
+        if (dt < bd * leg.radius * 1.6) { leg = null; bd = Infinity; }
+      }
       if (bd < 1.8) legShare = 1 - smooth(A.legTop - blend, A.legTop + blend, _p.y);
       else leg = null;
+      // Corpo rente ao chão (jacaré): barriga, dorso e base da cauda ficam todos "abaixo do topo da
+      // pata" — a altura não separa perna de corpo. Vale a distância ao eixo da pata.
+      if (leg && A.lateral) legShare *= 1 - smooth(0.75, 1.25, bd);
     }
     if (leg && legShare > 0) {
       const kb = H * 0.05;

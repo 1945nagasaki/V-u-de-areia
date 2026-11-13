@@ -5,7 +5,9 @@ import { applyWorldPhysics, pieceVolume, classifyPiece } from '../../../src/phys
 import { StaticBatcher } from '../../../src/render/StaticBatcher.js';
 import { CollisionWorld } from '../../../src/world/CollisionWorld.js';
 import { Surfaces } from '../../../src/world/Surfaces.js';
-import { PhysicsWorld } from '../../../src/physics/PhysicsWorld.js';
+import { PhysicsWorld, initPhysics } from '../../../src/physics/PhysicsWorld.js';
+
+await initPhysics();
 import { PHYSICS, MOVE_SUBSTEP, WORLD_COLLIDERS } from '../../../src/config/physics.js';
 
 const box = new THREE.BoxGeometry(1, 1, 1);

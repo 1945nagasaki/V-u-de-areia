@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Laboratório de Itens</title>
+    <style>
+      :root { --bg: #c9d4dc; --ink: #1d232a; --panel: rgba(255, 255, 255, 0.86); }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
+      #hud { position: fixed; left: 12px; top: 12px; background: var(--panel); padding: 8px 12px; border-radius: 8px; max-width: 52ch; }
+      #hud select, #hud button, #hud input { font: inherit; margin: 2px 4px 2px 0; }
+      #info { margin-top: 4px; color: #44505c; }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      <b>Laboratório de Itens</b> — <span id="status">carregando…</span><br />
+      <label>Item <select id="item"></select></label>
+      <label>Ação <select id="action"><option value="idle">repouso</option><option value="swing">golpe</option><option value="reload">recarga</option><option value="draw">arco</option><option value="consume">comer/beber</option></select></label><br />
+      <label>Progresso <input id="t" type="range" min="0" max="1" step="0.01" value="0.5" /></label>
+      <button id="play">Animar</button><button id="fp">1ª pessoa</button><button id="grid">Todos</button>
+      <div id="info"></div>
+    </div>
+    <script type="module">
+      /*
+       * Ferramenta de desenvolvimento (não entra no build do jogo).
+       * Inspeciona cada item do pacote (config/gear.js) com o MESMO GearModels /
+       * HeldItem do jogo: na mão do boneco (3ª pessoa), preso à câmera (1ª pessoa),
+       * todos numa grade, e gera os ícones PNG com fundo transparente.
+       *   /tools/item-lab.html?item=rifle&action=reload&t=0.4
+       *   /tools/item-lab.html?item=espada_metal&fp=1
+       *   /tools/item-lab.html?grid=1
+       * API para automação: window.lab (setItem, setAction, iconPNG, ids)
+       */
+      import * as THREE from 'three';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+      import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+      import { Humanoid } from '../src/entities/Humanoid.js';
+      import { GearModels } from '../src/render/gear/GearModels.js';
+      import { HeldItem } from '../src/render/gear/HeldItem.js';
+      import { GEAR_CATALOG } from '../src/config/gear.js';
+      import { gearStats } from '../src/ui/gear/ItemIcon.js';
+
+      const q = new URLSearchParams(location.search);
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(1);
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      document.body.appendChild(renderer.domElement);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xc9d4dc);
+      const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.02, 200);
+      camera.position.set(1.9, 1.5, 2.6);
+      scene.add(camera);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, 1.1, 0);
+      // reflexo de ambiente (no jogo vem do céu): sem ele os metais ficam pretos
+      const envMap = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+      scene.environment = envMap;
+      if (q.get('hud') === '0') document.getElementById('hud').style.display = 'none';
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a60, 1.1));
+      const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+      sun.position.set(4, 8, 5);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      scene.add(sun);
+      const ground = new THREE.Mesh(new THREE.CircleGeometry(12, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xa9b6a0, roughness: 1 }));
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      const ids = Object.keys(GEAR_CATALOG);
+      const models = new GearModels();
+      const human = new Humanoid({ height: 1.8, skin: 0x6b4430, shirt: 0xc8a050, pants: 0x3a3a44, hat: null, build: 1.05, rng: () => 0.5 });
+      scene.add(human.root);
+      // câmera de 1ª pessoa separada (o item do HeldItem fica preso nela)
+      const fpCam = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.02, 200);
+      fpCam.position.set(0, 1.62, 0.1);
+      fpCam.lookAt(0, 1.6, 5);
+      scene.add(fpCam);
+      const held = new HeldItem({ models, humanoid: human, camera: fpCam });
+      const gridGroup = new THREE.Group();
+      scene.add(gridGroup);
+
+      const state = { item: q.get('item') ?? 'espada_metal', action: q.get('action') ?? 'idle', t: Number(q.get('t') ?? 0.5), fp: q.get('fp') === '1', play: false, grid: q.get('grid') === '1', clock: 0 };
+      const $ = (id) => document.getElementById(id);
+      for (const id of ids) $('item').add(new Option(`${GEAR_CATALOG[id].name} (${id})`, id));
+      const sync = () => {
+        $('item').value = state.item; $('action').value = state.action; $('t').value = state.t;
+        const d = GEAR_CATALOG[state.item];
+        $('info').innerHTML = `<b>${d.name}</b> — ${d.description}<br>${gearStats(d).join(' · ')}`;
+        held.set(state.item);
+      };
+      $('item').onchange = (e) => { state.item = e.target.value; sync(); };
+      $('action').onchange = (e) => { state.action = e.target.value; };
+      $('t').oninput = (e) => { state.t = Number(e.target.value); state.play = false; };
+      $('play').onclick = () => { state.play = !state.play; };
+      $('fp').onclick = () => { state.fp = !state.fp; };
+      $('grid').onclick = () => { state.grid = !state.grid; buildGrid(); };
+
+      function buildGrid() {
+        gridGroup.clear();
+        human.root.visible = !state.grid;
+        if (!state.grid) { camera.position.set(1.9, 1.5, 2.6); controls.target.set(0, 1.1, 0); return; }
+        const cols = 10;
+        ids.forEach((id, i) => {
+          const m = models.create(id);
+          const box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+          const pivot = new THREE.Group();
+          m.position.sub(c);
+          pivot.add(m);
+          pivot.scale.setScalar(Math.min(1.6, 0.42 / Math.max(size.x, size.y, size.z)) );
+          pivot.rotation.set(-0.5, 0.6, 0.2);
+          pivot.position.set((i % cols) * 0.62 - (cols - 1) * 0.31, 2.6 - Math.floor(i / cols) * 0.62, 0);
+          gridGroup.add(pivot);
+        });
+        camera.position.set(0, 1.4, 6.6); controls.target.set(0, 1.4, 0);
+      }
+
+      /**
+       * Ícone 512×512 com fundo transparente de verdade: o modelo sozinho, em
+       * ângulo de 3/4, enquadrado com margem, com contorno escuro para ler bem
+       * em fundo claro ou escuro.
+       */
+      function iconPNG(id, size = 512) {
+        const s = new THREE.Scene();
+        s.environment = envMap;
+        s.add(new THREE.HemisphereLight(0xffffff, 0x6a6258, 1.3));
+        const key = new THREE.DirectionalLight(0xffffff, 2.6); key.position.set(2, 4, 5); s.add(key);
+        const rim = new THREE.DirectionalLight(0xfff0d8, 1.2); rim.position.set(-4, 2, -3); s.add(rim);
+        const m = models.create(id), d = GEAR_CATALOG[id];
+        const pivot = new THREE.Group();
+        pivot.add(m);
+        // pose do ícone: itens compridos (ponta em +Z) na diagonal; o resto em 3/4
+        const flat = ['adaga', 'espada', 'flecha', 'reliquia_espada'].includes(d.model.builder); // lâminas: mostra a face larga
+        const long = ['arco', 'machado', 'picareta', 'pistola', 'rifle', 'graveto', 'reliquia_espada', 'reliquia_costela', 'cenoura', 'milho', 'pao', 'reliquia_dente', 'municao_pistola', 'municao_rifle'].includes(d.model.builder);
+        if (flat) { pivot.rotation.set(-Math.PI / 2, 0, 0); pivot.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), -Math.PI / 4); pivot.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), -0.2); }
+        else if (long) { pivot.rotation.set(0, -Math.PI / 2, 0); pivot.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), Math.PI / 4); pivot.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), 0.25); }
+        else pivot.rotation.set(0.45, -0.6, 0);
+        if (d.model.builder === 'pistola' || d.model.builder === 'rifle') { pivot.rotation.set(0, -Math.PI / 2, 0); pivot.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), d.model.builder === 'rifle' ? 0.5 : 0.15); pivot.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), 0.25); }
+        s.add(pivot);
+        pivot.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(pivot), c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
+        const half = Math.max(sz.x, sz.y) / 2 / 0.8; // margem de segurança: 10% de cada lado
+        const cam = new THREE.OrthographicCamera(-half, half, half, -half, 0.01, 50);
+        cam.position.set(c.x, c.y, c.z + 10);
+        cam.lookAt(c);
+        const prevSize = renderer.getSize(new THREE.Vector2());
+        renderer.setSize(size, size, false);
+        renderer.setClearColor(0x000000, 0);
+        const bg = scene.background;
+        renderer.render(s, cam);
+        const shot = document.createElement('canvas'); shot.width = shot.height = size;
+        shot.getContext('2d').drawImage(renderer.domElement, 0, 0, size, size);
+        renderer.setSize(prevSize.x, prevSize.y, false);
+        scene.background = bg;
+        // contorno: silhueta escura carimbada em volta, cor por cima
+        const sil = document.createElement('canvas'); sil.width = sil.height = size;
+        const sc = sil.getContext('2d');
+        sc.drawImage(shot, 0, 0); sc.globalCompositeOperation = 'source-in'; sc.fillStyle = '#1a1410'; sc.fillRect(0, 0, size, size);
+        const out = document.createElement('canvas'); out.width = out.height = size;
+        const oc = out.getContext('2d'), r = size * 0.012;
+        for (let a = 0; a < 16; a++) oc.drawImage(sil, Math.cos(a * Math.PI / 8) * r, Math.sin(a * Math.PI / 8) * r);
+        oc.drawImage(shot, 0, 0);
+        return out.toDataURL('image/png');
+      }
+
+      window.lab = {
+        ids,
+        ready: false,
+        setItem: (id) => { state.item = id; sync(); },
+        setAction: (action, t = 0.5, fp = state.fp) => { state.action = action; state.t = t; state.fp = fp; state.play = false; sync(); },
+        setGrid: (on) => { state.grid = on; buildGrid(); },
+        setView: (x, y, z, tx = 0, ty = 1.1, tz = 0) => { camera.position.set(x, y, z); controls.target.set(tx, ty, tz); },
+        iconPNG,
+      };
+
+      const clock = new THREE.Clock();
+      sync();
+      buildGrid();
+      addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); for (const c of [camera, fpCam]) { c.aspect = innerWidth / innerHeight; c.updateProjectionMatrix(); } });
+      renderer.setAnimationLoop(() => {
+        const dt = Math.min(clock.getDelta(), 0.05);
+        state.clock += dt;
+        if (state.play) { state.t = (state.t + dt * 0.6) % 1; $('t').value = state.t; }
+        human.update(dt, 0, {});
+        const a = state.action, t = state.t;
+        human.root.visible = !state.fp && !state.grid;
+        held.update(dt, { swing: a === 'swing' ? t : null, reload: a === 'reload' ? t : null, draw: a === 'draw' ? t : null, consume: a === 'consume' ? t : null, pitch: 0, firstPerson: state.fp });
+        controls.update();
+        renderer.setClearColor(0xc9d4dc, 1);
+        renderer.render(scene, state.fp ? fpCam : camera);
+        if (!window.lab.ready && state.clock > 0.6) { window.lab.ready = true; $('status').textContent = `${ids.length} itens`; }
+      });
+    </script>
+  </body>
+</html>

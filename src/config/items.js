@@ -1,4 +1,5 @@
 import { FOODS } from './survival.js';
+import { GEAR_CATALOG } from './gear.js';
 
 /**
  * Catálogo de itens da mochila (data-driven).
@@ -7,7 +8,7 @@ import { FOODS } from './survival.js';
  *   tool: true → usado no crafting/tratamento sem ser consumido
  *   hotbar: true → ao ser criado vai para a hotbar (equipável)
  */
-export const ITEM_CATALOG = {
+const LEGACY_CATALOG = {
   // ---- materiais ----
   graveto: { name: 'Graveto', icon: 'stick', kind: 'material', description: 'Pau curto e seco. Flechas e fogueira.' },
   graveto_longo: { name: 'Graveto Longo', icon: 'log', kind: 'material', description: 'Vara reta de 2 m. Base de lanças e arcos.' },
@@ -48,7 +49,22 @@ export const ITEM_CATALOG = {
   flecha: { name: 'Flecha', icon: 'arrow', kind: 'material', description: 'Munição do arco.' },
   // ---- comida (macros em FOODS) ----
   ...Object.fromEntries(Object.entries(FOODS).map(([id, f]) => [id, { name: f.name, icon: f.icon, kind: 'food', food: true, description: foodDescription(f) }])),
+  // ---- remédios de doenças (consumíveis: entradas em FOODS; curam via DiseaseManager.cure) ----
+  cha_ervas: { name: 'Chá de Ervas Medicinais', icon: 'bowl', kind: 'medicine', food: true, description: 'Antibiótico de mato. Cura Febre Maculosa e Leptospirose.' },
+  soro_antirrabico: { name: 'Soro Antirrábico', icon: 'syringe', kind: 'medicine', food: true, description: 'Injetado com a agulha de osso. Única cura da Raiva.' },
+  cataplasma_antibiotico: { name: 'Cataplasma Antibiótico', icon: 'bandage', kind: 'medicine', food: true, description: 'Pasta de cinza, mel e folha sobre a mordida. Cura o Tétano.' },
 };
+
+/**
+ * Catálogo final: itens antigos + o pacote de itens (config/gear.js). Onde o
+ * id já existia (pedra, graveto, banana, arco, flecha), valem os campos do
+ * pacote; pedra e graveto mantêm o texto antigo (eles têm uso no crafting).
+ */
+export const ITEM_CATALOG = { ...LEGACY_CATALOG };
+for (const [id, d] of Object.entries(GEAR_CATALOG)) {
+  const old = LEGACY_CATALOG[id];
+  ITEM_CATALOG[id] = old && d.keepLegacyText ? { ...d, description: old.description } : d;
+}
 
 function foodDescription(f) {
   const parts = [];
@@ -61,29 +77,7 @@ function foodDescription(f) {
   return parts.join(' · ');
 }
 
-/**
- * Receitas da mesa livre (até 4 itens, sem ordem). `in` = ingredientes
- * consumidos; `tools` = precisam estar na mesa mas não são gastos;
- * `out` = { id: quantidade }. `hint` aparece na caderneta.
- */
-export const RECIPES = [
-  { id: 'lanca_simples', in: { graveto_longo: 1 }, out: { lanca_simples: 1 }, hint: 'Aponte a vara com uma pedra.' },
-  { id: 'lanca_pedra', in: { graveto_longo: 1, lamina_pedra: 1, corda: 1 }, out: { lanca_pedra: 1 } },
-  { id: 'faca_osso', in: { osso: 1, corda: 1 }, out: { faca_osso: 1 } },
-  { id: 'faca_pedra', in: { lamina_pedra: 1, graveto: 1, corda: 1 }, out: { faca_pedra: 1 } },
-  { id: 'lamina_pedra', in: { pedra: 2 }, out: { lamina_pedra: 1 }, hint: 'Bata uma pedra na outra.' },
-  { id: 'corda', in: { cipo: 2 }, out: { corda: 1 } },
-  { id: 'curativo_folha', in: { folha_medicinal: 1 }, out: { curativo_folha: 1 } },
-  { id: 'curativo_cinza', in: { curativo_folha: 1, cinza: 1 }, out: { curativo_cinza: 1 }, hint: 'Anti-infeccioso.' },
-  { id: 'curativo_tabaco', in: { curativo_folha: 1, folha_tabaco: 1 }, out: { curativo_tabaco: 1 }, hint: 'Anti-veneno.' },
-  { id: 'curativo_lirio', in: { curativo_folha: 1, lirio: 1 }, out: { curativo_lirio: 1 }, hint: 'Anti-veneno.' },
-  { id: 'curativo_mel', in: { curativo_folha: 1, mel: 1 }, out: { curativo_mel: 1 } },
-  { id: 'agulha_osso', in: { fragmento_osso: 1 }, tools: ['faca_osso'], out: { agulha_osso: 1 }, hint: 'Fragmento fincado na faca.' },
-  { id: 'flauta_osso', in: { osso: 1 }, tools: ['faca_osso'], out: { flauta_osso: 1 }, hint: 'Fure o osso oco com a faca.' },
-  { id: 'arco', in: { graveto_longo: 1, corda: 1 }, out: { arco: 1 } },
-  { id: 'flecha', in: { graveto: 1, lamina_pedra: 1, pena: 1 }, out: { flecha: 3 } },
-  { id: 'fragmento_osso', in: { osso: 1, pedra: 1 }, out: { fragmento_osso: 3 }, hint: 'Quebre o osso com a pedra.' },
-];
+/** Receitas: ver src/systems/crafting/RecipeRegistry.js (registro central, estilo JEI). */
 
 /** Com o que o jogador começa (kit de viagem) — a coleta no mundo vem na etapa 3. */
 export const STARTER_KIT = { folha_medicinal: 2, curativo_folha: 1, cinza: 1, graveto_longo: 1, cipo: 2, pedra: 2, agua_fervida: 1 };
@@ -91,7 +85,7 @@ export const STARTER_KIT = { folha_medicinal: 2, curativo_folha: 1, cinza: 1, gr
 /** Ferreiro (morador): armas e ferramentas. */
 export const SHOP_SMITH = [
   { id: 'faca_pedra', price: 14 }, { id: 'lanca_simples', price: 8 }, { id: 'lanca_pedra', price: 24 },
-  { id: 'arco', price: 30 }, { id: 'flecha', price: 2 }, { id: 'lamina_pedra', price: 5 },
+  { id: 'lamina_pedra', price: 5 }, // arco e flechas: vitrine do pacote (config/gear.js → SHOP_ARSENAL)
 ];
 
 /** Materiais à venda nas lojas (até a coleta existir, dá para montar o básico). */

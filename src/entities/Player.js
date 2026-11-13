@@ -29,6 +29,9 @@ export class Player {
     this._block = { dx: 0, dz: 0, uphill: false };
     this._skidT = 0;
     this._t = 0;
+    /** Controles invertidos (Raiva) e desvio de pânico em rad (Traumatofobia); o jogo liga a cada quadro. */
+    this.invertControls = false;
+    this.wobble = 0;
     /** Efeitos de golpes de animais: atordoado (coice), preso (mordida no pescoço), lento (calcanhar). */
     this.status = new StatusEffects();
     /** Gancho: derrapou (correndo contra encosta íngreme ou começou a escorregar). */
@@ -92,6 +95,12 @@ export class Player {
     if (input.isDown('KeyS') || input.isDown('ArrowDown')) move.sub(fwd);
     if (input.isDown('KeyD')) move.add(right);
     if (input.isDown('KeyA')) move.sub(right);
+    // Raiva (confusão): comandos invertidos por instantes. Traumatofobia: passos erráticos.
+    if (this.invertControls) move.negate();
+    if (this.wobble && move.lengthSq() > 0) {
+      const a = Math.sin(this._t * 7.3) * Math.sin(this._t * 2.9) * this.wobble, c = Math.cos(a), s = Math.sin(a);
+      move.set(move.x * c - move.z * s, 0, move.x * s + move.z * c);
+    }
     if (input.pressed('KeyF')) this.fastTravel = !this.fastTravel;
     if (input.pressed('KeyV') && !this.isUnderground()) {
       this.flying = !this.flying;

@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PhysicsWorld } from '../../../src/physics/PhysicsWorld.js';
+import { PhysicsWorld, initPhysics } from '../../../src/physics/PhysicsWorld.js';
+
+await initPhysics();
 import { CollisionWorld } from '../../../src/world/CollisionWorld.js';
 import { Surfaces } from '../../../src/world/Surfaces.js';
 import { PHYSICS } from '../../../src/config/physics.js';
@@ -13,7 +15,7 @@ test('objeto dinâmico repousa no chão (heightfield) sem afundar', () => {
   const p = pw.addProp('crate', { x: 3, z: 0 });
   p.pos.y += 2; // solta de 2 m
   run(pw, { x: 0, y: 5, z: 0 }, 0.02);
-  p.body.position.y = p.pos.y; p.body.wakeUp();
+  p.body.setTranslation(p.pos, true); p.body.wakeUp();
   run(pw, { x: 0, y: 5, z: 0 }, 3);
   assert.ok(Math.abs(p.pos.y - (5 + 0.4)) < 0.08, `y=${p.pos.y.toFixed(3)}`);
 });

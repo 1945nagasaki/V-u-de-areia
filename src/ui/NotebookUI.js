@@ -5,7 +5,7 @@ import { buildDiet } from '../systems/fauna/Ecology.js';
 
 const DIET = buildDiet(ECOSYSTEM);
 const TROPHIC_LABEL = { 1: 'Superpredador', 2: 'Predador de matilha', 3: 'Grande herbívoro', 4: 'Presa', 5: 'Pequeno / venenoso' };
-import { RECIPES } from '../config/items.js';
+import { TABLE_RECIPES as RECIPES } from '../systems/crafting/RecipeRegistry.js';
 import { ITEMS } from '../systems/PlayerState.js';
 import { icon } from './Icons.js';
 

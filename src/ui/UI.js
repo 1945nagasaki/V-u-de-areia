@@ -5,6 +5,7 @@ import { WORLD, REFERENCE_MAP, worldToUv, uvToWorld } from '../config/worldConfi
 import { GRAPHICS_PRESETS } from '../config/graphics.js';
 import { minimapPoint } from './minimapMath.js';
 import { icon } from './Icons.js';
+import { slotIcon } from './gear/ItemIcon.js';
 import { UI_TIMING } from '../config/gameplay.js';
 
 const el = (tag, cls, parent, html) => {
@@ -209,7 +210,7 @@ export class UI {
     this.hotbar.innerHTML = inv.slots.map((item, i) => `
       <div class="slot${i === inv.selected ? ' active' : ''}${item ? ' filled' : ''}" title="${item?.nome ?? 'Vazio'}">
         <span class="key">${i + 1}</span>
-        ${item ? `<span class="icon">${icon(item.icone ?? 'dot')}</span><span class="name">${item.nome}</span>` : ''}
+        ${item ? `<span class="icon">${slotIcon(item)}</span><span class="name">${item.nome}</span>${this.game.gear?.slotBadge(item) ?? ''}` : ''}
       </div>`).join('');
     const eq = inv.equipado;
     this.equipLabel.innerHTML = `Equipado: <b>${eq.nome}</b>`;
@@ -439,7 +440,11 @@ export class UI {
   toggleWorldMap(force) {
     const show = force ?? this.worldMap.classList.contains('hidden');
     this.worldMap.classList.toggle('hidden', !show);
-    if (show) { this.game.input.unlock(); this.drawWorldMap(); }
+    if (show) {
+      this.game.input.unlock();
+      this.game.worldMapRenderer?.capture(); // foto do mundo 3D de cima (mesma versão do minimapa)
+      this.drawWorldMap();
+    }
   }
 
   drawWorldMap() {
@@ -447,7 +452,10 @@ export class UI {
     const W = c.canvas.width, H = c.canvas.height;
     c.fillStyle = '#1b3a52';
     c.fillRect(0, 0, W, H);
-    if (this.mapImage.complete) c.drawImage(this.mapImage, 0, 0, W, H);
+    // Mesma versão do minimapa: o mundo 3D visto de cima. (A imagem pintada só entra se a foto falhar.)
+    const photo = this.game.worldMapRenderer;
+    if (photo?.ready && photo.canvas) c.drawImage(photo.canvas, 0, 0, W, H);
+    else if (this.mapImage.complete) c.drawImage(this.mapImage, 0, 0, W, H);
     c.font = 'bold 15px system-ui';
     c.textAlign = 'center';
     for (const v of Object.values(VILLAGES)) {

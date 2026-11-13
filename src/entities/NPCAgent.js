@@ -6,6 +6,7 @@ import { PROFESSIONS, POPULATION, ENERGY, WEATHER_REACT } from '../config/npcLif
 import { LAW } from '../config/law.js';
 import { SLOPE } from '../config/physics.js';
 import { surfaceNormal, isUnwalkable, SlideState, steerAroundSlope } from '../systems/physics/SlopePhysics.js';
+import { workGoal, arriveAtWork, isWorking, tickWork, leaveWork, workUnreachable, workNoPath, heldItem, leisureGoal, arriveAtVisit, aiStateOf } from '../systems/work/AgentWork.js';
 
 const _steer = { x: 0, z: 0, blocked: false };
 
@@ -22,6 +23,13 @@ const ARRIVE = 0.45;
  * Estados de chegada: IDLE (em pé), WORKING (gesto da profissão), SITTING,
  * SLEEPING (deitado dentro de casa), SHELTER (abrigado do temporal).
  * Durante o caminho: WALK.
+ *
+ * Trabalho: quem tem emprego (`job`, um prédio da vila) vai de estação em
+ * estação seguindo o ciclo da profissão; o gesto de trabalho só toca depois
+ * de CHEGAR e OCUPAR uma estação válida (systems/work/AgentWork.js). Quem não
+ * tem prédio para trabalhar não finge: passa o turno pela vila.
+ * `aiState` resume tudo: SLEEPING · WAKING_UP · GOING_TO_WORK · WORKING ·
+ * TAKING_BREAK · EATING · SOCIALIZING · GOING_HOME · IDLE.
  *
  * @example
  * const a = new NPCAgent(person, { look, home, workplace, manager });
@@ -75,6 +83,24 @@ export class NPCAgent {
     this.normal = { x: 0, y: 1, z: 0 };
     this.slide = new SlideState();
     this.sliding = false;
+    /** Emprego: ciclo de tarefas num prédio da vila (WorkRoutine) — null = sem ofício. */
+    this.job = null;
+    this.workBuilding = null;
+    /** Por que não está trabalhando agora ('occupied', 'unreachable', 'no-floor'…) — depuração. */
+    this.workFail = null;
+    /** Lugar de visita ocupado (banco da capela, mesa da taverna…). */
+    this.visiting = null;
+    /** Prédios visitáveis da vila ({ id, type }) — preenchido pelo NPCManager. */
+    this.villageWork = null;
+    this.toolMesh = null;
+    this._toolId = null;
+    /** Desvio pessoal nos pontos de encontro (ninguém fica empilhado no mesmo lugar). */
+    this._off = { x: (rng() - 0.5) * 7, z: (rng() - 0.5) * 7 };
+  }
+
+  /** Estado de IA legível (rotina + trabalho). */
+  get aiState() {
+    return aiStateOf(this);
   }
 
   /** Fora de ação (desacordado ou morto): não anda, não conversa, não reage. */
@@ -89,6 +115,7 @@ export class NPCAgent {
   knockOut(seconds) {
     if (this.life === 'DEAD') return;
     this.life = 'KNOCKED_OUT';
+    leaveWork(this);
     this.koUntil = this.t + seconds;
     this.reaction = null;
     this.route = [];
@@ -99,6 +126,7 @@ export class NPCAgent {
   /** Morte: o corpo fica onde caiu. */
   kill() {
     this.life = 'DEAD';
+    leaveWork(this);
     this.reaction = null;
     this.route = [];
     this.speed = 0;
@@ -107,6 +135,7 @@ export class NPCAgent {
 
   /** Interrompe a rotina: foge, encara, conversa ou corre até um ponto por `seconds` (`speed` opcional em m/s). */
   react(kind, seconds, at, gesture = null, speed = null) {
+    leaveWork(this); // larga a estação: ao voltar, chega e ocupa de novo
     this.reaction = { kind, until: this.t + seconds, x: at.x, z: at.z, gesture, speed };
   }
 
@@ -146,11 +175,17 @@ export class NPCAgent {
       case 'WORK':
       case 'WORK_PM':
         if (this.patrol) return { key: 'PATROL', patrol: true, state: 'WALK' };
-        return { key: 'WORK', x: this.workplace.x, z: this.workplace.z, state: 'WORKING', yaw: this.workplace.yaw, gesture: this.prof?.gesture ?? 'craft' };
+        if (this.job) return workGoal(this); // estação do passo atual, ou esperar na frente do prédio
+        { // sem ofício (a vila não tem prédio para ele): não finge trabalhar — passa o turno pela vila
+          const s = this.leisure[this._leisurePick % this.leisure.length];
+          return { key: 'FREE', x: s.x + this._off.x, z: s.z + this._off.z, state: 'IDLE', yaw: null, gesture: 'talk' };
+        }
       case 'LUNCH': return { key: 'LUNCH', x: this.lunchSpot.x, z: this.lunchSpot.z, state: 'SITTING', yaw: this.lunchSpot.yaw, gesture: 'eat' };
       case 'LEISURE': {
+        const visit = this.villageWork ? leisureGoal(this) : null; // taverna, capela, mercado, padaria
+        if (visit) return visit;
         const s = this.leisure[(this._leisurePick + Math.floor(this.manager.day)) % this.leisure.length];
-        return { key: `LEISURE${s.id}`, x: s.x, z: s.z, state: 'IDLE', yaw: null, gesture: 'talk' };
+        return { key: `LEISURE${s.id}`, x: s.x + this._off.x * 0.6, z: s.z + this._off.z * 0.6, state: 'IDLE', yaw: null, gesture: 'talk' };
       }
       case 'PLAY': {
         const s = this.leisure[0];
@@ -163,23 +198,49 @@ export class NPCAgent {
 
   /** Muda de objetivo: monta a rota (porta → ruas → destino). */
   setGoal(goal) {
+    if (!goal.station) this.job?.leave(); // saiu do trabalho: solta a estação
+    if (this.visiting && goal.visit !== this.visiting) { this.manager.registry?.release(this.visiting, this.id); this.visiting = null; }
     this.goal = goal;
-    this.activity = goal.key;
+    const k = goal.key;
+    this.activity = k.startsWith('WORK:') || k.startsWith('WAIT:') ? 'WORK' : k.startsWith('VISIT:') ? 'LEISURE' : k === 'FREE' ? 'LEISURE' : k;
     if (goal.patrol) { this.route = []; this.state = 'WALK'; return; }
-    this.route = this.manager.route(this, this.pos, goal);
-    this.state = this.route.length ? 'WALK' : goal.state;
     this.stuck = 0;
+    const route = this.manager.route(this, this.pos, goal);
+    if (route === undefined) { this.route = []; this.state = 'IDLE'; this._pendingRoute = true; return; } // calcula no próximo quadro
+    if (route === null) { // sem caminho: não teletransporta nem trabalha de longe — espera e tenta de novo
+      if (goal.station) workNoPath(this, goal.station);
+      else if (goal.visit && this._visit) this._visit.failed = true;
+      this.route = [];
+      this.state = 'IDLE';
+      this.goal = { key: 'NOPATH', state: 'IDLE', gesture: null, x: this.pos.x, z: this.pos.z, target: k };
+      return;
+    }
+    this.route = route;
+    if (route.length) this.state = 'WALK';
+    else this.arrive(); // já estava no lugar: mesma validação de quem chega andando
   }
 
   /** Teletransporta direto para onde a rotina manda (vila acabou de ativar: posição "matemática"). */
   snap(hour, env) {
     if (this.life === 'DEAD') return;
     if (this.life === 'KNOCKED_OUT') this.life = 'ALIVE'; // salto de relógio: já acordou
+    leaveWork(this);
     const g = this.desired(hour, env);
     this.goal = g;
-    this.activity = g.key;
+    this.activity = g.key.startsWith('WORK:') || g.key.startsWith('WAIT:') ? 'WORK' : g.key.startsWith('VISIT:') || g.key === 'FREE' ? 'LEISURE' : g.key;
     this.route = [];
-    if (g.patrol) {
+    if (g.station || g.visit) {
+      // posição "matemática" também passa pela validação: estação ocupada → fica na frente do prédio
+      const st = g.station ?? g.visit;
+      this.pos.x = st.x; this.pos.z = st.z;
+      this.state = g.state;
+      const ok = g.station ? arriveAtWork(this) : arriveAtVisit(this);
+      if (!ok) {
+        const w = this.workBuilding?.wait ?? this.leisure[0];
+        this.pos.x = w.x + this._off.x * 0.3; this.pos.z = w.z + this._off.z * 0.3;
+        this.state = 'IDLE';
+      }
+    } else if (g.patrol) {
       const p = this.patrol[Math.floor(this.rng() * this.patrol.length)];
       this.pos.x = p.x; this.pos.z = p.z; this.state = 'WALK';
     } else {
@@ -227,9 +288,11 @@ export class NPCAgent {
       }
     }
     const g = this.desired(hour, env);
-    if (!this.goal || g.key !== this.goal.key) this.setGoal(g);
+    if (!this.goal || g.key !== this.goal.key) { this._pendingRoute = false; this.setGoal(g); }
+    else if (this._pendingRoute) { this._pendingRoute = false; this.setGoal(this.goal); } // rota que ficou para este quadro
     const sleeping = this.state === 'SLEEPING';
-    this.energy = energyStep(this.energy, this.goal.key === 'WORK' || this.goal.key === 'PATROL' ? 'WORK' : this.goal.key, hoursPassed, sleeping);
+    this.energy = energyStep(this.energy, isWorking(this) || this.goal.key === 'PATROL' ? 'WORK' : this.goal.key, hoursPassed, sleeping);
+    tickWork(this, dt); // passo de trabalho na estação ocupada (produção ao terminar)
     if (this.goal.key === 'LUNCH' && this.state === 'SITTING') this.energy = Math.min(1, this.energy + ENERGY.lunchBoost * hoursPassed);
 
     this.speed = 0;
@@ -291,7 +354,24 @@ export class NPCAgent {
     // Preso numa quina (colisão): pula para o próximo ponto depois de 2 s.
     const after = Math.hypot(target.x - this.pos.x, target.z - this.pos.z);
     this.stuck = before - after < v * dt * 0.2 ? this.stuck + dt : 0;
-    if (this.stuck > 2) { this.pos.x = target.x; this.pos.z = target.z; this.stuck = 0; }
+    if (this.stuck > 2) {
+      this.stuck = 0;
+      if (!this.goal.noTeleport) { this.pos.x = target.x; this.pos.z = target.z; return; } // (casa: porta trancada etc.)
+      // Trabalho/visita: nada de teletransporte — recalcula a rota; depois de algumas tentativas, desiste por ora.
+      const st = this.goal.station;
+      const giveUp = st ? workUnreachable(this, st) : (this._replans = (this._replans ?? 0) + 1) >= 3;
+      const route = giveUp ? null : this.manager.route(this, this.pos, this.goal);
+      if (route === undefined) { this.route = []; this.state = 'IDLE'; this._pendingRoute = true; return; }
+      if (!route) {
+        if (this.goal.visit && this._visit) this._visit.failed = true;
+        this._replans = 0;
+        this.route = [];
+        this.state = 'IDLE';
+        this.goal = { key: 'NOPATH', state: 'IDLE', gesture: null, x: this.pos.x, z: this.pos.z, target: this.goal.key };
+        return;
+      }
+      this.route = route;
+    }
   }
 
   walkPatrol(dt, detailed, move) {
@@ -303,6 +383,8 @@ export class NPCAgent {
   }
 
   arrive() {
+    if (this.goal.station) { arriveAtWork(this); return; } // só vira WORKING se a estação for válida e livre
+    if (this.goal.visit && !arriveAtVisit(this)) return;
     this.state = this.goal.state;
     if (this.goal.yaw !== null && this.goal.yaw !== undefined) this.yaw = this.goal.yaw;
   }
@@ -315,6 +397,8 @@ export class NPCAgent {
     this.model = new Humanoid(this.look);
     this.model.root.name = `npc-${this.id}`;
     this.model.root.userData.agent = this;
+    this._toolId = null;
+    this.toolMesh = null;
     // Hitbox invisível (soco e projéteis): o Raycaster não olha `visible`.
     const hb = new THREE.Mesh(HITBOX_GEO, HITBOX_MAT);
     hb.scale.set(LAW.hitbox.w, LAW.hitbox.h, LAW.hitbox.d);
@@ -335,7 +419,9 @@ export class NPCAgent {
   syncModel({ env, groundAt, dt }) {
     const m = this.model;
     m.root.visible = true;
-    const sleeping = this.state === 'SLEEPING', sitting = this.state === 'SITTING';
+    const working = isWorking(this);
+    const chair = (working && this.goal.station.sit) || (this.state === 'SITTING' && !!this.goal.seat); // banco/cadeira
+    const sleeping = this.state === 'SLEEPING', sitting = this.state === 'SITTING' || chair;
     const feet = this.home.floorY !== undefined && this.indoors ? this.home.floorY + 0.3 : this.pos.y + 0.3;
     this.pos.y = groundAt(this.pos.x, this.pos.z, feet);
     m.root.position.set(this.pos.x, this.pos.y, this.pos.z);
@@ -350,10 +436,22 @@ export class NPCAgent {
     m.body.rotation.z = 0;
     // Poses de corpo inteiro.
     m.body.rotation.x = sleeping ? -Math.PI / 2 : 0;
-    m.body.position.y = sleeping ? 0.16 : sitting ? -0.42 : 0;
+    m.body.position.y = sleeping ? 0.16 : chair ? -0.3 : sitting ? -0.42 : 0;
+    this.syncTool(m);
     if (sleeping) return;
     if (sitting) for (let i = 0; i < 2; i++) { m.legs[i].quaternion.setFromEuler(_e.set(-1.45, 0, 0)); m.knees[i].quaternion.setFromEuler(_e.set(1.5, 0, 0)); }
     applyGesture(m, this.gestureNow(env), this.t);
+    if (working && this.goal.station.fx) this.manager.fx?.beat(this, this.goal.station);
+  }
+
+  /** Ferramenta/carga na mão direita do boneco: troca só quando muda (some ao terminar o passo). */
+  syncTool(m) {
+    const id = this.down || this.state === 'SLEEPING' ? null : heldItem(this);
+    if (id === this._toolId) return;
+    this.toolMesh?.removeFromParent();
+    this.toolMesh = id ? this.manager.toolFor?.(id) ?? null : null;
+    if (this.toolMesh) m.hands[0].add(this.toolMesh);
+    this._toolId = id;
   }
 
   /** Gesto do momento (prioridade: clima > trabalho/descanso > cansaço). */
@@ -362,7 +460,9 @@ export class NPCAgent {
     if (this.reaction) return this.reaction.gesture ?? (this.reaction.kind === 'FLEE' || this.reaction.kind === 'RUN_TO' ? 'panic' : this.reaction.kind === 'CHAT' ? 'talk' : null);
     if (env.shelter && !this.indoors) return 'coverHead';
     if (this.wipeT > 0) return 'wipe';
-    if (this.state === 'WORKING') return this.goal.gesture;
+    // Trabalho: o gesto só existe com a estação ocupada (nunca no ar). O comandante no posto não usa estação.
+    if (this.state === 'WORKING') return this.goal.station ? (isWorking(this) ? this.goal.gesture : null) : this.goal.gesture;
+    if (this._toolId && this.state === 'WALK') return 'carry';
     if (this.state === 'SITTING' || (this.state === 'IDLE' && this.goal.gesture)) {
       if (this.goal.gesture === 'eat' || this.goal.gesture === 'talk' || this.goal.gesture === 'play') return env.cold ? 'crossArms' : this.goal.gesture;
     }
@@ -484,6 +584,83 @@ export function applyGesture(m, gesture, t) {
     case 'guard': // lança em posição de guarda
       set(m.arms[R], -0.35); set(m.elbows[R], -1.0);
       break;
+    // ---------------- ofícios (só tocam numa estação ocupada)
+    case 'mine': { // picareta: sobe com os dois braços e desce na rocha à frente
+      const k = Math.max(0, Math.sin(t * 2.8)), hit = Math.max(0, -Math.sin(t * 2.8));
+      set(m.torso, 0.1 + 0.3 * hit - 0.12 * k);
+      set(m.arms[R], -1.0 - 1.5 * k + 0.25 * hit, 0, 0.12); set(m.elbows[R], -0.5 - 0.5 * k);
+      set(m.arms[L], -1.05 - 1.4 * k + 0.25 * hit, 0, -0.3); set(m.elbows[L], -0.7 - 0.4 * k);
+      break;
+    }
+    case 'saw': case 'scrub': case 'knead': case 'brush': case 'weave': case 'grind': case 'mend': case 'spin': {
+      // vai-e-vem das mãos na altura da bancada (ritmo e amplitude por ofício)
+      const f = { saw: 5.2, scrub: 4.2, knead: 3.0, brush: 3.6, weave: 2.6, grind: 3.4, mend: 2.2, spin: 2.4 }[gesture];
+      const a = { saw: 0.42, scrub: 0.3, knead: 0.22, brush: 0.35, weave: 0.3, grind: 0.16, mend: 0.14, spin: 0.2 }[gesture];
+      const w = Math.sin(t * f);
+      const low = gesture === 'knead' || gesture === 'scrub' || gesture === 'grind' ? 0.12 : 0;
+      set(m.torso, 0.2 + low + 0.05 * w);
+      set(m.arms[R], -0.95 + a * w, 0, 0.08); set(m.elbows[R], -0.95 - a * 0.9 * w);
+      set(m.arms[L], gesture === 'saw' ? -0.8 : -0.95 - a * w * (gesture === 'knead' ? -1 : 0.6), 0, -0.1); set(m.elbows[L], -0.85);
+      break;
+    }
+    case 'shape': // torno do oleiro: mãos em concha, quase paradas
+      set(m.torso, 0.32);
+      set(m.arms[R], -0.85 + 0.05 * s, 0, -0.18); set(m.elbows[R], -1.1);
+      set(m.arms[L], -0.85 - 0.05 * s, 0, 0.18); set(m.elbows[L], -1.1);
+      break;
+    case 'reach': case 'arrange': case 'light': case 'tend': case 'trade': case 'serve': {
+      // estende o braço até a prateleira / o balcão / o freguês, recolhe e repete
+      const k = Math.max(0, Math.sin(t * (gesture === 'trade' ? 1.9 : 1.5)));
+      const high = gesture === 'reach' || gesture === 'light' ? 0.5 : 0;
+      set(m.torso, 0.08 + 0.1 * k);
+      set(m.arms[R], -0.7 - (0.8 + high) * k, 0, 0.1); set(m.elbows[R], -1.1 + 0.9 * k);
+      set(m.arms[L], gesture === 'trade' || gesture === 'serve' ? -0.6 - 0.3 * Math.max(0, Math.sin(t * 1.3 + 1)) : -0.25, 0, -0.1); set(m.elbows[L], -0.7);
+      break;
+    }
+    case 'stoke': case 'bake': case 'fork': case 'stir': case 'dip': case 'pour': case 'draw': case 'feed': case 'sweep': {
+      // ferramenta longa nas duas mãos: empurra/puxa baixo à frente
+      const f = { stoke: 1.8, bake: 1.5, fork: 2.2, stir: 3.2, dip: 1.4, pour: 1.2, draw: 1.6, feed: 1.4, sweep: 2.6 }[gesture];
+      const w = Math.sin(t * f), side = gesture === 'sweep' || gesture === 'stir' ? Math.cos(t * f) * 0.25 : 0;
+      set(m.torso, 0.24 + 0.08 * w, side * 0.6, 0);
+      set(m.arms[R], -0.85 - 0.3 * w, 0, 0.1 + side); set(m.elbows[R], -0.6 + 0.25 * w);
+      set(m.arms[L], -0.65 - 0.25 * w, 0, -0.2 + side); set(m.elbows[L], -0.9);
+      break;
+    }
+    case 'lift': case 'load': case 'unload': { // abaixa, pega/põe a carga, levanta
+      const k = Math.max(0, Math.sin(t * 1.3));
+      set(m.torso, 0.15 + 0.55 * k);
+      set(m.arms[R], -0.9 - 0.2 * k, 0, 0.15); set(m.elbows[R], -0.5);
+      set(m.arms[L], -0.9 - 0.2 * k, 0, -0.15); set(m.elbows[L], -0.5);
+      break;
+    }
+    case 'carry': // andando com a carga nos dois braços
+      set(m.arms[R], -0.75, 0, 0.12); set(m.elbows[R], -1.0);
+      set(m.arms[L], -0.75, 0, -0.12); set(m.elbows[L], -1.0);
+      break;
+    case 'read': // livro aberto na frente do peito
+      set(m.head, 0.3 + 0.03 * s);
+      set(m.arms[R], -0.75, 0, -0.1); set(m.elbows[R], -1.5);
+      set(m.arms[L], -0.75, 0, 0.1); set(m.elbows[L], -1.5);
+      break;
+    case 'write': { // pena no papel
+      const w = Math.sin(t * 7) * 0.06;
+      set(m.torso, 0.3); set(m.head, 0.25);
+      set(m.arms[R], -0.9 + w, 0, -0.05); set(m.elbows[R], -1.0 - w);
+      set(m.arms[L], -0.8, 0, 0.15); set(m.elbows[L], -1.0);
+      break;
+    }
+    case 'pray': // mãos juntas, cabeça baixa
+      set(m.head, 0.35); set(m.torso, 0.12);
+      set(m.arms[R], -0.9, 0, -0.3); set(m.elbows[R], -1.7);
+      set(m.arms[L], -0.9, 0, 0.3); set(m.elbows[L], -1.7);
+      break;
+    case 'preach': { // braços abertos para os fiéis
+      const k = 0.5 + 0.5 * Math.sin(t * 0.9);
+      set(m.head, -0.08);
+      set(m.arms[R], -1.0 - 0.5 * k, 0, 0.7); set(m.elbows[R], -0.5);
+      set(m.arms[L], -1.0 - 0.5 * k, 0, -0.7); set(m.elbows[L], -0.5);
+      break;
+    }
     default:
       break;
   }

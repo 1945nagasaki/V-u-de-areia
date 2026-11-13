@@ -13,7 +13,11 @@
  *   import { ECOSYSTEM } from './ecosystem.js';
  *   ECOSYSTEM.hunger.huntAbove; // 0.6
  */
+import { FOOD_WEB } from './foodWeb.js';
+
 export const ECOSYSTEM = {
+  /** Dieta por espécie (config/foodWeb.js): quem tem `prey` lá não usa a regra por nível abaixo. */
+  diets: Object.fromEntries(Object.entries(FOOD_WEB.species).filter(([, s]) => s.prey).map(([id, s]) => [id, s.prey])),
   levels: {
     leao: 1, onca: 1, urso: 1, jacare: 1, cerbero: 1,
     lobo: 2, hiena: 2, leopardo: 2, javali: 2,

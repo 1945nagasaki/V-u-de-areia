@@ -54,6 +54,7 @@ npm run build      # build de produção em dist/
 | **Limite de inclinação 45°** (jogador, animais, moradores, caçadores): bloqueia subida, escorregão até chão firme, IA contorna montanhas, som de derrapagem | `systems/physics/SlopePhysics.js`, `config/physics.js` (`SLOPE`) — ver `docs/SLOPE-PHYSICS.md` | — |
 | **Ecossistema da fauna — F1–F4**: cadeia alimentar em níveis, fome/energia (caça só > 60%), LOD estatístico, ataques por espécie (agarrão, rolamento, coice, flanco, soco no chão, veneno), matilhas (líder uiva, batedores/interceptadores), manadas (vigia, alarme, debandada, círculo defensivo, filhotes), carcaças com necrófagos | `systems/fauna/*`, `config/ecosystem.js`, `config/faunaCombat.js` — ver `docs/FAUNA-ECOSYSTEM.md` | — |
 | **Água e barco — A1–A6**: oceano FFT de 4 cascatas (Tidewater, WebGL2), refração/absorção/reflexo/cáusticas/mergulho, barco pilotável com flutuação por pontos, esteira de Kelvin + espuma + spray, ondas de costa com quebra e espraiado, menu Esc com ajustes | `src/world/Water.js`, `src/render/ocean/*`, `src/systems/ocean/*`, `src/systems/boat/*`, `src/ui/PauseMenu.js` — ver `docs/OCEAN-SYSTEM.md` | E (barco) / Esc |
+| **Pacote de itens (Icones.zip) — 34 itens / 44 definições**: adaga, espada, machado, picareta em pedra/ouro/metal com durabilidade por uso; arco (1 s de preparo, dano da flecha); pistola e rifle (carregador + reserva, recarga); 12 comidas/bebidas com tempo de consumo; café (+25% por 10 s); extração com machado/picareta; relíquias só cadastradas; lojas com estoque; mochila com espaços; item na mão em 1ª e 3ª pessoa; save do inventário | `config/gear.js`, `config/gearGrips.js`, `systems/gear/*`, `render/gear/*`, `ui/gear/*` — ver `docs/GEAR-SYSTEM.md` e `CREDITS-ITEMS.md` | clique / **R** recarrega / **X** troca flecha |
 
 Outras teclas (todas listadas no menu do **Esc** → Controles): **T** câmera 1ª/3ª pessoa, **M** mapa, **G** gráficos, **F** viagem rápida, **V** voo (debug), **H** poção.
 
@@ -78,7 +79,9 @@ Pontas soltas conhecidas:
 - Guardas e caçadores não seguram uma lança 3D; o ataque é o gesto `thrust`.
 - Não há estradas entre vilas no mapa: "na estrada" = fora da região de qualquer vila (`LAW.bounty.regionMargin`).
 - Reforço em dupla/flanco e o apito só foram vistos nos testes, não no navegador (no teste havia um guarda por perto).
-- Crimes/recompensas não são salvos (não há sistema de save).
+- Crimes/recompensas não são salvos. Existe save **só do inventário** (moedas, mochila, hotbar, equipamentos, café, estoque das lojas — `systems/gear/GearSave.js`); abrir o jogo com `?novo` começa do zero.
+- Pacote de itens: ícones do `Icones.zip` ainda **não** foram coloridos (o arquivo não estava no computador; os PNGs atuais são renderizações provisórias dos modelos) e nenhum modelo externo foi baixado (modelos procedurais próprios). Decisões a confirmar com o dono: `docs/GEAR-SYSTEM.md` §4.
+- Verificação no navegador nesta máquina: `tools/gear/browser.mjs` (Edge headless via CDP, sem dependências) + `tools/gear/game-check.mjs`.
 
 ## 5. Mapa rápido do código
 

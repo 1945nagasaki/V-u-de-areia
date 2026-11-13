@@ -141,7 +141,7 @@ export class BoatPhysics {
     const qi = t.qi.copy(this.q).invert();
     const addForce = this._addForce, bodyForce = this._bodyForce; // métodos fixos (nada de função nova por passo)
     // ---- hidrostática + amortecimento vertical por ponto
-    let wetVol = 0;
+    let wetVol = 0, aground = 0;
     this.grounded = false;
     const P = this._P, VP = this._VP, f = this._f;
     for (const s of this.samples) {
@@ -160,9 +160,12 @@ export class BoatPhysics {
       const pen = gy - P.y; // o ponto já está no fundo do casco
       if (pen > 0) {
         this.grounded = true;
+        aground++;
         const up = Math.max(0, cfg.ground.stiffness * pen - cfg.ground.damping * VP.y);
         const hv = Math.hypot(VP.x, VP.z) || 1;
-        f.set(-cfg.ground.friction * up * (VP.x / hv) * Math.min(1, hv * 4), up, -cfg.ground.friction * up * (VP.z / hv) * Math.min(1, hv * 4));
+        // Dando ré encalhado, o fundo segura menos (`reverseSlip`): sem isso o barco ficava preso na praia para sempre.
+        const mu = cfg.ground.friction * (this.rpm < -0.05 ? (cfg.ground.reverseSlip ?? 1) : 1);
+        f.set(-mu * up * (VP.x / hv) * Math.min(1, hv * 4), up, -mu * up * (VP.z / hv) * Math.min(1, hv * 4));
         addForce(f, s.local);
       }
     }
@@ -200,7 +203,12 @@ export class BoatPhysics {
     this.toWorld(ePos, P);
     const propWet = Math.min(1, Math.max(0, (env.water(P.x, P.z).h - P.y) * 4));
     const fall = this.rpm >= 0 ? Math.max(0, 1 - u / E.pitchSpeed) : Math.max(0, 1 + u / (E.pitchSpeed * 0.5));
-    this.thrust = E.thrust * this.rpm * (this.rpm >= 0 ? 1 : E.reverse) * fall * propWet;
+    // Encalhado, a hélice empurra cada vez menos PARA A FRENTE (com `beachCut` do casco no fundo, nada):
+    // o barco pára na margem em vez de subir a praia. A ré continua inteira, para desencalhar.
+    /** Fração dos pontos do casco tocando o fundo (0..1). */
+    this.agroundFraction = aground / Math.max(1, this.samples.length);
+    const beach = this.rpm > 0 ? Math.max(0, 1 - this.agroundFraction / (cfg.ground.beachCut ?? 0.3)) : 1;
+    this.thrust = E.thrust * this.rpm * (this.rpm >= 0 ? 1 : E.reverse) * fall * propWet * beach;
     addForce(bodyForce(0, 0, this.thrust), ePos);
     // ---- leme na esteira da hélice
     const Rd = cfg.rudder, target = Math.max(-1, Math.min(1, input.steer ?? 0)) * Rd.maxAngle;

@@ -36,4 +36,9 @@ com os dados binários idênticos à cópia creditada em
 `leao`, `hiena`, `lobo`, `urso`, `jacare`, `javali` e `alce` vêm do arquivo
 `Animais_comprimido.glb` enviado pelo dono ("Realistic Animated Pack", exportado
 do Sketchfab). Separados por animal, materiais convertidos para metal/rugosidade
-e texturas reduzidas para 1024 px WebP. **Autor e licença: a confirmar com o dono.**
+e texturas reduzidas para 1024 px WebP. **Autor e licença (lidos dos metadados dos próprios arquivos em 2026-11-12):** WildMesh 3D
+(https://sketchfab.com/WildMesh_3D), **CC-BY-NC-4.0** — atribuição obrigatória e **uso não comercial**.
+Origem: "ULTIMATE ANIMAL PACK | 100 ANIMALS | 50% OFF",
+https://sketchfab.com/3d-models/ultimate-animal-pack-100-animals-50-off-c7be3f41fb3a4ed6be31d0bcd86a4684.
+Os sete arquivos estão sem esqueleto e sem clipes (o jogo gera o esqueleto). Detalhes e pendências:
+`design/fauna/catalogo-fauna.md`.

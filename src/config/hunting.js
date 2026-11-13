@@ -1,3 +1,5 @@
+import { FIREARMS, FX } from './gear.js';
+
 /**
  * Caça anatômica, arremesso/arco, sangramento com rastro, esfolamento,
  * fogueira (cozinhar/ferver) e água de rio. Tudo em metros e segundos.
@@ -8,6 +10,9 @@ export const WEAPONS = {
   lanca_simples: { kind: 'spear', damage: 14, speed: 20, breakChance: 0.1, length: 1.9 },
   lanca_pedra: { kind: 'spear', damage: 26, speed: 21, breakChance: 0.08, length: 1.9 },
   arco: { kind: 'bow', ammo: 'flecha', damage: 20, speed: 40, breakChance: 0.5, length: 0.8 },
+  // Balas do pacote de itens (dano e velocidade vêm de config/gear.js; aqui só o que o voo/render usa).
+  pistola: { kind: 'bullet', damage: FIREARMS.pistola.damage, speed: FIREARMS.pistola.speed, breakChance: 1, length: FX.tracerLength },
+  rifle: { kind: 'bullet', damage: FIREARMS.rifle.damage, speed: FIREARMS.rifle.speed, breakChance: 1, length: FX.tracerLength },
 };
 
 export const PROJECTILE = {

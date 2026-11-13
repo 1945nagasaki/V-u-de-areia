@@ -105,7 +105,7 @@ export class CameraRig {
     this.yaw -= input.mouseDX * this.sensitivity;
     let turn = 0;
     if (input.isDown('ArrowLeft') || input.isDown('KeyQ')) turn += 1;
-    if (input.isDown('ArrowRight') || input.isDown('KeyR')) turn -= 1;
+    if (input.isDown('ArrowRight') || (input.isDown('KeyR') && !this.reloadKeyBusy)) turn -= 1;
     this.yaw += turn * this.keyTurnSpeed * dt;
     const tilt = (input.isDown('PageUp') ? dt : 0) - (input.isDown('PageDown') ? dt : 0);
     if (this.isFirstPerson) {

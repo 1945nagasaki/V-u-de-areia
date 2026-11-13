@@ -193,16 +193,17 @@ export class Body {
   /**
    * Avança a biologia.
    * @param {number} dt s
-   * @param {{ dirt?: number }} [ctx] sujeira atual (acelera infecção)
+   * @param {{ dirt?: number, healRate?: number }} [ctx] sujeira atual (acelera infecção);
+   *   healRate multiplica a cicatrização sob curativo (Traumatofobia = 0,5)
    * @returns {{ hpPerSecond: number, sanityPerMinute: number, fever: number, bleeding: boolean }}
    */
-  update(dt, { dirt = 0 } = {}) {
+  update(dt, { dirt = 0, healRate = 1 } = {}) {
     let hp = 0, sanity = 0, bleeding = false;
     for (const w of [...this.wounds]) {
       const def = WOUNDS[w.type];
       w.age += dt;
       if (w.bandage) {
-        w.bandage.age += dt;
+        w.bandage.age += dt * healRate;
         if (w.bandage.infected && w.bandage.age >= INFECTION.revealAfter) { this.morph(w, 'infeccao'); continue; }
         const heal = (def.healBandaged ?? 120) * (w.bandage.suture ? 0.6 : 1);
         if (!w.bandage.infected && w.bandage.age >= heal) { this.remove(w); continue; }

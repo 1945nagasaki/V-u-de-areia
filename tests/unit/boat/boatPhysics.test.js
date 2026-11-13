@@ -85,3 +85,20 @@ test('heavierLoad_sitsDeeper_lighterSitsHigher', () => {
   assert.ok(heavy.position.y < -0.05, `pesado y ${heavy.position.y.toFixed(3)}`);
   assert.ok(light.position.y > 0.03, `leve y ${light.position.y.toFixed(3)}`);
 });
+
+test('beaching_fullThrottleIntoShore_stopsAtTheWaterline_andReverseFreesIt', async () => {
+  const { BoatPhysics } = await import('../../../src/systems/boat/BoatPhysics.js');
+  const { BOAT } = await import('../../../src/config/boat.js');
+  // Praia subindo para +Z: fundo a −3 m em z = 0, linha d'água em z = 30, terra seca depois.
+  const ground = (x, z) => -3 + z * 0.1;
+  const env = { water: () => ({ h: 0, vy: 0 }), ground };
+  const boat = new BoatPhysics(BOAT, { x: 0, z: 0, yaw: 0 });
+  for (let i = 0; i < 60 * 25; i++) boat.update(1 / 60, { throttle: 1, steer: 0 }, env);
+  const z = boat.com.z;
+  assert.ok(boat.grounded, 'encalhou');
+  // A proa sobe um pouco na praia com o embalo, mas a popa fica na água: o centro não passa meio casco da linha d'água (z = 30).
+  assert.ok(z < 30 + BOAT.waterlineLength / 2, `centro parou em z=${z.toFixed(1)} (linha d'água em 30)`);
+  assert.ok(Math.abs(boat.speed) < 0.3, `parou (${boat.speed.toFixed(2)} m/s)`);
+  for (let i = 0; i < 60 * 12; i++) boat.update(1 / 60, { throttle: -1, steer: 0 }, env);
+  assert.ok(boat.com.z < z - 2, `a ré desencalha (recuou ${(z - boat.com.z).toFixed(1)} m)`);
+});

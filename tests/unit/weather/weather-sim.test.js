@@ -112,3 +112,24 @@ test('lightningEnvelope: pico no raio, segundo pulso, apaga', () => {
   assert.ok(lightningEnvelope(0.17) > lightningEnvelope(0.15), 'segundo clarão');
   assert.ok(lightningEnvelope(1.5) < 0.01);
 });
+
+test('stepParticles_withCount_movesOnlyTheDrawnParticles_andStaleOnesRejoinTheBox', () => {
+  const rng = () => 0.5;
+  const s = createParticleState(SPEC, 500, rng);
+  const c = { x: 0, y: 10, z: 0 };
+  seedParticles(s, c, rng);
+  const before = Float32Array.from(s.pos);
+  // Clima fraco: só as 100 primeiras são desenhadas → só elas andam.
+  stepParticles(s, 0.1, c, 2, 0, 0, rng, 100);
+  let movedHead = 0, movedTail = 0;
+  for (let i = 0; i < s.active; i++) { const moved = s.pos[i * 3] !== before[i * 3] || s.pos[i * 3 + 1] !== before[i * 3 + 1]; if (i < 100) movedHead += moved; else movedTail += moved; }
+  assert.ok(movedHead > 90, `as desenhadas andaram (${movedHead}/100)`);
+  assert.equal(movedTail, 0, 'as não desenhadas ficaram paradas');
+  // A câmera vai para longe e o clima engrossa: as que estavam paradas voltam para dentro da caixa no mesmo passo.
+  const far = { x: 900, y: 40, z: -700 };
+  stepParticles(s, 0.016, far, 0, 0, 0, rng);
+  const [w, h, d] = s.box;
+  for (let i = 0; i < s.active; i++) {
+    assert.ok(Math.abs(s.pos[i * 3] - far.x) <= w / 2 + 1e-3 && Math.abs(s.pos[i * 3 + 1] - far.y) <= h / 2 + 1e-3 && Math.abs(s.pos[i * 3 + 2] - far.z) <= d / 2 + 1e-3, `partícula ${i} fora da caixa`);
+  }
+});

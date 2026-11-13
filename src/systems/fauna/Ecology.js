@@ -3,8 +3,9 @@ import { ECOSYSTEM } from '../../config/ecosystem.js';
 /**
  * Regras puras do ecossistema da fauna (sem Three.js, testáveis).
  *
- * - `buildDiet`: matriz da cadeia alimentar (quem come quem) a partir do
- *   nível trófico de cada espécie + dietas extras + espécies que nunca são presa.
+ * - `buildDiet`: matriz da cadeia alimentar (quem come quem): dieta própria da
+ *   espécie (`cfg.diets`, config/foodWeb.js) ou, sem ela, o nível trófico +
+ *   dietas extras; espécies de `neverPrey` nunca são presa.
  * - `SpatialGrid`: grade espacial (hash por célula) para achar vizinhos em O(1).
  * - `needsStep` / `wantsToHunt`: fome e energia.
  * - `scorePrey`: qual presa escolher (perto, ferida, filhote, mancando).
@@ -24,6 +25,12 @@ export function buildDiet(cfg = ECOSYSTEM) {
   const never = new Set(cfg.neverPrey ?? []);
   for (const [id, lvl] of Object.entries(cfg.levels)) {
     const set = new Set();
+    const own = cfg.diets?.[id];
+    if (own) { // dieta própria: só estas presas (as que existem no jogo)
+      for (const prey of own) if (prey !== id && !never.has(prey) && prey in cfg.levels) set.add(prey);
+      out.set(id, set);
+      continue;
+    }
     const eatsLevels = cfg.eats[lvl] ?? [];
     for (const [prey, pl] of Object.entries(cfg.levels)) {
       if (prey === id || never.has(prey)) continue;

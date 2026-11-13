@@ -8,6 +8,7 @@ import { PACKS, CARCASS } from '../config/ecosystem.js';
 import { CarcassSystem } from './fauna/CarcassSystem.js';
 import { AnimalSounds } from '../audio/AnimalSounds.js';
 import { EcosystemManager } from './fauna/EcosystemManager.js';
+import { biomeCapacity, findShore } from './fauna/Foraging.js';
 import { ECOSYSTEM } from '../config/ecosystem.js';
 import { CombatAnimationSystem } from './fauna/CombatAnimationSystem.js';
 import { FAUNA_COMBAT } from '../config/faunaCombat.js';
@@ -45,11 +46,40 @@ export class Fauna {
     this.guardians = new Map();
     /** Cadeia alimentar, fome/energia, alvo/ameaça de cada animal e LOD estatístico. */
     this.ecosystem = new EcosystemManager(ECOSYSTEM, { rng });
+    this.linkEcosystem();
     /** Agarrões (mordida no pescoço, rolamento da morte). */
     this.grapples = new CombatAnimationSystem();
     /** Carcaças: comida para predadores e necrófagos até decompor (F4). */
     this.carcasses = new CarcassSystem();
     this._playerDot = 0;
+  }
+
+  /**
+   * Liga o ecossistema ao mundo: quanto capim/folhagem cada lugar tem (pelo bioma;
+   * nada dentro d'água nem nas vilas) e onde fica a margem mais próxima para beber.
+   * A busca de água é guardada por célula de 32 m (o relevo não muda).
+   */
+  linkEcosystem() {
+    const g = this.game, T = g.terrain;
+    if (!T?.weightsAt) return; // testes sem mundo: ninguém pasta nem bebe
+    const caps = BIOMES.map((b) => biomeCapacity(b));
+    const none = { grass: 0, browse: 0 };
+    const isWater = (x, z) => T.heightAt(x, z) < WORLD.waterLevel - 0.15;
+    const shores = new Map();
+    this.ecosystem.setEnvironment({
+      capacityAt: (x, z) => {
+        if (isWater(x, z) || (g.villageShelter?.({ x, z }) ?? 0) >= 1) return none;
+        const w = T.weightsAt(x, z, this._w);
+        let bi = 0;
+        for (let i = 1; i < w.length; i++) if (w[i] > w[bi]) bi = i;
+        return caps[bi];
+      },
+      findWater: (x, z, radius) => {
+        const k = (Math.floor(x / 32) + 32768) * 65536 + (Math.floor(z / 32) + 32768);
+        if (!shores.has(k)) shores.set(k, findShore(isWater, x, z, radius));
+        return shores.get(k);
+      },
+    });
   }
 
   /**
@@ -63,18 +93,36 @@ export class Fauna {
   }
 
   /**
-   * Compila os shaders de todas as espécies ANTES do jogo começar (um de cada
-   * numa cena temporária): sem travadinha quando o primeiro leão aparece.
+   * Compila os shaders da cena e de todas as espécies ANTES do jogo começar
+   * (um animal de cada numa cena temporária): sem travada no primeiro quadro
+   * nem quando o primeiro leão aparece.
+   *
+   * Compila em paralelo (`compileAsync`, KHR_parallel_shader_compile) e para o
+   * alvo em que a cena é desenhada de verdade: o programa de um material muda
+   * com o alvo (tela = tone mapping + sRGB; alvo do pós-processamento = linear),
+   * então compilar "para a tela" gerava programas que nunca eram usados e o
+   * primeiro quadro recompilava tudo de forma síncrona.
+   * @param {THREE.WebGLRenderer} renderer
+   * @param {THREE.Camera} camera
+   * @param {THREE.WebGLRenderTarget|null} [target] alvo onde a cena é desenhada (RenderPipeline.sceneRT)
+   * @returns {Promise<void>} resolve quando os programas estão prontos
+   * @example
+   * await fauna.warmup(renderer, camera, pipeline.sceneRT);
    */
-  warmup(renderer, camera) {
+  warmup(renderer, camera, target = null) {
     const temp = [];
     for (const id of Object.keys(SPECIES)) {
       const a = new Animal({ spec: SPECIES[id], speciesId: id, fauna: this.config, x: 0, z: 0, groundAt: () => -500, model: this.models?.instance(id) ?? null });
       this.game.scene.add(a.root);
       temp.push(a);
     }
-    renderer.compile(this.game.scene, camera);
+    const prev = renderer.getRenderTarget();
+    renderer.setRenderTarget(target);
+    // A parte síncrona (criar os programas) acontece já; a promessa só espera a GPU terminar.
+    const done = renderer.compileAsync ? renderer.compileAsync(this.game.scene, camera) : Promise.resolve(renderer.compile(this.game.scene, camera));
+    renderer.setRenderTarget(prev);
     for (const a of temp) this.game.scene.remove(a.root);
+    return done.then(() => {});
   }
 
   /**
@@ -164,7 +212,10 @@ export class Fauna {
         g.player.knockback?.((dx / l) * fx.knockback, (dz / l) * fx.knockback);
       }
     }
-    if (a.combat.clamp) this.grapples.startGrapple(a, this.playerBody, a.combat.clamp);
+    if (a.combat.clamp) {
+      this.grapples.startGrapple(a, this.playerBody, a.combat.clamp);
+      g.onPlayerClamped?.(a); // trauma severo (fobia)
+    }
   }
 
   /** Gorila: os punhos no chão atingem todos em volta (menos a própria espécie). */
@@ -311,6 +362,7 @@ export class Fauna {
         // Manadas (F3): parte do grupo nasce filhote (nunca o primeiro).
         young: i > 0 && PACKS.herd.species.includes(id) && this.rng() < PACKS.young.chance,
         groundAt: (px, pz) => this.game.terrain.heightAt(px, pz),
+        water: this.game.waterSurface ?? null,
       });
       this.game.scene.add(animal.root);
       // Corpo físico (cinemático): empurra barris e caixotes pelo caminho.

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ANIMATION, ATTACK_STYLE } from '../../config/animation.js';
 import {
-  damp, dampFactor, clamp, smoothstep, attackEnvelope, legCycle, breathWave, twoBoneIK, fract,
+  damp, dampFactor, clamp, smoothstep, attackEnvelope, legCycle, breathWave, twoBoneIK, fract, stridePlan, flightWindow, contactDrop,
 } from './AnimMath.js';
 
 const TAU = Math.PI * 2;
@@ -114,6 +114,14 @@ export class AnimalAnimationManager {
     this.tilt = { pitch: 0, roll: 0 };
     this.unit = 1 / (pose.scale.y || 1); // corpo procedural: pose escalada por `size`
 
+    /** Fase aérea do galope (o corpo sobe aí: trajetória balística). */
+    this.flight = flightWindow(config.gait.phases.gallop, config.gait.duty.gallop);
+    /** Salto em curso: saída de `jumpEnvelope` (ou null). */
+    this.jump = null;
+    /** Altura do corpo ditada pelas patas apoiadas (m, ≤ 0): somada à pose sem o amortecimento lento da raiz. */
+    this.contactY = 0;
+    this._contactLegs = [];
+
     this.mixer = null;
     this.actions = {};
     this.current = null;
@@ -216,10 +224,25 @@ export class AnimalAnimationManager {
     const legs = (rig.legs ?? []).map((l) => {
       const front = !!l.front, side = l.side ?? 1;
       const upper = J(l.upper), lower = J(l.lower);
+      if (upper) upper.leg = true;
+      if (lower) lower.leg = true;
       // Comprimentos dos ossos (para o IK do agachar).
       const len = l.len ?? this.dims.legTop;
       const kneeH = l.knee ?? len * 0.5;
-      return { upper, lower, front, side, l1: Math.max(len - kneeH, len * 0.3), l2: Math.max(kneeH, len * 0.3), idx: (side < 0 ? 0 : 2) + (front ? 1 : 0) };
+      // Patas abertas para o lado (jacaré): giro em Y que leva a pata, da pose em que o modelo foi
+      // esculpido (às vezes no meio de um passo: uma pata esticada para trás), à pose neutra — apontando
+      // para o lado, na altura do quadril. As passadas partem dessa pose, iguais dos dois lados.
+      let yawFix = 0;
+      if (this.spec.model === 'croc' && l.lower && l.upper) {
+        const d = l.lower.position; // joelho em relação ao quadril (ossos sem rotação de repouso)
+        const ang = Math.atan2(d.z, d.x) - (side > 0 ? 0 : Math.PI);
+        yawFix = Math.atan2(Math.sin(ang), Math.cos(ang));
+      }
+      // Inclinação da perna na pose de repouso (modelo esculpido no meio de um passo): giro em X que,
+      // a partir da vertical, dá essa inclinação. Entra no contato com o chão (contactDrop).
+      let restPitch = 0;
+      if (l.lower && l.upper && this.spec.model !== 'croc') { const d = l.lower.position; restPitch = clamp(-Math.atan2(d.z, Math.max(1e-4, -d.y)), -0.9, 0.9); }
+      return { upper, lower, front, side, yawFix, restPitch, l1: Math.max(len - kneeH, len * 0.3), l2: Math.max(kneeH, len * 0.3), idx: (side < 0 ? 0 : 2) + (front ? 1 : 0) };
     });
     return {
       spine: (rig.spine ?? []).map(J).filter(Boolean),
@@ -269,12 +292,20 @@ export class AnimalAnimationManager {
    * Um quadro de animação.
    * @param {number} dt segundos (do relógio principal)
    * @param {{ speed: number, state: string, stateTime?: number, swimming?: boolean,
-   *   tilt?: { pitch: number, roll: number }, yawRate?: number, leaping?: boolean, look?: number, feeding?: boolean }} ctx
-   *   `feeding`: comendo uma carcaça (cabeça baixa, puxões)
+   *   tilt?: { pitch: number, roll: number }, yawRate?: number, leaping?: boolean, look?: number, feeding?: boolean,
+   *   jump?: ReturnType<typeof import('./AnimMath.js').jumpEnvelope> | null }} ctx
+   *   `feeding`: comendo uma carcaça (cabeça baixa, puxões); `jump`: salto em curso
+   *   (agachar → voo → amortecer; a altura do arco quem aplica é o dono do animal)
    */
   update(dt, ctx) {
     const cfg = this.cfg, spec = this.spec, w = this.w;
-    const { speed, state, stateTime = 0, swimming = false, tilt = null, yawRate = 0, leaping = false, look = 0, feeding = false } = ctx;
+    const { speed, state, stateTime = 0, swimming = false, tilt = null, yawRate = 0, leaping = false, look = 0, feeding = false, jump = null, feedKind = null, browseHigh = false } = ctx;
+    /** O que está comendo: 'grass' | 'browse' | 'water' | 'carcass' | null (pastar à toa = null). */
+    this.feedKind = feeding ? feedKind : null;
+    /** Jacaré à espreita: parado, submerso até os olhos. */
+    this.lurking = !!ctx.lurking;
+    this.browseHigh = browseHigh;
+    this.jump = jump && jump.phase !== 'done' ? jump : null;
     this.t += dt;
     this.dt = dt;
     this.feeding = feeding;
@@ -290,7 +321,7 @@ export class AnimalAnimationManager {
     w.dead = damp(w.dead, dead ? 1 : 0, 3.2, dt);
     w.fly = damp(w.fly, state === 'fly' || state === 'circle' ? 1 : 0, 5, dt);
     w.glide = damp(w.glide, state === 'circle' && Math.sin(this.t * 0.7) > 0.2 ? 1 : 0, 2.5, dt);
-    w.leap = damp(w.leap, leaping ? 1 : 0, 14, dt);
+    w.leap = damp(w.leap, this.jump ? this.jump.air : leaping ? 1 : 0, 14, dt);
     w.aware = damp(w.aware, AWARE.has(state) ? 1 : 0, 4, dt);
     const herb = spec.behavior === 'flee' || spec.behavior === 'passive';
     // Comendo carcaça (F4): mesma pose de cabeça baixa e mastigar, com puxões mais fortes.
@@ -315,6 +346,13 @@ export class AnimalAnimationManager {
       0, clamp(this.tilt.roll, -cfg.terrain.maxRoll, cfg.terrain.maxRoll) * (1 - w.dead) * (1 - w.swim));
     // Inclina para dentro da curva correndo.
     this.rootRot.z += clamp(-yawRate * v * 0.02, -1, 1) * cfg.gait.turnBank;
+
+    // Salto: empina na subida e mergulha na descida (vale também por cima dos clipes).
+    if (this.jump) {
+      this.rootRot.x -= this.jump.pitch * this.jump.air * cfg.jump.pitch;
+      // Sem pernas articuladas por IK (clipes): o agachar/amortecer vira só o corpo descendo.
+      if (this.mixer || !this.rig) this.rootPos.y -= this.jump.crouch * (this.jump.phase === 'landing' ? cfg.jump.absorb : cfg.jump.squat) * this.dims.legTop * 0.6;
+    }
 
     if (this.mixer) {
       this.updateClips(dt, ctx);
@@ -364,7 +402,8 @@ export class AnimalAnimationManager {
     const u = this.unit;
     const k = dampFactor(this.cfg.blend.rootRate, dt);
     p.position.x = damp(p.position.x, this.posBase.x + this.rootPos.x * u, 22, dt);
-    p.position.y = damp(p.position.y, this.posBase.y + this.rootPos.y * u, 22, dt);
+    this._rootY = damp(this._rootY ?? this.rootPos.y, this.rootPos.y, 22, dt);
+    p.position.y = this.posBase.y + (this._rootY + this.contactY) * u;
     p.position.z = damp(p.position.z, this.posBase.z + this.rootPos.z * u, 22, dt);
     this.rootTarget.setFromEuler(this.rootRot);
     p.quaternion.slerp(this.rootTarget, k);
@@ -384,23 +423,38 @@ export class AnimalAnimationManager {
     const ph = this.phase;
     const land = (1 - w.swim) * (1 - w.dead) * (1 - w.fly);
     const loco = w.move * land;
-    const wg = w.gallop, wt = w.trot * (1 - wg), ww = (1 - w.trot) * (1 - wg);
+    // Patas abertas para o lado (jacaré): não galopa — a corrida curta é um trote rasteiro, com o
+    // corpo serpenteando; sem flexão de coluna de mamífero nem o corpo empinando.
+    const crawler = spec.model === 'croc';
+    const wg = crawler ? 0 : w.gallop, wt = w.trot * (1 - wg), ww = (1 - w.trot) * (1 - wg);
     const idle = (1 - w.move) * (1 - w.dead);
 
     // ---- pernas: ciclo com apoio (duty) misturado por andadura
+    let shift = 0; // peso para a esquerda (−) ou direita (+)
     if (R.biped) this.bipedLegs(ph, v, hz, legLen, loco);
     else {
       for (const leg of R.legs) {
         let swing = 0, lift = 0, amp = 0;
         for (const [gait, wgt] of [['walk', ww], ['trot', wt], ['gallop', wg]]) {
           if (wgt < 1e-3) continue;
-          const duty = g.duty[gait];
-          const c = legCycle(fract(ph + g.phases[gait][leg.idx]), duty);
-          const A = Math.min(g.maxSwing, (v * duty) / (2 * hz * legLen));
+          // Sem deslize: a pata apoiada recua no chão à velocidade do corpo (stridePlan).
+          const { duty, amp: A } = stridePlan(v, legLen, hz, g.duty[gait], g.maxSwing, g.minDuty);
+          const p = fract(ph + g.phases[gait][leg.idx]);
+          const c = legCycle(p, duty);
           swing += c.swing * A * wgt;
           lift += c.lift * wgt;
           amp += A * wgt;
+          // Peso para o lado das patas apoiadas (máximo no meio do apoio) — só no passo.
+          if (gait === 'walk' && p < duty) shift += leg.side * Math.sin((p / duty) * Math.PI) * wgt;
         }
+        if (crawler) {
+          // Andar de crocodiliano: a pata VARRE no plano horizontal (giro em Y) e ergue-se pouco (giro em Z).
+          // Nadando, as quatro ficam recolhidas para trás, junto ao corpo.
+          const sweep = swing * loco * (1 - w.swim) - (leg.front ? 0.55 : 0.8) * w.swim;
+          leg.upper?.add(0, leg.yawFix - leg.side * sweep, leg.side * lift * 0.28 * loco * clamp(amp * 2.2, 0.35, 1) * (1 - w.swim));
+          continue;
+        }
+        leg.stance = lift * loco < 0.02; // pata no chão (parado: todas)
         leg.upper?.add(-swing * loco - lift * 0.22 * loco * amp);
         leg.lower?.add(lift * g.kneeLift * loco * (leg.front ? 1 : 0.85) * clamp(amp * 2.2, 0.35, 1));
         // Galope: pernas esticam no ar (dianteiras à frente, traseiras atrás).
@@ -418,10 +472,25 @@ export class AnimalAnimationManager {
     const turn = clamp(yawRate, -2.5, 2.5) * g.turnSpine * 0.4;
     R.spine.forEach((j, i) => {
       const t = nS > 1 ? i / (nS - 1) : 0.5; // 0 = pelve, 1 = peito
+      if (crawler) {
+        // Serpenteia em S: os giros somam ZERO ao longo da coluna (a cabeça mantém o rumo; antes a pelve
+        // girava o animal inteiro como uma régua). Padrão por osso: +½, −1½, +2, −1 …
+        const kS = nS < 2 ? 0 : i === 0 ? 0.5 : i === nS - 1 ? (i % 2 ? -1 : 1) * (nS % 2 ? 0.5 : 1) : (i % 2 ? -1 : 1) * (i === 1 ? 1.5 : 2);
+        j.add(0, (sway * 0.5 * kS + turn * t) * loco, 0);
+        return;
+      }
       j.add((t < 0.5 ? flex : -flex) * loco, (sway * (t < 0.5 ? 1 : -0.6) * (ww + wt) + turn * t) * loco, 0);
     });
-    // Sobe-desce do corpo: 2 vezes por ciclo no passo/trote, 1 no galope.
-    this.rootPos.y += (-(0.5 - 0.5 * Math.cos(ph * TAU * 2)) * g.bob * H * (ww + wt) + Math.sin(ph * TAU) * g.bob * 1.8 * H * wg) * loco;
+    // Transferência de peso no passo: o corpo vai para o lado que está apoiado.
+    if (R.legs.length === 4) {
+      const sh = (shift / 2) * loco;
+      this.rootPos.x += sh * g.weightShift * H;
+      this.rootRot.z -= sh * g.weightRoll;
+    }
+    // Sobe-desce do corpo: vem das patas apoiadas (`contactDrop`, no fim): o corpo desce quando as
+    // pernas abrem e sobe quando passam a prumo — as patas não afundam nem flutuam. No galope soma-se
+    // só a subida da fase aérea (todas as patas no ar).
+    this.rootPos.y += Math.max(0, Math.cos((ph - this.flight.center) * TAU)) * g.bob * 1.8 * H * wg * loco;
     // Galope: o corpo balança no eixo (cabeça sobe, garupa desce).
     this.rootRot.x += Math.sin(ph * TAU + 0.6) * 0.05 * wg * loco;
 
@@ -438,11 +507,15 @@ export class AnimalAnimationManager {
     const lookY = lookAround * idle * (1 - w.graze) * (1 - w.aware) + this.lookTarget * w.aware * (1 - w.dead);
     R.neck?.add(-br * cfg.breath.head, lookY * 0.45, 0);
     R.head?.add(-br * cfg.breath.head * 0.5, lookY * 0.55, lookY * -0.08);
-    const grazeAmp = H > L * 1.3 ? 0.35 : spec.model === 'camel' ? 0.75 : 0.95;
+    // Folhas no alto (girafa): a cabeça SOBE até a copa em vez de descer ao chão; arbusto: meia altura.
+    const browsing = this.feedKind === 'browse';
+    const grazeAmp = browsing ? (this.browseHigh ? -0.22 : 0.3) : H > L * 1.3 ? 0.35 : spec.model === 'camel' ? 0.75 : 0.95;
     R.neck?.add(w.graze * grazeAmp * land, 0, 0);
     R.head?.add(w.graze * 0.25 * land, 0, 0);
     R.jaw?.add(w.graze * Math.max(0, Math.sin(this.t * 8.5)) * 0.1, 0, 0); // mastiga
-    if (this.feeding) R.neck?.add(Math.max(0, Math.sin(this.t * 3.1)) * 0.22 * land, Math.sin(this.t * 1.7) * 0.15, 0); // arranca pedaços
+    if (this.feeding && this.feedKind === 'water') R.jaw?.add(Math.max(0, Math.sin(this.t * 5)) * 0.06 * w.graze, 0, 0); // bebe: boca na água, goles curtos
+    else if (this.feeding && browsing) R.neck?.add(Math.max(0, Math.sin(this.t * 2.2)) * -0.1 * land, Math.sin(this.t * 1.1) * 0.1, 0); // puxa os ramos
+    else if (this.feeding && this.feedKind !== 'grass') R.neck?.add(Math.max(0, Math.sin(this.t * 3.1)) * 0.22 * land, Math.sin(this.t * 1.7) * 0.15, 0); // carcaça: arranca pedaços
 
     // ---- cauda: onda com atraso + puxada pela curva (follow-through)
     const nT = R.tail.length;
@@ -450,7 +523,10 @@ export class AnimalAnimationManager {
     this.tailPhase = fract(this.tailPhase + (0.6 + 1.6 * loco + 0.8 * w.combat) * dt);
     R.tail.forEach((j, i) => {
       const k = (i + 1) / Math.max(1, nT);
-      const wave = Math.sin(this.tailPhase * TAU - i * 0.75) * (0.08 + 0.22 * k) * (1 - w.dead * 0.85);
+      // Cauda comprida de vários ossos (jacaré): os giros se somam ao longo dela — parado, quase imóvel;
+      // andando, acompanha o serpentear do corpo.
+      const tailAmp = crawler ? (0.12 + 0.5 * loco) * (1 - w.swim) : 1;
+      const wave = Math.sin(this.tailPhase * TAU - i * 0.75) * (0.08 + 0.22 * k) * (1 - w.dead * 0.85) * tailAmp;
       j.add(-0.18 * wg * loco * (i === 0 ? 1 : 0.3) + w.dead * 0.15, wave - yawRate * 0.12 * k * loco, 0);
     });
 
@@ -460,6 +536,19 @@ export class AnimalAnimationManager {
     R.neck?.add(0.32 * w.stalk, 0, 0);
     R.head?.add(-0.22 * w.stalk, 0, 0);
     R.tail.forEach((j, i) => j.add(0.25 * w.stalk * (i === 0 ? 1 : 0), Math.sin(this.t * 6 + i) * 0.12 * w.stalk * (i === nT - 1 ? 1 : 0), 0));
+
+    // ---- salto: agacha carregando as traseiras → (voo: w.leap estica as patas) → amortece ao pousar
+    if (this.jump && this.jump.crouch > 1e-3) {
+      const J = cfg.jump, c = this.jump.crouch, landing = this.jump.phase === 'landing';
+      if (landing) this.crouchLegs(J.absorb * c, J.absorb * 0.7 * c);
+      else this.crouchLegs(J.squat * 0.45 * c, J.squat * c);
+      R.neck?.add(0.2 * c, 0, 0);
+      R.tail.forEach((j, i) => j.add((landing ? 0.3 : -0.2) * c * (i ? 0.4 : 1), 0, 0));
+    }
+    // Fim do voo: as dianteiras descem à frente para receber o peso.
+    if (this.jump && this.jump.reach > 1e-3) {
+      for (const leg of R.legs) if (leg.front) { leg.upper?.add(0.55 * this.jump.reach * w.leap); leg.lower?.add(-0.15 * this.jump.reach * w.leap); }
+    }
 
     // ---- ameaça (gorila bate no peito; urso/outros encaram e balançam a cabeça)
     if (w.threat > 1e-3) this.threatPose(w.threat);
@@ -488,9 +577,32 @@ export class AnimalAnimationManager {
       R.jaw?.add(0.12 * w.dead, 0, 0);
     }
 
+    // ---- contato com o chão: a altura do corpo sai das patas apoiadas (depois de TODAS as camadas
+    // acima terem mexido nas pernas: passo, agachar, ataque, salto).
+    let drop = 0;
+    if (!crawler && R.legs.length) {
+      const L2 = this._contactLegs;
+      L2.length = R.legs.length;
+      for (let i = 0; i < R.legs.length; i++) {
+        const leg = R.legs[i], o = L2[i] ?? (L2[i] = {});
+        // l1/l2 são alturas (quadril→joelho→chão) no repouso; o comprimento real conta a inclinação.
+        const rp = leg.restPitch ?? 0, k = 1 / Math.cos(rp);
+        o.rest = leg.l1 + leg.l2;
+        o.l1 = leg.l1 * k; o.l2 = leg.lower ? leg.l2 * k : 0;
+        if (!leg.lower) o.l1 = (leg.l1 + leg.l2) * k; // perna de uma peça só (corpo procedural)
+        o.hip = rp + (leg.upper?.x ?? 0); o.knee = leg.lower?.x ?? 0;
+        o.stance = leg.stance !== false;
+      }
+      // No ar (salto), nadando, voando ou morto não há apoio.
+      drop = contactDrop(L2) * land * (1 - w.leap);
+    }
+    this.contactY = damp(this.contactY, drop, cfg.blend.boneRate + (cfg.blend.legRate - cfg.blend.boneRate) * loco, dt);
+
     // ---- aplica (slerp de todos os ossos)
     const k = dampFactor(cfg.blend.boneRate, dt);
-    for (const j of this.joints) j.apply(k);
+    // Pernas andando/correndo seguem o ciclo de perto: a pata apoiada não desliza.
+    const kLeg = dampFactor(cfg.blend.boneRate + (cfg.blend.legRate - cfg.blend.boneRate) * loco, dt);
+    for (const j of this.joints) j.apply(j.leg ? kLeg : k);
   }
 
   /** Bípede (avestruz): pernas alternadas, pescoço vai e volta (pombo). */
@@ -499,17 +611,18 @@ export class AnimalAnimationManager {
     const A = Math.min(B.maxSwing, (v * 0.55) / (2 * hz * legLen));
     for (const leg of R.legs) {
       const c = legCycle(fract(ph + (leg.side > 0 ? 0.5 : 0)), 0.55);
+      leg.stance = c.lift * loco < 0.02;
       leg.upper?.add(-c.swing * A * loco - c.lift * 0.3 * loco);
       leg.lower?.add(c.lift * B.kneeLift * loco * clamp(A * 2, 0.4, 1));
     }
     const bob = Math.sin(ph * TAU * 2 + 0.5);
     R.neck?.add(bob * B.headBob * 0.6 * loco, 0, 0);
     R.head?.add(-bob * B.headBob * 0.4 * loco, 0, 0);
-    this.rootPos.y += -(0.5 - 0.5 * Math.cos(ph * TAU * 2)) * B.bob * this.dims.H * loco;
   }
 
   /** Flexiona as pernas por IK (2 ossos) e abaixa o corpo na mesma medida. */
   crouchLegs(front, back) {
+    if (this.spec.model === 'croc') return; // já anda rente ao chão; agachar por IK é coisa de perna em pé
     let drop = 0;
     for (const leg of this.rig.legs) {
       const amt = leg.front ? front : back;
@@ -519,7 +632,7 @@ export class AnimalAnimationManager {
       leg.lower?.add(ik.knee * (leg.front ? 0.6 : 1));
       drop = Math.max(drop, full * amt);
     }
-    this.rootPos.y -= drop * 0.85;
+    void drop; // a descida do corpo vem do contato das patas (contactDrop): dobrou as pernas, o corpo desce junto
     // Frente e trás diferentes: o corpo inclina.
     if (Math.abs(front - back) > 1e-3) this.rootRot.x += (front - back) * 0.6;
   }
@@ -637,8 +750,13 @@ export class AnimalAnimationManager {
   /** Nado: corpo ondula no plano horizontal, patas remam, focinho para fora. */
   swimPose(k) {
     const R = this.rig, S = this.cfg.swim, sp = this.swimPhase;
-    const tucked = !!this.spec.aquatic; // jacaré nada com a cauda, patas coladas
+    const tucked = !!this.spec.aquatic; // jacaré nada com a cauda, patas coladas (recolhidas no laço das pernas)
+    const sprawl = this.spec.model === 'croc';
+    // Parado na água a cauda quase não mexe; nadando, ela é o motor (amplitude cresce com a velocidade).
+    const drive = tucked ? 0.25 + 0.75 * this.w.move : 1;
+    const headUp = tucked ? 0.04 : S.headUp; // crocodiliano nada com a cabeça rente à água, não empinada
     for (const leg of R.legs) {
+      if (sprawl) break;
       const p = fract(sp + (leg.idx === 0 || leg.idx === 3 ? 0 : 0.5));
       const a = Math.sin(p * TAU) * S.paddle * (tucked ? 0.15 : 1);
       leg.upper?.add((-a + (tucked ? 0.9 : 0.15)) * k);
@@ -646,10 +764,16 @@ export class AnimalAnimationManager {
     }
     const nS = R.spine.length;
     // Onda corre da cabeça para a cauda (peito → pelve → cauda).
-    R.spine.forEach((j, i) => j.add(0, Math.sin(sp * TAU - (nS - 1 - i) * S.wave) * S.undulate * k * (tucked ? 1.4 : 0.7), 0));
-    R.tail.forEach((j, i) => j.add(0, Math.sin(sp * TAU - (nS + i) * S.wave) * S.tail * ((i + 1) / R.tail.length) * k, 0));
-    R.neck?.add(-S.headUp * k, -Math.sin(sp * TAU) * S.undulate * 0.5 * k, 0);
-    R.head?.add(-S.headUp * 0.4 * k, 0, 0);
+    // Onda da coluna com média zero (crocodiliano): o corpo ondula, mas o focinho segue reto.
+    let mean = 0;
+    if (tucked) { for (let i = 0; i < nS; i++) mean += Math.sin(sp * TAU - (nS - 1 - i) * S.wave); mean /= Math.max(1, nS); }
+    R.spine.forEach((j, i) => j.add(0, (Math.sin(sp * TAU - (nS - 1 - i) * S.wave) - mean) * S.undulate * k * (tucked ? 0.7 * drive : 0.7), 0));
+    R.tail.forEach((j, i) => j.add(0, Math.sin(sp * TAU - (nS + i) * S.wave) * S.tail * ((i + 1) / R.tail.length) * k * drive, 0));
+    // A cabeça compensa a ondulação do corpo (fica apontada para a frente).
+    R.neck?.add(-headUp * k, tucked ? 0 : -Math.sin(sp * TAU) * S.undulate * 0.5 * k, 0);
+    R.head?.add(-headUp * 0.4 * k, 0, 0);
+    // Na água, boca fechada (o modelo vem de boca aberta: a cabeça desce sobre a mandíbula, que fica no lugar).
+    if (tucked && this.attackT < 0 && !this.hold) { const shut = this.cfg.croc.jawShut * k; R.head?.add(shut, 0, 0); R.jaw?.add(-shut, 0, 0); }
     this.rootPos.y += Math.sin(sp * TAU * 2) * 0.012 * this.dims.H * k;
   }
 

@@ -15,6 +15,7 @@ export const ANIMATION = {
     deathFade: 0.35,
     stateRate: 7, // 1/s — pesos dos estados procedurais (≈0,4 s para 95%)
     boneRate: 26, // 1/s — slerp de cada osso até a pose-alvo (suaviza qualquer quina)
+    legRate: 90, // 1/s — pernas em movimento: seguem o ciclo de perto (o ciclo já é contínuo; suavizar mais faz a pata apoiada deslizar)
     rootRate: 12, // 1/s — corpo inteiro (inclinação, agachar, bote)
     timeScaleRate: 5, // 1/s — ritmo do clipe acompanha a velocidade sem trancos
   },
@@ -29,11 +30,16 @@ export const ANIMATION = {
     duty: { walk: 0.64, trot: 0.5, gallop: 0.38 },
     /** Fase de cada pata [traseira E, dianteira E, traseira D, dianteira D] em ciclos. */
     phases: {
-      walk: [0, 0.25, 0.5, 0.75], // sequência lateral (4 tempos)
+      // Passo em sequência lateral (4 tempos): cada traseira pousa e a dianteira do MESMO lado
+      // pousa 1/4 de ciclo depois — DD → TE → DE → TD (RF → LH → LF → RH).
+      walk: [0, 0.75, 0.5, 0.25],
       trot: [0, 0.5, 0.5, 0], // diagonais juntas
       gallop: [0, 0.58, 0.1, 0.68], // galope rotativo: traseiras, suspensão, dianteiras
     },
     maxSwing: 0.62, // rad — amplitude máxima do quadril
+    minDuty: 0.14, // apoio mínimo: correndo, a pata fica menos tempo no chão em vez de deslizar (stridePlan)
+    weightShift: 0.018, // × altura — o corpo desloca o peso para o lado das patas apoiadas (passo)
+    weightRoll: 0.03, // rad — e rola levemente para esse lado
     kneeLift: 0.9, // rad — dobra do joelho no balanço (pata sobe)
     spineSway: 0.05, // rad — balanço lateral da coluna no passo
     spineFlex: 0.16, // rad — flexão/extensão da coluna no galope
@@ -42,6 +48,16 @@ export const ANIMATION = {
     turnBank: 0.18, // rad — inclina para dentro da curva correndo
     turnSpine: 0.22, // rad — coluna curva na direção da curva
   },
+
+  /**
+   * Salto (leopardo saindo da tocaia): antecipação → voo → aterrissagem, s.
+   * squat/absorb = fração da perna que dobra; height × tamanho = altura do arco (m);
+   * speed × corrida = velocidade horizontal no ar; pitch = rad de empinar/mergulhar.
+   */
+  jump: { anticipation: 0.18, flight: 0.6, landing: 0.3, squat: 0.34, absorb: 0.3, height: 1.6, speed: 1.5, pitch: 0.3 },
+
+  /** Crocodilianos: quanto a mandíbula fecha na água (rad) — o modelo vem modelado de boca aberta. */
+  croc: { jawShut: 0.3 },
 
   /** Bípedes (avestruz) e o vaivém de pescoço das aves. */
   biped: { maxSwing: 0.75, kneeLift: 1.3, headBob: 0.22, bob: 0.05 },

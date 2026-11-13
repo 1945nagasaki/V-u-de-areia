@@ -16,11 +16,11 @@
 export const ROUTINE = {
   blocks: [
     { from: 6, activity: 'WAKE' },
-    { from: 7.5, activity: 'WORK' },
+    { from: 7, activity: 'WORK' },
     { from: 12, activity: 'LUNCH' },
     { from: 13, activity: 'WORK_PM' },
-    { from: 17.5, activity: 'LEISURE' },
-    { from: 21.5, activity: 'HOME' },
+    { from: 17, activity: 'LEISURE' }, // mercado, taverna ou igreja
+    { from: 20, activity: 'HOME' }, // 20–22 volta para casa; ao chegar, dorme
   ],
   jitter: 0.35,
   /** Guardas trabalham em turnos: dia 6–18, noite 18–6 (metade de cada). */
@@ -47,6 +47,19 @@ export const PROFESSIONS = {
   lenhador: { name: 'Lenhador', weight: 1.5, place: 'wild', gesture: 'chop', biomes: ['taiga', 'preta', 'equatorial', 'tropical'] },
   pescador: { name: 'Pescador', weight: 1.5, place: 'water', gesture: 'fish' },
   guarda: { name: 'Guarda', weight: 0, place: 'patrol', gesture: 'patrol' },
+  // Ofícios com prédio próprio (config/workplaces.js). Peso 0: não entram no sorteio antigo —
+  // quem os recebe é a distribuição de vagas dos prédios que a vila realmente tem (assignJobs).
+  mineiro: { name: 'Mineiro', weight: 0, place: 'building', gesture: 'mine', tool: 'pickaxe' },
+  sacerdote: { name: 'Sacerdote', weight: 0, place: 'building', gesture: 'preach' },
+  carpinteiro: { name: 'Carpinteiro', weight: 0, place: 'building', gesture: 'saw', tool: 'saw', apron: 0x7a5a3a },
+  padeiro: { name: 'Padeiro', weight: 0, place: 'building', gesture: 'knead', trader: true, apron: 0xe8e0d0 },
+  taverneiro: { name: 'Taverneiro', weight: 0, place: 'building', gesture: 'serve', trader: true, apron: 0x5a3a2a },
+  tratador: { name: 'Tratador de Animais', weight: 0, place: 'building', gesture: 'feed' },
+  tecelao: { name: 'Tecelão', weight: 0, place: 'building', gesture: 'weave' },
+  oleiro: { name: 'Oleiro', weight: 0, place: 'building', gesture: 'shape', apron: 0x8a6a4a },
+  moleiro: { name: 'Moleiro', weight: 0, place: 'building', gesture: 'pour', apron: 0xe8e0d0 },
+  curandeiro: { name: 'Curandeiro', weight: 0, place: 'building', gesture: 'tend' },
+  escriba: { name: 'Escriba', weight: 0, place: 'building', gesture: 'write' },
 };
 
 /**

@@ -1,9 +1,11 @@
-import { RECIPES, ITEM_CATALOG, SHOP_MATERIALS, STARTER_KIT } from '../config/items.js';
+import { ITEM_CATALOG, SHOP_MATERIALS, STARTER_KIT } from '../config/items.js';
+import { BIOMES } from '../config/biomes.js';
 import { RESOURCES } from '../config/resources.js';
 import { SKINNING, COOKING } from '../config/hunting.js';
 import { PROP_TYPES } from '../config/physics.js';
 import { SHOP_FOOD, WOUNDS, FOODS, CONDITIONS } from '../config/survival.js';
 import { Crafting } from './Crafting.js';
+import { ALL_RECIPES, STATIONS } from './crafting/RecipeRegistry.js';
 
 /**
  * Índice de receitas no estilo "JEI" (regra pura): para cada item, como
@@ -18,13 +20,15 @@ import { Crafting } from './Crafting.js';
  * idx.usesOf('corda');            // receitas que pedem corda
  * idx.sourcesOf('mel');           // [{ kind: 'coleta', text: 'Tirar mel da colmeia — Savana, …' }]
  * idx.search('curativo');         // ids cujo nome contém o texto
+ * idx.search('#arma lança');      // tag + texto
+ * idx.tagsOf('noz');              // ['comida', …, 'taiga', 'preta', 'coleta']
  * idx.missing(recipe, inventory); // { cipo: 1 } → falta 1 cipó
  */
 export class RecipeIndex {
   /**
    * @param {{ recipes?: object[], items?: Record<string, object>, biomeName?: (id: string) => string }} [o]
    */
-  constructor({ recipes = RECIPES, items = ITEM_CATALOG, biomeName = (id) => id } = {}) {
+  constructor({ recipes = ALL_RECIPES, items = ITEM_CATALOG, biomeName = (id) => id } = {}) {
     this.recipes = recipes;
     this.items = items;
     this.biomeName = biomeName;
@@ -35,6 +39,7 @@ export class RecipeIndex {
       for (const id of new Set([...Object.keys(r.in), ...(r.tools ?? [])])) push(this.byInput, id, r);
     }
     this.sources = this.buildSources();
+    this.tags = new Map(Object.keys(items).map((id) => [id, this.buildTags(id)]));
   }
 
   /** Todos os ids do catálogo, ordenados por categoria e nome. */
@@ -45,17 +50,41 @@ export class RecipeIndex {
   }
 
   /**
-   * Busca por nome (sem acento, sem caixa). Prefixo "@" filtra por categoria:
-   * @remedio @arma @ferramenta @material @comida.
+   * Busca (sem acento, sem caixa). Palavras com "#" (ou "@") são tags e todas
+   * precisam bater (por prefixo: #rem acha #remedio); o resto é texto livre,
+   * procurado no nome e na descrição. Ex.: "#arma", "#taiga", "#medicina mel".
    */
   search(text = '') {
-    const t = norm(text.trim());
-    const kinds = { remedio: 'medicine', remedios: 'medicine', arma: 'weapon', armas: 'weapon', ferramenta: 'tool', ferramentas: 'tool', material: 'material', materiais: 'material', comida: 'food' };
-    if (t.startsWith('@')) {
-      const kind = kinds[t.slice(1)];
-      return this.allItems().filter((id) => !kind || this.items[id].kind === kind);
+    const words = norm(text).split(/\s+/).filter(Boolean);
+    const tags = words.filter((w) => /^[#@]./.test(w)).map((w) => w.slice(1));
+    const t = words.filter((w) => !/^[#@]/.test(w)).join(' ');
+    return this.allItems().filter((id) => {
+      const mine = this.tagsOf(id);
+      if (!tags.every((q) => mine.some((tag) => tag.startsWith(q)))) return false;
+      const d = this.items[id];
+      return !t || norm(d.name).includes(t) || norm(d.description ?? '').includes(t);
+    });
+  }
+
+  /** Tags do item (sem "#"): tipo, planta, biomas onde se coleta, estação e origem. */
+  tagsOf(id) {
+    return this.tags.get(id) ?? [];
+  }
+
+  buildTags(id) {
+    const d = this.items[id], tags = new Set(KIND_TAGS[d.kind] ?? []);
+    if (d.plant) tags.add('planta');
+    if (d.hotbar) tags.add('equipavel');
+    for (const t of Object.values(RESOURCES.types)) {
+      if (t.item !== id && t.also !== id) continue;
+      for (const b of t.biomes === 'all' ? BIOMES.map((x) => x.id) : t.biomes) tags.add(norm(b));
     }
-    return this.allItems().filter((id) => !t || norm(this.items[id].name).includes(t) || norm(this.items[id].description ?? '').includes(t));
+    for (const r of this.recipesFor(id)) {
+      tags.add('fabricavel');
+      if (STATIONS[r.station]) tags.add(norm(STATIONS[r.station].name.split(/[ /]/)[0]));
+    }
+    for (const s of this.sourcesOf(id)) tags.add(norm(s.kind));
+    return [...tags];
   }
 
   /** Receitas que produzem o item. */
@@ -136,6 +165,12 @@ export class RecipeIndex {
     return src;
   }
 }
+
+/** Tags por tipo de item (singular e plural, para "#armas" também achar). */
+const KIND_TAGS = {
+  medicine: ['medicina', 'remedio', 'remedios'], weapon: ['arma', 'armas'], tool: ['ferramenta', 'ferramentas'],
+  material: ['material', 'materiais'], food: ['comida'], key: ['missao'],
+};
 
 function push(map, k, v) {
   if (!map.has(k)) map.set(k, []);

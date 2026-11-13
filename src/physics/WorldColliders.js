@@ -30,7 +30,7 @@ import { WORLD_COLLIDERS } from '../config/physics.js';
  * - peças maiores que `maxSize` (céu, oceano) ou mais finas que `minSize`
  *
  * O CollisionWorld recebe os colisores (é ele que segura o jogador) e o
- * PhysicsWorld os transmite para o cannon-es (é ele que segura os objetos).
+ * PhysicsWorld os transmite para o Rapier (é ele que segura os objetos).
  *
  * @example
  * const stats = applyWorldPhysics(scene, {

@@ -3,7 +3,8 @@ import { BLEED } from '../config/hunting.js';
 import { AnimalBrain } from './AnimalBrain.js';
 import { AnimalBody } from './AnimalBody.js';
 import { WORLD } from '../config/worldConfig.js';
-import { slopeTilt } from './anim/AnimMath.js';
+import { slopeTilt, jumpEnvelope } from './anim/AnimMath.js';
+import { ANIMATION } from '../config/animation.js';
 import { SLOPE } from '../config/physics.js';
 import { FAUNA_COMBAT, REAR_KICK } from '../config/faunaCombat.js';
 import { PACKS } from '../config/ecosystem.js';
@@ -37,7 +38,9 @@ export class Animal {
    *   `young`: filhote (menor, mais lento, menos vida — presa preferida).
    *   `model`: cópia de `AnimalModels.instance()`; null = corpo procedural.
    */
-  constructor({ spec, x, z, groundAt, fauna, rng = Math.random, group = 0, speciesId = '', model = null, young = false }) {
+  constructor({ spec, x, z, groundAt, fauna, rng = Math.random, group = 0, speciesId = '', model = null, young = false, water = null }) {
+    /** Superfície da água (WaterSurface): quem nada acompanha as ondas. Sem ela, água parada. */
+    this.water = water;
     /** Combate biomimético da espécie (F2): estilo, efeitos, agarrão, flanco, coice. */
     this.combat = FAUNA_COMBAT[speciesId] ?? {};
     // Quem antes só fugia (girafa, alce, zebra, camelo) ganha dano/alcance para revidar.
@@ -61,7 +64,10 @@ export class Animal {
     this.root.rotation.y = rng() * Math.PI * 2;
     this.addHitbox();
     this.home = new THREE.Vector3(x, 0, z);
-    this.leapT = 0; // leopardo: tempo restante do salto
+    this.leapT = 0; // leopardo: tempo restante do voo do salto (> 0 = no ar)
+    /** Salto em curso: segundos desde o início (−1 = nenhum) e o envelope do quadro. */
+    this.jumpT = -1;
+    this.jump = null;
     /** Limite de inclinação: normal sob as patas e escorregão (SLIDING). */
     this.normal = { x: 0, y: 1, z: 0 };
     this.slide = new SlideState();
@@ -278,7 +284,7 @@ export class Animal {
       }
     }
     // Leopardo: o fim da tocaia vira um salto em arco sobre o jogador.
-    if (spec.leap && prev === 'stalk' && state === 'chase') this.leapT = 0.6;
+    if (spec.leap && prev === 'stalk' && state === 'chase' && this.jumpT < 0) this.jumpT = 0;
     if (state !== this._lastState) {
       this._lastState = state;
       this.stateTime = 0;
@@ -351,17 +357,38 @@ export class Animal {
         break;
     }
     // Carcaça (F4): vai até o lugar em volta dela e come (necrófago espera de longe).
-    const fd = this.eco?.feedAt;
+    // Pasto/água (config/foodWeb.js): mesmo mecanismo, andando com calma até o capim, a folhagem ou a margem.
+    const fd = this.eco?.feedAt ?? this.eco?.forage;
     this.feeding = false;
+    this.feedKind = null;
     if (fd && this.alive) {
-      if (state === 'chase' && !this.victim) this.brain.calmDown();
+      if (!fd.kind && state === 'chase' && !this.victim) this.brain.calmDown();
       if (state === 'idle' || state === 'wander') {
         const sx = fd.x - p.x, sz = fd.z - p.z, sd = Math.hypot(sx, sz);
-        if (sd > 0.6) { speed = spec.walk * 1.8; heading = Math.atan2(sx, sz); }
-        else { speed = 0; heading = Math.atan2(fd.cx - p.x, fd.cz - p.z); this.feeding = !fd.wait; }
+        if (sd > 0.6) { speed = spec.walk * (fd.kind ? 1.15 : 1.8); heading = Math.atan2(sx, sz); }
+        else {
+          speed = 0;
+          if (fd.kind !== 'grass') heading = Math.atan2(fd.cx - p.x, fd.cz - p.z); // capim: come onde está, sem girar para o centro
+          this.feeding = !fd.wait;
+          this.feedKind = fd.kind ?? 'carcass';
+        }
       }
     }
-    if (this.leapT > 0) { this.leapT -= dt; speed = spec.run * 1.5; }
+    // Salto: agacha parado (antecipação), voa em arco e amortece ao pousar (ANIMATION.jump).
+    this.jump = null;
+    this.leapT = 0;
+    if (this.jumpT >= 0 && this.alive) {
+      const J = ANIMATION.jump;
+      this.jumpT += dt;
+      const j = jumpEnvelope(this.jumpT, J);
+      if (j.phase === 'done') this.jumpT = -1;
+      else {
+        this.jump = j;
+        if (j.phase === 'anticipation') speed = 0;
+        else if (j.phase === 'flight') { speed = spec.run * J.speed; this.leapT = J.anticipation + J.flight - this.jumpT; }
+        else speed *= 0.35; // pousou: o impulso morre nas patas
+      }
+    } else this.jumpT = -1;
     if (this.limpT > 0) { this.limpT -= dt; speed *= BLEED.slowFactor; } // tiro nas pernas: manca
     if (spec.landSpeed && !this.isWater(p.x, p.z)) speed *= spec.landSpeed; // jacaré fora d'água: arrasta-se devagar
     if (immobile || this.pendingKick >= 0) speed = 0; // coice: planta as patas da frente durante o golpe
@@ -404,17 +431,32 @@ export class Animal {
       this.sliding = this.slide.sliding;
     } else { this.sliding = false; this.slide.reset(); }
     this.speed = speed;
+    const wasSwimming = this.swimming;
     this.swimming = false;
     if (state !== 'burrow') {
       const g = this.groundAt(p.x, p.z);
-      this.swimming = !!spec.swims && g < WORLD.waterLevel - spec.size * 0.6;
-      p.y = this.swimming ? WORLD.waterLevel - spec.size * 0.6 : g;
+      // Terra ↔ água pela PROFUNDIDADE: flutua quando o fundo fica mais baixo que o calado do animal.
+      // Com histerese (não troca de modo a cada onda do terreno na beira) e sem teleporte: no limite,
+      // "pés no fundo" e "boiando" dão a mesma altura.
+      const S = spec.swim, draft = S?.depth ?? spec.size * 0.6, hy = S?.hysteresis ?? 0;
+      const waterDepth = WORLD.waterLevel - g;
+      this.swimming = !!spec.swims && waterDepth > draft + (wasSwimming ? -hy : hy);
+      // À espreita (jacaré parado na água com alguém por perto): afunda devagar até a linha dos olhos;
+      // perseguindo ou atacando, volta à tona.
+      const lurking = !!S?.lurk && this.swimming && this.alive && state !== 'chase' && state !== 'attack' && speed < spec.walk * 1.2 && Math.hypot(playerPos.x - p.x, playerPos.z - p.z) < S.lurkRange; // distância real (a de caça vira ∞ quando ele está saciado)
+      const want = lurking ? Math.min(S.lurk, waterDepth) : draft;
+      this.draft = this.draft === undefined ? want : this.draft + (want - this.draft) * Math.min(1, dt * (S?.rate ?? 8));
+      this.lurking = lurking;
+      // Nadando, acompanha a altura real da onda (a mesma da água desenhada), suavizada pelo corpo.
+      const surf = this.swimming && this.water ? this.water.getHeightAt(p.x, p.z) : WORLD.waterLevel;
+      this.surfY = this.surfY === undefined || !this.swimming ? surf : this.surfY + (surf - this.surfY) * Math.min(1, dt * 4);
+      p.y = this.swimming ? Math.max(g, this.surfY - this.draft) : g;
       // Arara: sobe/desce suave até a altura do voo; leopardo: arco do salto.
       const [h0, h1] = spec.soarHeight ?? [0, 0];
       const targetAlt = state === 'circle' ? (dist < spec.sense * 2 ? h1 : h0) : 0;
       this.altitude += (targetAlt - this.altitude) * Math.min(1, dt * 1.2);
       p.y += this.altitude;
-      if (this.leapT > 0) p.y += Math.sin((1 - this.leapT / 0.6) * Math.PI) * 1.6 * spec.size;
+      if (this.jump) p.y += this.jump.arc * ANIMATION.jump.height * spec.size;
     }
     if (!this.alive) this.deadTime += dt;
     // Sangrando: perde vida até cair; continua fugindo; acumula distância para o rastro.
@@ -436,7 +478,7 @@ export class Animal {
     }
     const toPlayer = Math.atan2(playerPos.x - p.x, playerPos.z - p.z);
     const look = Math.atan2(Math.sin(toPlayer - yaw), Math.cos(toPlayer - yaw));
-    this.body.update(dt, speed, state, this.stateTime, { swimming: this.swimming, tilt, yawRate, leaping: this.leapT > 0, look, feeding: this.feeding });
+    this.body.update(dt, speed, state, this.stateTime, { swimming: this.swimming, tilt, yawRate, leaping: this.leapT > 0, jump: this.jump, look, feeding: this.feeding, feedKind: this.feedKind, browseHigh: !!this.eco?.browseHigh, lurking: !!this.lurking });
     return { strike, state, victim: this.victim, kick };
   }
 

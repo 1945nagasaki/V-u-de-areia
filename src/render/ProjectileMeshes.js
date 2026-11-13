@@ -24,6 +24,12 @@ export class ProjectileMeshes {
 
   prototype(kind) {
     if (this.protos[kind]) return this.protos[kind];
+    if (kind === 'bullet') { // traço luminoso curto (bala em voo)
+      const t = new THREE.Group();
+      t.add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, WEAPONS.pistola.length).translate(0, 0, -WEAPONS.pistola.length / 2), new THREE.MeshBasicMaterial({ color: 0xffe2a0 })));
+      this.protos[kind] = t;
+      return t;
+    }
     const len = kind === 'spear' ? WEAPONS.lanca_pedra.length : WEAPONS.arco.length;
     const r = kind === 'spear' ? 0.018 : 0.008;
     const g = new THREE.Group();

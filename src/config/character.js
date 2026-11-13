@@ -47,6 +47,7 @@ export const SANITY_TRIGGERS = {
   animalDeath: 3,
   npcDeath: 12,
   corpseFound: 8,
+  clamped: 10, // preso nas mandíbulas (leão, onça, jacaré): conta como trauma severo (PhobiaManager)
   surpriseAttack: 6,
   criticalHit: 7,
   criticalFraction: 0.18, // golpe que tira ≥ 18% da vida máxima
