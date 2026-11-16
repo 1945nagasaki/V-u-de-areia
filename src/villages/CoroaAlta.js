@@ -115,7 +115,7 @@ export function buildCoroaAlta(game) {
   // manhã (5 h) ao Gongo da noite (21 h); fechado à noite, como todo portão.
   const outer = B.fortressWall(ctx, { x: L[0].cx, z: L[0].cz, r: L[0].r - 3, gateAngle: Math.PI / 2, height: 7, thickness: 2.4, towers: 10 });
   v.gate = outer.gate;
-  const GATE_HOURS = [5, 21];
+  const GATE_HOURS = v.config.gateHours;
   v.tick = () => {
     const h = game.gameClock?.hour ?? 12;
     const open = h >= GATE_HOURS[0] && h < GATE_HOURS[1];

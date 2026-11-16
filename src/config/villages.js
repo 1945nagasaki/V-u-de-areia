@@ -241,6 +241,8 @@ export const VILLAGES = {
         { name: 'O Topo', r: 30, shift: 80, y: 36 },
       ],
     },
+    /** Portão do Pé: abre no Gongo da manhã e fecha no Gongo da noite (horas do jogo). */
+    gateHours: [5, 21],
     population: 2310,
     populationNote: 'Cerca de 2.310 na Cidadela; o reino inteiro passa de 3.000.',
     demographics: null,
