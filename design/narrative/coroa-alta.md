@@ -77,7 +77,7 @@
 8. **Relíquia:** Coroa de Akin [CÂNONE].
 9. **Localização [PROPOSTA]:**
    - Extremo norte do continente, nas montanhas da Taiga.
-   - No mapa do jogo, o centro fica em torno de `u 0.55, v 0.07`, cerca de 470 m a leste do Acampamento Presa de Gelo.
+   - No mapa do jogo, o centro fica em `u 0.55, v 0.11` (no jogo: `VILLAGES.coroaAlta`), cerca de 470 m a leste do Acampamento Presa de Gelo.
    - **[PROPOSTA]** A Presa de Gelo é uma **vila vassala**: paga o dízimo de ferro ao Cume-Leão. A lore atual da vila não é alterada, e o vínculo político é um acréscimo.
    - **[CÂNONE do jogo]** A **Vila Abstração** (savana, noroeste, `u 0.18, v 0.21`) é "controlada à força pela tribo Hoogmoed": foi invadida, é pobre e saqueada, tem 2.000 "populistas" que trabalham sob guarnição Hoogmoed, e "o líder da tribo faz suas reuniões na casa grande" (`src/config/villages.js`, `src/villages/Abstracao.js`). No jogo, o nome do líder também é o nome da tribo ("tribo Hoogmoed"). Abstração é a **conquista ao sul** do reino, fora da taiga, e a fronteira com a Mesa-Farta (ver `mesa-farta.md`).
 10. **Atmosfera geral:** grandeza fria. Pedra, ferro, neve, silêncio cerimonial e uma hierarquia que se vê de longe.
@@ -1607,6 +1607,24 @@ Todos são [PROPOSTA]. Nenhum tem solução única.
 
 ## PARTE XV — IMPLEMENTAÇÃO EM JOGO 3D
 
+> **Estado (2026-11-16): primeira versão jogável no jogo.**
+> - **Feito:**
+>   - terreno em 5 terraços com rampas na Escada (`src/world/Terraces.js`, `WorldGenerator.addTerraceZone`);
+>   - muralhas de arrimo com colisão e Portões de Degrau;
+>   - muralha externa com o Portão do Pé, que abre das 5 h às 21 h;
+>   - Avenida dos Leões: 14 estátuas mais a do Topo, feitas do modelo 3D real do leão em granito (`src/render/Statues.js`);
+>   - Salão do Primeiro Degrau, Gongo, Porta de Ferro Cego, Salão da Face Branca, Quartel, Câmara dos Mantos, Mercado do Patamar com a balança, Forja Real e taverna;
+>   - cerca de 70 cabanas no Pé, ~30 casas na Pata, ~16 no Ombro e 8 mansões na Juba, com interiores `rustic`;
+>   - NPCs: Nadra, Kesh, Sevra, Ilvo, Mãe Ossa, Iru, os guardas dos portões e os transeuntes.
+> - **Falta:**
+>   - estilo de interior `noble`;
+>   - leões vivos nos Jardins;
+>   - Vento-Juba e Coroa Fria;
+>   - rio e lago;
+>   - LOD;
+>   - grafo de navegação por terraço;
+>   - ligar a cidade ao sistema de trabalho dos NPCs. Hoje ela fica fora dele (`PLACEMENT.skipVillages`), porque esse sistema não conhece os terraços.
+
 Toda esta parte é [PROPOSTA]. Referências ao código atual do branch `claude/pensive-allen-rsiahd`:
 - Three.js;
 - 1 unidade = 1 m;
@@ -1620,7 +1638,7 @@ O branch `completo` já tem sistemas mais novos que devem ser aproveitados ao im
 - AutoRig.
 
 ### Terreno
-- **Posição:** `u ≈ 0.55, v ≈ 0.07`, que dá x ≈ 205 m e z ≈ −991 m em coordenadas de mundo (`uvToWorld` em `src/config/worldConfig.js`).
+- **Posição:** `u 0.55, v 0.11` (movida de v 0.07 para longe da borda norte do mapa), que dá x ≈ 205 m e z ≈ −899 m em coordenadas de mundo (`uvToWorld` em `src/config/worldConfig.js`).
   - Fica dentro da Taiga: as sementes de bioma em `src/config/biomes.js` incluem `[0.58, 0.06]`.
 - **Área:** cerca de 300 × 260 m, contando a cidade e o pé da montanha. O raio da vila é de ~130 m.
 - **Elevação:**

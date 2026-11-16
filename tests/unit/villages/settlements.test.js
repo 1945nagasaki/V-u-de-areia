@@ -11,7 +11,7 @@ const pos = (v) => ({ x: (v.u - 0.5) * W, z: (v.v - 0.5) * D });
 
 test('cada bioma novo tem seu assentamento, com lore', () => {
   for (const b of BIOMES) {
-    const list = Object.values(VILLAGES).filter((v) => v.biome === b);
+    const list = Object.values(VILLAGES).filter((v) => v.biome === b && !v.tribe);
     assert.equal(list.length, 1, `bioma ${b}`);
     const lore = list[0].lore;
     assert.ok(lore?.speaker && lore.pages.length >= 2, `lore de ${list[0].id}`);
@@ -20,6 +20,23 @@ test('cada bioma novo tem seu assentamento, com lore', () => {
   assert.deepEqual(ruins.map((v) => v.id), ['ruinasKaelen']);
   assert.equal(VILLAGES.ruinasKaelen.biome, 'preta');
   assert.equal(VILLAGES.ruinasKaelen.population, 0);
+});
+
+test('capitais das tribos: bioma, lore e terraços coerentes', () => {
+  const capitals = Object.values(VILLAGES).filter((v) => v.tribe);
+  assert.ok(capitals.length >= 1);
+  const coroa = VILLAGES.coroaAlta;
+  assert.equal(coroa.tribe, 'Coroa-Alta');
+  assert.equal(coroa.biome, 'taiga');
+  assert.ok(coroa.lore.pages.every((t) => t.length <= 120), 'falas ≤ 120 caracteres');
+  const L = coroa.terraces.levels;
+  assert.equal(L.length, 5);
+  for (let i = 1; i < L.length; i++) {
+    assert.ok(L[i].y > L[i - 1].y, 'cada terraço mais alto');
+    // nível de cima inteiro dentro do de baixo (círculos encaixados)
+    assert.ok(L[i].r + (L[i].shift - L[i - 1].shift) <= L[i - 1].r, `nível ${i} encaixado`);
+  }
+  assert.equal(L[0].r, coroa.radius);
 });
 
 test('vilas dentro do mapa e sem se sobrepor', () => {

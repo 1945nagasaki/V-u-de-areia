@@ -3,6 +3,7 @@ import { BIOMES, RIVERS } from '../config/biomes.js';
 import { Noise, smoothstep, lerp, clamp } from './Noise.js';
 import { RELIEF } from '../config/landmarks.js';
 import { prepareRelief, reliefAt } from './Relief.js';
+import { makeTerraceZone, terraceHeight } from './Terraces.js';
 
 const BIOME_COUNT = BIOMES.length;
 
@@ -47,6 +48,8 @@ export class WorldGenerator {
 
     /** Zonas aplainadas (vilas, plantações). */
     this.flatZones = [];
+    /** Cidades em terraços (ver Terraces.js). */
+    this.terraceZones = [];
     this._w = new Float32Array(BIOME_COUNT);
   }
 
@@ -58,6 +61,18 @@ export class WorldGenerator {
     const h = height ?? clamp(this.height(x, z, null, true), 3, 60);
     this.flatZones.push({ x, z, radius, blend, height: h });
     return h;
+  }
+
+  /**
+   * Registra uma cidade em terraços. `base` padrão = altura natural do centro
+   * (entre 3 e 60 m). Devolve a zona (níveis, escada) para o construtor da vila.
+   * @param {Parameters<typeof makeTerraceZone>[0]} o
+   */
+  addTerraceZone(o) {
+    const base = o.base ?? clamp(this.height(o.x, o.z, null, true), 3, 60);
+    const zone = makeTerraceZone({ ...o, base });
+    this.terraceZones.push(zone);
+    return zone;
   }
 
   /** Preenche `out` (Float32Array de 7) com os pesos dos biomas. */
@@ -169,6 +184,7 @@ export class WorldGenerator {
           h = lerp(f.height + 0.12 * n.fbm(x / 9, z / 9, 2), h, t);
         }
       }
+      for (const tz of this.terraceZones) h = terraceHeight(tz, x, z, h);
     }
 
     if (!this.ref?.hasHeightmap) h = this.applyRivers(x, z, h);

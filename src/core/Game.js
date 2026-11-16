@@ -41,6 +41,8 @@ import { buildCopaAlta } from '../villages/CopaAlta.js';
 import { buildAreiasVivas } from '../villages/AreiasVivas.js';
 import { buildZambaRios } from '../villages/ZambaRios.js';
 import { buildRuinasKaelen } from '../villages/RuinasKaelen.js';
+import { buildCoroaAlta } from '../villages/CoroaAlta.js';
+import { placeStatues } from '../render/Statues.js';
 import { FireLights } from '../render/FireLights.js';
 import { Surfaces } from '../world/Surfaces.js';
 import { Ladders } from '../world/Ladders.js';
@@ -222,9 +224,12 @@ export class Game {
       loadOakModels(this.renderer).catch((err) => { console.warn('Árvores 3D indisponíveis:', err.message); return null; }),
     ]);
     this.generator = new WorldGenerator(this.referenceMap);
+    /** Zonas em terraços por id de vila (Terraces.js), para os construtores. */
+    this.terraceZones = {};
     for (const v of Object.values(VILLAGES)) {
       const c = uvToWorld(v.u, v.v);
-      this.generator.addFlatZone({ x: c.x, z: c.z, ...v.flatten });
+      if (v.terraces) this.terraceZones[v.id] = this.generator.addTerraceZone({ x: c.x, z: c.z, ...v.terraces });
+      else this.generator.addFlatZone({ x: c.x, z: c.z, ...v.flatten });
     }
     for (const z of EXTRA_FLAT_ZONES) {
       const c = uvToWorld(z.u, z.v);
@@ -252,6 +257,7 @@ export class Game {
       renascimento: buildRenascimento, perseguicao: buildPerseguicao, abstracao: buildAbstracao, bussola: buildBussola,
       presaDeGelo: buildPresaDeGelo, alZahir: buildAlZahir, copaAlta: buildCopaAlta,
       areiasVivas: buildAreiasVivas, zambaRios: buildZambaRios, ruinasKaelen: buildRuinasKaelen,
+      coroaAlta: buildCoroaAlta,
     };
     let k = 0;
     for (const [id, build] of Object.entries(builders)) {
@@ -448,6 +454,10 @@ export class Game {
     this.gear = new GearController(this);
     // Animais: cache já cheio (preloader acima); espécie sem modelo usa o corpo procedural.
     await animalsReady;
+    // Estátuas de animais (modelo real em pedra): Avenida dos Leões da Cidadela.
+    for (const v of Object.values(this.villages)) {
+      if (v.statues?.length) placeStatues(v.group, this.animalModels, v.statues, this.materials.stoneLight);
+    }
     this.fauna = new Fauna(this, { rng: this.random, models: this.animalModels });
     applyGraphics(this, this.graphics); // antes de compilar: o nível gráfico muda os shaders (sombras, reflexos)
     await step(0.99, 'Compilando shaders…');

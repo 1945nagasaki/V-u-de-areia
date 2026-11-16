@@ -217,6 +217,53 @@ export const VILLAGES = {
       ],
     },
   },
+  coroaAlta: {
+    id: 'coroaAlta',
+    name: 'Cidadela do Cume-Leão',
+    /** Capital de uma das sete tribos de Akin (design/narrative/). */
+    tribe: 'Coroa-Alta',
+    biome: 'taiga',
+    region: 'Norte — maciço granítico da Taiga',
+    u: 0.55, v: 0.11,
+    radius: 130,
+    /**
+     * Cidade em 5 terraços (design/narrative/coroa-alta.md, Parte XV):
+     * Pé, Pata, Ombro, Juba e Topo. Cada nível sobe e se desloca para o
+     * norte; a Escada do Pé ao Topo sobe pelo eixo, do sul para o norte.
+     */
+    terraces: {
+      blend: 45, edge: 2.5, stair: { width: 12, run: 18 },
+      levels: [
+        { name: 'O Pé', r: 130, shift: 0, y: 0 },
+        { name: 'A Pata', r: 100, shift: 22, y: 9 },
+        { name: 'O Ombro', r: 74, shift: 42, y: 18 },
+        { name: 'A Juba', r: 50, shift: 60, y: 27 },
+        { name: 'O Topo', r: 30, shift: 80, y: 36 },
+      ],
+    },
+    population: 2310,
+    populationNote: 'Cerca de 2.310 na Cidadela; o reino inteiro passa de 3.000.',
+    demographics: null,
+    faction: 'Capital da tribo Hoogmoed — o Reino de Coroa-Alta',
+    founded: 'Nasceu do muro que o clã mais forte ergueu no Cume para guardar o gado do inverno.',
+    description:
+      'Uma montanha cortada em cinco terraços, cada um com sua muralha. Quanto mais alto se mora, ' +
+      'mais alto se é. No topo, o Salão do Primeiro Degrau e a alcateia real.',
+    structures: [
+      'Cinco terraços murados', 'Escada do Pé ao Topo', 'Avenida dos Leões', 'Salão do Primeiro Degrau',
+      'Salão da Face Branca', 'Quartel da Guarda Leonina', 'Mercado do Patamar', 'Forja Real da Pata',
+      'Gongo do Topo', 'Cabanas do Pé e fogueiras comunitárias',
+    ],
+    lore: {
+      speaker: 'Guarda do Portão do Pé', title: 'Cidadela do Cume-Leão',
+      look: { shirt: 0x6a2a1c, pants: 0x2a2622, hat: 'wrap', accessory: 'spear', height: 1.88, build: 1.1 },
+      pages: [
+        '"De que altura você vem, estrangeiro? Aqui isso importa mais que o seu nome."',
+        '"Cinco terraços. O Pé é dos mineiros; o Topo é do Primeiro. Ninguém sobe a Escada sem licença."',
+        '"Não diga \'imperador\' dentro dos muros. Esse título está guardado — e não é para você."',
+      ],
+    },
+  },
   ruinasKaelen: {
     id: 'ruinasKaelen',
     name: 'Ruínas de Kaelen',

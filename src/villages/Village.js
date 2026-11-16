@@ -342,5 +342,6 @@ export class Village {
       u.light.x = m.position.x; u.light.y = m.position.y; u.light.z = m.position.z;
     }
     this.gate?.update(dt);
+    this.tick?.(dt, playerPos); // lógica própria da vila (ex.: portões que fecham à noite)
   }
 }
