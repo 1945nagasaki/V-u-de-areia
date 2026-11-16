@@ -79,6 +79,7 @@
    - Extremo norte do continente, nas montanhas da Taiga.
    - No mapa do jogo, o centro fica em torno de `u 0.55, v 0.07`, cerca de 470 m a leste do Acampamento Presa de Gelo.
    - **[PROPOSTA]** A Presa de Gelo é uma **vila vassala**: paga o dízimo de ferro ao Cume-Leão. A lore atual da vila não é alterada, e o vínculo político é um acréscimo.
+   - **[CÂNONE do jogo]** A **Vila Abstração** (savana, noroeste, `u 0.18, v 0.21`) é "controlada à força pela tribo Hoogmoed": foi invadida, é pobre e saqueada, tem 2.000 "populistas" que trabalham sob guarnição Hoogmoed, e "o líder da tribo faz suas reuniões na casa grande" (`src/config/villages.js`, `src/villages/Abstracao.js`). No jogo, o nome do líder também é o nome da tribo ("tribo Hoogmoed"). Abstração é a **conquista ao sul** do reino, fora da taiga, e a fronteira com a Mesa-Farta (ver `mesa-farta.md`).
 10. **Atmosfera geral:** grandeza fria. Pedra, ferro, neve, silêncio cerimonial e uma hierarquia que se vê de longe.
 
 ### Primeira impressão do viajante
@@ -1222,7 +1223,8 @@ Toda esta parte é [PROPOSTA].
 | **Pouso-Lento (Luiheid)** | Anti-Akin [CÂNONE]. Hoogmoed o despreza: "contra Akin por preguiça, não por grandeza". Sem relação prática. |
 
 ### Alianças
-- **Formal:** só a vassalagem da Presa de Gelo [PROPOSTA].
+- **Formal:** a vassalagem da Presa de Gelo [PROPOSTA].
+- **Por conquista:** a **Vila Abstração** [CÂNONE do jogo: "controlada à força pela tribo Hoogmoed"]. Não é aliança: é ocupação. A guarnição Hoogmoed vigia 2.000 "populistas" e o líder se reúne na casa grande da vila. **[PROPOSTA]** A guarnição come grão da Mesa-Farta comprado por intermediários, o que contradiz a recusa orgulhosa do Cume em comprar dela (ver `mesa-farta.md`).
 - **Informais:** comércio com a Brasa-Viva e a dependência da organização de Gierigheid.
 - **Recusadas:** uma "liga anti-Akin" com Mesa-Farta e Pouso-Lento. Hoogmoed exige ser o primeiro dela, e os outros recusam.
 
