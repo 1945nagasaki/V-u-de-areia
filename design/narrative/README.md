@@ -10,12 +10,12 @@ marcadas como [PROPOSTA] ou [GANCHO].
 | Tribo | Documento | Estado |
 |---|---|---|
 | I. Coroa-Alta | [coroa-alta.md](coroa-alta.md) | Escrito |
-| II. Mão-Cerrada | — | A fazer |
-| III. Espelho-Turvo | — | A fazer |
-| IV. Brasa-Viva | — | A fazer |
+| II. Mão-Cerrada | [mao-cerrada.md](mao-cerrada.md) | Escrito |
+| III. Espelho-Turvo | [espelho-turvo.md](espelho-turvo.md) | Escrito |
+| IV. Brasa-Viva | [brasa-viva.md](brasa-viva.md) | Escrito |
 | V. Véu-Carmesim | [veu-carmesim.md](veu-carmesim.md) | Escrito |
-| VI. Mesa-Farta | — | A fazer |
-| VII. Pouso-Lento | — | A fazer |
+| VI. Mesa-Farta | [mesa-farta.md](mesa-farta.md) | Escrito |
+| VII. Pouso-Lento | [pouso-lento.md](pouso-lento.md) | Escrito |
 
 ## Akin — história central (cânone)
 
@@ -80,6 +80,20 @@ relíquias. O pecado molda o líder e os conflitos, não todos os habitantes.
 - **Luiheid:** rejeitava Akin porque o imperador obrigava as pessoas a tarefas e
   responsabilidades contra a vontade. A Costela simboliza recusa, imobilidade e
   negligência em restaurar o corpo. Personagem associado: **Enzo**.
+
+## Linha do tempo comum [PROPOSTA usada em todos os documentos]
+
+- **Ano 0** = a noite da Traição e da Queda de Akin. Datas antes dela: "~N anos antes".
+- **Presente ≈ Ano 36.**
+- Idades no presente (aprox.):
+
+| Líder | Nascimento | Idade |
+|---|---|---|
+| Afguns | ~52 antes | ~88 (o mais velho, como pede o cânone) |
+| Vraatsug | ~40 antes | ~76 |
+| Hoogmoed | ~35 antes | ~71 |
+| Toorn | ~Ano 2 (depois da Queda) | ~34 |
+| Gierigheid, Luiheid, Onkuisheid | ver os documentos | sempre abaixo de 88 |
 
 ## Regras do autor
 

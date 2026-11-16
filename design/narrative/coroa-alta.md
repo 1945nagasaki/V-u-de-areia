@@ -1316,7 +1316,7 @@ Todos os personagens são [PROPOSTA], exceto Ulmar, que já existe no jogo.
 - **Função narrativa:** fonte de informação e de fabricação. Peça-chave no conflito da Dívida de Latão.
 
 ### 3. Mãe Ossa — Mineira aposentada
-- **Idade:** 71.
+- **Idade:** 89 (cuidou de Hoogmoed menino quando tinha uns 20 anos).
 - **Profissão:** ex-mineira. Hoje cuida das crianças órfãs da Corda dos Mineiros.
 - **Aparência:** pequena e curvada. Usa óculos de mica e tosse do pó da mina.
 - **Personalidade:** doce, teimosa, de memória afiada. Ri alto.
