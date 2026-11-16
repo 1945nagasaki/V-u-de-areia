@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { Humanoid } from './Humanoid.js';
 import { PLAYER, WORLD } from '../config/worldConfig.js';
-import { CLIMB } from '../config/physics.js';
+import { CLIMB, MOVE_SUBSTEP, SLOPE } from '../config/physics.js';
+import { surfaceNormal, isUnwalkable, blockUphill, SlideState } from '../systems/physics/SlopePhysics.js';
+import { applyGesture } from './NPCAgent.js';
+import { StatusEffects } from '../systems/fauna/StatusEffects.js';
 import { wantsSprint, resolveMoveSpeed } from './Locomotion.js';
 import { GAMEPLAY } from '../config/gameplay.js';
 import { swimVerticalSpeed } from './Swimming.js';
@@ -16,11 +19,28 @@ import { swimVerticalSpeed } from './Swimming.js';
  * `pésY` deixa o chão ter vários andares (plataformas, pontes, escadas).
  */
 export class Player {
-  constructor({ groundAt, collisions, state, isUnderground, ladders = null }) {
+  constructor({ groundAt, collisions, state, isUnderground, ladders = null, terrainAt = null }) {
     this.groundAt = groundAt;
+    /** Só o relevo (sem pisos/pontes): normal da superfície e limite de 45°. */
+    this.terrainAt = terrainAt;
+    /** Limite de inclinação: normal sob os pés, escorregão e perda de aderência. */
+    this.slope = { normal: { x: 0, y: 1, z: 0 }, steep: false, slipping: false, pushing: false, angle: 0 };
+    this.slide = new SlideState();
+    this._block = { dx: 0, dz: 0, uphill: false };
+    this._skidT = 0;
+    this._t = 0;
+    /** Controles invertidos (Raiva) e desvio de pânico em rad (Traumatofobia); o jogo liga a cada quadro. */
+    this.invertControls = false;
+    this.wobble = 0;
+    /** Efeitos de golpes de animais: atordoado (coice), preso (mordida no pescoço), lento (calcanhar). */
+    this.status = new StatusEffects();
+    /** Gancho: derrapou (correndo contra encosta íngreme ou começou a escorregar). */
+    this.onSkid = null;
     /** Escadas de mão (Ladders): W anda contra ela → sobe. */
     this.ladders = ladders;
     this.climbing = null;
+    /** Opcional: `{ canSprint(): boolean }` (Survival) — sem stamina, não corre. */
+    this.stamina = null;
     this.collisions = collisions;
     this.state = state;
     this.isUnderground = isUnderground;
@@ -43,11 +63,20 @@ export class Player {
     this._move = new THREE.Vector3();
     this._fwd = new THREE.Vector3();
     this._right = new THREE.Vector3();
+    /** Chão sob um ponto, na altura atual dos pés (IK dos pés / inclinação na rampa). */
+    this._ground = (x, z) => this.groundAt(x, z, this.position.y + 0.3);
+  }
+
+  /** Empurrão de um golpe (coice, patada): desloca com colisão. */
+  knockback(dx, dz) {
+    if (this.flying || this.climbing) return;
+    this.collisions.move(this.position, dx, dz, PLAYER.radius, MOVE_SUBSTEP);
   }
 
   teleport(x, z, facing = 0, y) {
     this.position.set(x, y ?? this.groundAt(x, z), z);
     this.velocity.set(0, 0, 0);
+    this.slide?.reset();
     this.root.rotation.y = facing;
     this.facing.set(Math.sin(facing), 0, Math.cos(facing));
   }
@@ -66,6 +95,12 @@ export class Player {
     if (input.isDown('KeyS') || input.isDown('ArrowDown')) move.sub(fwd);
     if (input.isDown('KeyD')) move.add(right);
     if (input.isDown('KeyA')) move.sub(right);
+    // Raiva (confusão): comandos invertidos por instantes. Traumatofobia: passos erráticos.
+    if (this.invertControls) move.negate();
+    if (this.wobble && move.lengthSq() > 0) {
+      const a = Math.sin(this._t * 7.3) * Math.sin(this._t * 2.9) * this.wobble, c = Math.cos(a), s = Math.sin(a);
+      move.set(move.x * c - move.z * s, 0, move.x * s + move.z * c);
+    }
     if (input.pressed('KeyF')) this.fastTravel = !this.fastTravel;
     if (input.pressed('KeyV') && !this.isUnderground()) {
       this.flying = !this.flying;
@@ -84,15 +119,32 @@ export class Player {
 
     const ground = this.groundAt(this.position.x, this.position.z, this.position.y);
     const underground = this.isUnderground();
-    const surfaceY = WORLD.waterLevel - GAMEPLAY.swimming.surfaceDepth; // pés boiando na superfície
+    // nível da água sob o jogador: as ondas (GPU) quando há oceano FFT, senão o nível fixo
+    const level = this.waterHeight ? this.waterHeight() : WORLD.waterLevel;
+    const surfaceY = level - GAMEPLAY.swimming.surfaceDepth; // pés boiando na superfície
     // Entra na água quando o fundo fica mais baixo que a altura de boiar.
     this.swimming = !underground && ground < surfaceY - 0.05 && this.position.y <= surfaceY + 0.3;
-    if (this.swimming) return this.updateSwimming(dt, input, move, camera, surfaceY);
+    if (this.swimming) { this.slide.reset(); return this.updateSwimming(dt, input, move, camera, surfaceY); }
     this.submerged = false;
+    this._t += dt;
+    this._skidT = Math.max(0, this._skidT - dt);
 
-    const moving = move.lengthSq() > 0;
-    this.sprinting = wantsSprint(input, moving, { swimming: this.swimming });
-    const speed = resolveMoveSpeed(PLAYER, {
+    // Normal da superfície sob os pés (só no relevo; pisos, pontes e degraus não contam).
+    const sl = this.slope;
+    const onTerrain = !!this.terrainAt && !underground && Math.abs(ground - this.terrainAt(this.position.x, this.position.z)) < SLOPE.onTerrainEps;
+    if (onTerrain) surfaceNormal(this.terrainAt, this.position.x, this.position.z, SLOPE.normalSample, sl.normal);
+    else { sl.normal.x = 0; sl.normal.y = 1; sl.normal.z = 0; }
+    // Vale também no ar: senão o passo seguinte "subiria" a encosta pelo encaixe no chão.
+    sl.steep = onTerrain && isUnwalkable(sl.normal);
+    sl.angle = Math.acos(sl.normal.y) * 57.2958;
+
+    // Atordoado (coice) ou preso (agarrão): sem controle; lento: mordida no calcanhar.
+    this.status.update(dt);
+    if (this.status.immobile) move.set(0, 0, 0);
+    let moving = move.lengthSq() > 0;
+    // Stamina (Survival): zerada, não corre até recuperar.
+    this.sprinting = wantsSprint(input, moving, { swimming: this.swimming }) && (this.stamina?.canSprint() ?? true);
+    const speed = this.status.speedFactor * resolveMoveSpeed(PLAYER, {
       sprinting: this.sprinting,
       swimming: this.swimming,
       modifier: this.state.modifier('speed'),
@@ -104,9 +156,34 @@ export class Player {
       this.facing.lerp(move, 1 - Math.exp(-12 * dt)).normalize();
       this.root.rotation.y = Math.atan2(this.facing.x, this.facing.z);
     }
-    this.position.x += move.x * speed * dt;
-    this.position.z += move.z * speed * dt;
-    this.collisions.resolve(this.position, PLAYER.radius);
+    // Encosta > 45°: a parte do passo que sobe é anulada; correr contra ela = perde a aderência.
+    let wx = move.x * speed * dt, wz = move.z * speed * dt;
+    let pushingUp = false;
+    if (sl.steep && moving && !this.fastTravel) {
+      const b = blockUphill(wx, wz, sl.normal, this._block);
+      wx = b.dx; wz = b.dz; pushingUp = b.uphill;
+      if (pushingUp && this.sprinting) {
+        this.sprinting = false;
+        if (this._skidT <= 0) { this._skidT = SLOPE.skidCooldown; this.onSkid?.(sl.angle); }
+      }
+    }
+    // Escorregamento: gravidade projetada no plano da encosta, até o chão firme.
+    const wasSliding = this.slide.sliding;
+    const sd = this.fastTravel ? this.slide.update(dt, sl.normal, false) : this.slide.update(dt, sl.normal, sl.steep && this.grounded);
+    if (this.slide.sliding && !wasSliding && this._skidT <= 0) { this._skidT = SLOPE.skidCooldown; this.onSkid?.(sl.angle); }
+    sl.slipping = this.slide.sliding;
+    sl.pushing = pushingUp;
+    if (sl.slipping) moving = Math.hypot(wx, wz) > 1e-4;
+    // Sub-passos: correndo ou em viagem rápida não atravessa poste/cerca fina.
+    const ox = this.position.x, oz = this.position.z;
+    const oh = onTerrain ? this.terrainAt(ox, oz) : 0;
+    this.collisions.move(this.position, wx + sd.dx, wz + sd.dz, PLAYER.radius, MOVE_SUBSTEP);
+    // Trava de degrau: o passo não pode subir mais que tan(45°) × distância + um degrau pequeno.
+    if (onTerrain && !this.fastTravel) {
+      const d = Math.hypot(this.position.x - ox, this.position.z - oz);
+      const rise = this.terrainAt(this.position.x, this.position.z) - Math.max(oh, this.position.y);
+      if (rise > d * SLOPE.tanMax + SLOPE.stepHeight) { this.position.x = ox; this.position.z = oz; }
+    }
 
     // Vertical
     const g = this.groundAt(this.position.x, this.position.z, this.position.y);
@@ -116,14 +193,14 @@ export class Player {
       if (g > this.position.y) this.position.y = g;
       this.grounded = false;
     } else {
-      if (this.grounded && input.pressed('Space')) {
+      if (this.grounded && !sl.slipping && !this.status.immobile && input.pressed('Space')) { // escorregando não dá impulso
         this.velocity.y = PLAYER.jumpSpeed * this.state.modifier('jump'); // lama/frio: pulo fraco
         this.grounded = false;
       }
       this.velocity.y += PLAYER.gravity * dt;
       this.position.y += this.velocity.y * dt;
-      // Desce degraus/encostas sem "voar" (snap até 0,6 m).
-      if (this.grounded && this.position.y - g < 0.6 && this.velocity.y <= 0) this.position.y = g;
+      // Desce degraus/encostas sem "voar" (snap até 0,6 m). Escorregando, fica colado à encosta.
+      if (this.grounded && (this.position.y - g < 0.6 || sl.slipping) && this.velocity.y <= 0) this.position.y = g;
       if (this.position.y <= g) {
         this.position.y = g;
         this.velocity.y = 0;
@@ -133,8 +210,10 @@ export class Player {
       }
     }
 
-    this.speed = moving ? speed : 0;
-    this.model.update(dt, Math.min(this.speed, PLAYER.runSpeed), { swimming: this.swimming, sprinting: this.sprinting, grounded: this.grounded });
+    this.speed = moving && !sl.slipping ? speed : 0;
+    this.model.update(dt, Math.min(this.speed, PLAYER.runSpeed), { swimming: this.swimming, sprinting: this.sprinting, grounded: this.grounded, ground: this._ground });
+    // Sem aderência: braços abertos, tronco para trás (postura de desequilíbrio).
+    if (sl.slipping || pushingUp) applyGesture(this.model, 'balance', this._t);
   }
 
   /**
@@ -184,15 +263,14 @@ export class Player {
       pitch: camera.isFirstPerson ? camera.firstPitch : 0,
       speed,
     });
-    this.position.x += move.x * speed * dt;
-    this.position.z += move.z * speed * dt;
-    this.collisions.resolve(this.position, PLAYER.radius);
+    // Sub-passos: correndo ou em viagem rápida não atravessa poste/cerca fina.
+    this.collisions.move(this.position, move.x * speed * dt, move.z * speed * dt, PLAYER.radius, MOVE_SUBSTEP);
     const floor = this.groundAt(this.position.x, this.position.z, this.position.y);
     this.position.y = Math.min(surfaceY, Math.max(floor, this.position.y + vy * dt));
     this.velocity.set(0, 0, 0);
     this.grounded = false;
     this.sprinting = false;
-    this.submerged = this.position.y < WORLD.waterLevel - cfg.submergedDepth;
+    this.submerged = this.position.y < surfaceY + cfg.surfaceDepth - cfg.submergedDepth;
     this.speed = moving ? speed : 0;
     this.model.update(dt, this.speed, { swimming: true });
   }
@@ -260,6 +338,6 @@ export class Player {
     this.grounded = false;
     this.speed = 0;
     this.sprinting = false;
-    this.model.update(dt, 0, { swimming: true }); // pose "deitada" de nado = voo
+    this.model.update(dt, 0, { flying: true }); // corpo esticado, braços à frente
   }
 }

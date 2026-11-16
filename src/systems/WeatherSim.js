@@ -80,11 +80,14 @@ function wrap(v, size) {
  * @param {number} windZ vento em z (m/s)
  * @param {number} time tempo do jogo (s), para o balanço
  * @param {() => number} rng
+ * @param {number} [count] quantas partículas mover (as primeiras `count`; padrão: todas as ativas).
+ *   Clima fraco desenha só uma fração: as outras não precisam andar — quando voltarem a ser
+ *   desenhadas, o módulo da caixa as recoloca em volta da câmera no mesmo passo.
  * @returns {number} quantas partículas foram recicladas para o céu
  */
-export function stepParticles(s, dt, center, windX, windZ, time, rng) {
+export function stepParticles(s, dt, center, windX, windZ, time, rng, count = s.active) {
   const [w, h, d] = s.box;
-  const p = s.pos, n = s.active, fl = s.flutter;
+  const p = s.pos, n = Math.min(s.active, count), fl = s.flutter;
   const top = center.y + h / 2, bottom = center.y - h / 2;
   let recycled = 0;
   for (let i = 0; i < n; i++) {

@@ -1,0 +1,66 @@
+<!doctype html>
+<!-- Conferência do modelo do barco (BOAT.model): tamanho, orientação (proa em +Z), linha d'água e posição do piloto.
+     Com o servidor de dev: http://localhost:5173/tools/boat/boat-check.html
+     Três vistas: lado (proa à direita), cima (proa para cima) e 3/4. Plano azul = linha d'água (y = 0).
+     Boneco laranja de 1,75 m = onde o jogador fica ao pilotar (helm); seta vermelha = proa (+Z). -->
+<html><head><meta charset="utf-8"><title>Barco — conferência</title>
+<style>body{margin:0;background:#15181c;font:13px system-ui;color:#ddd}#info{position:fixed;left:10px;top:10px;padding:8px 12px;background:rgba(10,12,14,.85);border-radius:8px;line-height:1.5}b{color:#e8b85a}</style></head>
+<body><div id="info">carregando…</div>
+<script type="module">
+import * as THREE from 'three';
+import { BOAT } from '/src/config/boat.js';
+import { buildBoatModel, loadBoatModel } from '/src/render/boat/BoatModel.js';
+
+const W = 1500, H = 760;
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(W, H); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.shadowMap.enabled = true;
+document.body.prepend(r.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x9fc0e0);
+const sun = new THREE.DirectionalLight(0xfff0dc, 2.6); sun.position.set(6, 10, 4); sun.castShadow = true; Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8 });
+scene.add(sun, new THREE.HemisphereLight(0xcfe0f5, 0x4a5a6a, 1.0));
+const water = new THREE.Mesh(new THREE.PlaneGeometry(40, 40).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2f6f9f, transparent: true, opacity: 0.55, roughness: 0.25, side: THREE.DoubleSide }));
+scene.add(water);
+scene.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 2.6, 0), 3, 0xff3322, 0.6, 0.3));
+
+const model = buildBoatModel();
+scene.add(model.group);
+const ok = await loadBoatModel(model);
+const M = BOAT.model, helm = ok && M?.helm ? M.helm : BOAT.helm, exit = ok && M?.exit ? M.exit : BOAT.exit;
+const dummy = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 1.31, 6, 12), new THREE.MeshStandardMaterial({ color: 0xff8a2a }));
+dummy.position.set(helm[0], helm[1] + 0.875, helm[2]); dummy.castShadow = true; scene.add(dummy);
+const out = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshStandardMaterial({ color: 0x33dd66 })); out.position.set(...exit); scene.add(out);
+// casco da física (caixa de 8,2 × 3 m na linha d'água) para comparar
+const hull = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(BOAT.waterlineBeam, 0.02, BOAT.waterlineLength)), new THREE.LineBasicMaterial({ color: 0xffffff }));
+scene.add(hull);
+
+const box = new THREE.Box3().setFromObject(model.glb ?? model.group), size = box.getSize(new THREE.Vector3());
+document.getElementById('info').innerHTML = `<b>${ok ? 'GLB: ' + M.url : 'procedural (GLB não carregou)'}</b><br>
+  tamanho: comprimento ${size.z.toFixed(2)} m · boca ${size.x.toFixed(2)} m · altura ${size.y.toFixed(2)} m<br>
+  abaixo da água ${(-box.min.y).toFixed(2)} m · acima ${box.max.y.toFixed(2)} m<br>
+  casco da física (linha branca): ${BOAT.waterlineLength} × ${BOAT.waterlineBeam} m · piloto em [${helm.join(', ')}] · saída (verde) em [${exit.join(', ')}]`;
+window.boat = { ok, size: size.toArray(), min: box.min.toArray(), max: box.max.toArray() };
+// Altura do assoalho ao longo do barco (raio de cima para baixo, a partir de 1 m acima da água: passa por baixo do toldo).
+scene.updateMatrixWorld(true);
+const rc = new THREE.Raycaster(), floor = [];
+for (let z = -3.6; z <= 3.6; z += 0.4) {
+  rc.set(new THREE.Vector3(0, 1.0, z), new THREE.Vector3(0, -1, 0));
+  const hit = rc.intersectObject(model.glb ?? model.group, true)[0];
+  floor.push(z.toFixed(1) + ':' + (hit ? hit.point.y.toFixed(2) : '—'));
+}
+rc.set(new THREE.Vector3(helm[0], 1.0, helm[2]), new THREE.Vector3(0, -1, 0));
+const hf = rc.intersectObject(model.glb ?? model.group, true)[0];
+window.boat.floor = floor; window.boat.helmFloor = hf ? +hf.point.y.toFixed(3) : null;
+document.getElementById('info').innerHTML += '<br>assoalho (z:y): ' + floor.join(' ') + '<br>assoalho no piloto: ' + (hf ? hf.point.y.toFixed(2) + ' m' : 'sem piso');
+
+const views = [
+  { cam: new THREE.OrthographicCamera(-5.5, 5.5, 4.0, -1.57, 0.1, 100), pos: [20, 0.6, 0], look: [0, 0.6, 0], rect: [0, H / 2, W / 2, H / 2] }, // lado: +X olhando −X → proa (+Z) à direita? ver seta
+  { cam: new THREE.OrthographicCamera(-5.5, 5.5, 2.79, -2.79, 0.1, 100), pos: [0, 20, 0], look: [0, 0, 0], up: [-1, 0, 0], rect: [0, 0, W / 2, H / 2] }, // cima, proa à esquerda como na vista de lado
+  { cam: new THREE.PerspectiveCamera(32, (W / 2) / H, 0.1, 100), pos: [7.5, 4.2, -9], look: [0, 0.5, 0], rect: [W / 2, 0, W / 2, H] },
+];
+r.setScissorTest(true);
+for (const v of views) {
+  v.cam.position.set(...v.pos); if (v.up) v.cam.up.set(...v.up); v.cam.lookAt(...v.look);
+  r.setViewport(...v.rect); r.setScissor(...v.rect);
+  r.render(scene, v.cam);
+}
+window.done = true;
+</script></body></html>

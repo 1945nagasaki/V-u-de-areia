@@ -3,6 +3,10 @@ import { VILLAGES } from '../config/villages.js';
 import { BIOMES } from '../config/biomes.js';
 import { WORLD, REFERENCE_MAP, worldToUv, uvToWorld } from '../config/worldConfig.js';
 import { GRAPHICS_PRESETS } from '../config/graphics.js';
+import { minimapPoint } from './minimapMath.js';
+import { icon } from './Icons.js';
+import { slotIcon } from './gear/ItemIcon.js';
+import { UI_TIMING } from '../config/gameplay.js';
 
 const el = (tag, cls, parent, html) => {
   const e = document.createElement(tag);
@@ -37,6 +41,7 @@ export class UI {
     // Status
     this.vitals = el('div', 'panel vitals', this.root, `
       <div class="row"><span class="label">Vida</span><div class="meter"><div class="fill hp"></div></div><span class="val hp-val"></span></div>
+      <div class="row san-row" title="Sanidade: 100 = mente sã · 0 = insensatez total"><span class="label">Sanidade</span><div class="meter"><div class="fill san"></div></div><span class="val san-val"></span></div>
       <div class="row"><span class="label">Exposição</span><div class="meter"><div class="fill exp"></div></div><span class="val exp-val"></span></div>
       <div class="row small"><span>Moedas <b class="coins"></b></span><span>Relíquias <b class="relic"></b></span><span>Confiança Bússola <b class="trust"></b></span></div>
       <div class="inventory"></div>
@@ -48,10 +53,8 @@ export class UI {
     this.village = el('div', 'panel village hidden', this.root);
     this.prompt = el('div', 'prompt hidden', this.root);
     this.toasts = el('div', 'toasts', this.root);
-    this.help = el('div', 'help', this.root,
-      '<b>WASD</b> mover · <b>Shift</b> correr · <b>Espaço</b> pular · <b>ALT</b> trava câmera · <b>C</b> 1ª/3ª pessoa · <b>Roda</b> zoom · '
-      + '<b>E</b> interagir · <b>H</b> poção · <b>M</b> mapa · <b>F</b> viagem rápida · <b>V</b> voar · '
-      + '<b>1–8</b> slot · <b>Clique</b> bater · <b>G</b> gráficos');
+    // os comandos foram para o menu do Esc (aba Controles); aqui fica só a dica
+    this.help = el('div', 'help', this.root, '<kbd>Esc</kbd> menu · controles · ajustes');
     this.speedTag = el('div', 'speed-tag hidden', this.root, 'VIAGEM RÁPIDA');
     this.sickOverlay = el('div', 'sick-overlay', this.root);
     // Água: tinta azul debaixo d'água + barra de fôlego (só aparece na água).
@@ -154,6 +157,21 @@ export class UI {
   }
 
   // ---------- status ----------
+  /**
+   * Barra de sanidade (abaixo da vida). Só mexe no DOM quando o valor
+   * arredondado muda; abaixo de `pulseBelow` pulsa com brilho elétrico.
+   */
+  setSanity(value, max, pulseBelow) {
+    const v = Math.round(value);
+    if (v === this._san) return;
+    this._san = v;
+    if (!this._sanEls) this._sanEls = { row: this.vitals.querySelector('.san-row'), fill: this.vitals.querySelector('.fill.san'), val: this.vitals.querySelector('.san-val') };
+    const { row, fill, val } = this._sanEls;
+    fill.style.width = `${(value / max) * 100}%`;
+    val.textContent = `${v}/${max}`;
+    row.classList.toggle('critical', value / max < pulseBelow);
+  }
+
   refreshVitals() {
     const s = this.game.state;
     const q = (c) => this.vitals.querySelector(c);
@@ -164,7 +182,11 @@ export class UI {
     q('.coins').textContent = s.coins;
     q('.relic').textContent = `${Math.round(s.relicPower * 100)}%`;
     q('.trust').textContent = `${s.trust.bussola}/100`;
-    q('.inventory').innerHTML = [...s.inventory].map(([id, n]) => `<span class="item" title="${ITEMS[id]?.description ?? ''}">${ITEMS[id]?.name ?? id} ×${n}</span>`).join('');
+    // Aqui só os itens de missão; o resto vive na mochila (I).
+    const key = [...s.inventory].filter(([id]) => (ITEMS[id]?.kind ?? 'key') === 'key');
+    const rest = [...s.inventory].reduce((n, [id, c]) => n + ((ITEMS[id]?.kind ?? 'key') === 'key' ? 0 : c), 0);
+    q('.inventory').innerHTML = key.map(([id, n]) => `<span class="item" title="${ITEMS[id]?.description ?? ''}">${ITEMS[id]?.name ?? id} ×${n}</span>`).join('')
+      + (rest ? `<span class="item dim">${icon('backpack')} Mochila: ${rest} itens · <b>I</b></span>` : '');
     this.refreshEffects();
   }
 
@@ -188,7 +210,7 @@ export class UI {
     this.hotbar.innerHTML = inv.slots.map((item, i) => `
       <div class="slot${i === inv.selected ? ' active' : ''}${item ? ' filled' : ''}" title="${item?.nome ?? 'Vazio'}">
         <span class="key">${i + 1}</span>
-        ${item ? `<span class="icon">${item.icone ?? item.nome.slice(0, 2)}</span><span class="name">${item.nome}</span>` : ''}
+        ${item ? `<span class="icon">${slotIcon(item)}</span><span class="name">${item.nome}</span>${this.game.gear?.slotBadge(item) ?? ''}` : ''}
       </div>`).join('');
     const eq = inv.equipado;
     this.equipLabel.innerHTML = `Equipado: <b>${eq.nome}</b>`;
@@ -201,8 +223,8 @@ export class UI {
   setCameraStatus({ locked, firstPerson }) {
     const view = firstPerson ? '1ª pessoa' : '3ª pessoa';
     this.lockHint.innerHTML = locked
-      ? `<b>Câmera travada</b> · ALT ou Esc solta · ${view} · <b>C</b> alterna`
-      : `Pressione <b>ALT</b> para travar/destravar a câmera · ${view} · <b>C</b> alterna`;
+      ? `<b>Câmera travada</b> · ALT ou Esc solta · ${view} · <b>T</b> alterna`
+      : `Pressione <b>ALT</b> para travar/destravar a câmera · ${view} · <b>T</b> alterna`;
     this.lockHint.classList.toggle('locked', locked);
     this.crosshair.classList.toggle('hidden', !firstPerson);
   }
@@ -335,7 +357,10 @@ export class UI {
       <p>${cfg.description}</p>
       <ul>${cfg.structures.map((s) => `<li>${s}</li>`).join('')}</ul>${extra}`;
     this.village.classList.toggle('ruins', !!cfg.abandoned);
-    this.village.classList.remove('hidden');
+    this.village.classList.remove('hidden', 'compact');
+    // Depois de alguns segundos recolhe para não cobrir a tela (nome e região ficam).
+    clearTimeout(this._villageCompact);
+    this._villageCompact = setTimeout(() => this.village.classList.add('compact'), UI_TIMING.villageCardSeconds * 1000);
   }
 
   // ---------- mapas ----------
@@ -369,9 +394,9 @@ export class UI {
     this._debuffKey = key;
     const chips = (debuffs?.active ?? []).map((d) => `
       <div class="debuff" title="${d.description}">
-        <span class="icon">${d.icon}</span>${d.name}<span class="pct">${Math.round(d.strength * 100)}%</span>
+        <span class="icon">${icon(d.icon)}</span>${d.name}<span class="pct">${Math.round(d.strength * 100)}%</span>
       </div>`);
-    if (debuffs?.warmed) chips.push('<div class="debuff warm" title="Perto do fogo o frio não pega."><span class="icon">🔥</span>Aquecido</div>');
+    if (debuffs?.warmed) chips.push(`<div class="debuff warm" title="Perto do fogo o frio não pega."><span class="icon">${icon('flame')}</span>Aquecido</div>`);
     this.debuffBox.innerHTML = chips.join('');
   }
 
@@ -415,7 +440,11 @@ export class UI {
   toggleWorldMap(force) {
     const show = force ?? this.worldMap.classList.contains('hidden');
     this.worldMap.classList.toggle('hidden', !show);
-    if (show) { this.game.input.unlock(); this.drawWorldMap(); }
+    if (show) {
+      this.game.input.unlock();
+      this.game.worldMapRenderer?.capture(); // foto do mundo 3D de cima (mesma versão do minimapa)
+      this.drawWorldMap();
+    }
   }
 
   drawWorldMap() {
@@ -423,7 +452,10 @@ export class UI {
     const W = c.canvas.width, H = c.canvas.height;
     c.fillStyle = '#1b3a52';
     c.fillRect(0, 0, W, H);
-    if (this.mapImage.complete) c.drawImage(this.mapImage, 0, 0, W, H);
+    // Mesma versão do minimapa: o mundo 3D visto de cima. (A imagem pintada só entra se a foto falhar.)
+    const photo = this.game.worldMapRenderer;
+    if (photo?.ready && photo.canvas) c.drawImage(photo.canvas, 0, 0, W, H);
+    else if (this.mapImage.complete) c.drawImage(this.mapImage, 0, 0, W, H);
     c.font = 'bold 15px system-ui';
     c.textAlign = 'center';
     for (const v of Object.values(VILLAGES)) {
@@ -495,6 +527,19 @@ export class UI {
       c.fillStyle = '#fff';
       c.fillText(v.name.replace('Vila ', ''), x, y - v.radius * k - 4);
     }
+    // Zonas de busca (procurado): círculo vermelho em volta da última posição conhecida.
+    for (const z of this.game.bounty?.searches.values() ?? []) {
+      const x = S / 2 + (z.x - p.x) * k, y = S / 2 + (z.z - p.z) * k, r = Math.max(6, z.r * k);
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300);
+      c.fillStyle = `rgba(214, 60, 44, ${0.16 + 0.08 * pulse})`;
+      c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+      c.setLineDash([5, 4]);
+      c.strokeStyle = 'rgba(255, 96, 76, 0.95)';
+      c.lineWidth = 1.6;
+      c.stroke();
+      c.setLineDash([]);
+    }
+    if (!under) this.drawBoatMarker(c, S, k, p);
     this.drawArrow(c, S / 2, S / 2, 7);
     c.restore();
     // Norte
@@ -504,6 +549,38 @@ export class UI {
     this.coords.textContent = this.game.areaId === 'overworld'
       ? `${Math.round(p.x)} m L · ${Math.round(p.z)} m S · alt. ${Math.round(p.y)} m`
       : this.game.areas[this.game.areaId]?.name ?? '';
+  }
+
+  /**
+   * Barco no minimapa: casco virado para a proa; fora do quadro, um ponto na borda apontando
+   * para onde ele ficou. Não aparece enquanto o jogador pilota (a seta já é o barco).
+   */
+  drawBoatMarker(c, S, k, p) {
+    const boat = this.game.boat;
+    if (!boat?.physics || boat.piloting) return;
+    const b = boat.physics.renderPosition;
+    const { x, y, clamped } = minimapPoint(b.x - p.x, b.z - p.z, k, S);
+    c.save();
+    c.translate(x, y);
+    if (clamped) {
+      c.rotate(Math.atan2(y - S / 2, x - S / 2));
+      c.fillStyle = 'rgba(120, 200, 255, 0.95)';
+      c.beginPath(); c.moveTo(7, 0); c.lineTo(-3, -5); c.lineTo(-3, 5); c.closePath(); c.fill();
+    } else {
+      const yaw = boat.physics.angles().yaw;
+      c.rotate(Math.atan2(Math.cos(yaw), Math.sin(yaw))); // proa (sin, cos) no plano xz → canvas
+      const L = Math.max(12, 7.6 * k), B = Math.max(6, 2.7 * k); // tamanho mínimo legível
+      c.fillStyle = '#7a4a28';
+      c.strokeStyle = 'rgba(255,255,255,0.9)';
+      c.lineWidth = 1.2;
+      c.beginPath();
+      c.moveTo(L / 2, 0);
+      c.quadraticCurveTo(L * 0.1, -B / 2, -L / 2, -B / 2);
+      c.lineTo(-L / 2, B / 2);
+      c.quadraticCurveTo(L * 0.1, B / 2, L / 2, 0);
+      c.closePath(); c.fill(); c.stroke();
+    }
+    c.restore();
   }
 
   update(dt) {

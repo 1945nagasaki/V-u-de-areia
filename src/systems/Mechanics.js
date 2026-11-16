@@ -1,4 +1,6 @@
 import { GAMEPLAY } from '../config/gameplay.js';
+import { FOODS, SHOP_FOOD, MEDIC } from '../config/survival.js';
+import { ITEM_CATALOG, SHOP_MATERIALS } from '../config/items.js';
 
 /**
  * Mecânicas de interação (diálogos e consequências).
@@ -56,7 +58,7 @@ export const Mechanics = {
         return;
       }
       game.flags.beggarReadyAt = game.time + cfg.cooldownSeconds;
-      game.ui.toast(`Você recebeu: ${item.icone} ${item.nome}. Equipe na hotbar (1–8) e clique para usar.`);
+      game.ui.toast(`Você recebeu: ${item.nome}. Equipe na hotbar (1–8) e clique para usar.`);
     };
     const lines = [
       '"Ei, viajante… você tem os olhos de quem já viu o outro lado. A Praça da Saudade sussurra à noite, sabia?"',
@@ -108,6 +110,18 @@ export const Mechanics = {
         game.ui.toast('Vida restaurada pelo Senhor.');
       },
     });
+    const hurt = game.survival.body.wounds.length + game.survival.body.conditions.size;
+    if (hurt) {
+      options.push({
+        label: `Tratar ferimentos e doenças do corpo (${MEDIC.treatAllCost} moedas)`,
+        disabled: s.coins < MEDIC.treatAllCost,
+        onSelect: () => {
+          s.spend(MEDIC.treatAllCost);
+          game.survival.treatAll();
+          game.ui.toast('O Senhor limpou, costurou e enfaixou tudo. Parasitas e veneno se foram.');
+        },
+      });
+    }
     if (!game.flags.gotLetter) {
       options.push({
         label: 'Pedir uma carta de recomendação',
@@ -153,7 +167,27 @@ export const Mechanics = {
           disabled: s.coins < price,
           onSelect: () => { s.spend(price); s.addItem('pocao_cura_total'); game.ui.toast('Poção de Cura Total comprada.'); },
         },
+        { label: 'Comida e água…', onSelect: () => Mechanics.shopList(game, name, 'Mantimentos', SHOP_FOOD) },
+        { label: 'Materiais de sobrevivência…', onSelect: () => Mechanics.shopList(game, name, 'Materiais', SHOP_MATERIALS) },
+        { label: 'Comida, café e recursos novos…', onSelect: () => game.gear.openShop({ key: `${village || 'vila'}:lojista:${name}`, name, kind: 'mercador', title: village }) },
         { label: 'Só olhando' },
+      ],
+    });
+  },
+
+  /** Sublista da loja: comida e materiais vão para a mochila (I). */
+  shopList(game, name, title, list) {
+    const s = game.state;
+    game.ui.dialogue.open({
+      speaker: name, title,
+      text: '"Escolha o que precisa. Vai direto para a sua mochila."',
+      options: [
+        ...list.map(({ id, price: p }) => ({
+          label: `${ITEM_CATALOG[id].name} (${p} moedas)`,
+          disabled: s.coins < p,
+          onSelect: () => { s.spend(p); s.addItem(id); game.ui.toast(`${ITEM_CATALOG[id].name} na mochila.`); Mechanics.shopList(game, name, title, list); },
+        })),
+        { label: 'Voltar' },
       ],
     });
   },
@@ -165,7 +199,8 @@ export const Mechanics = {
     const options = [
       {
         label: 'Tirar água e beber',
-        onSelect: () => { game.state.heal(5); game.ui.toast('Água fresca. +5 de vida.'); },
+        // Água de poço não é fervida: mata a sede, mas pode trazer parasitas.
+        onSelect: () => { game.state.heal(5); game.ui.toast(`${game.survival.consume('agua_poco')} · +5 de vida. (Ferver é mais seguro.)`); },
       },
     ];
     if (!game.flags.wellExamined) {

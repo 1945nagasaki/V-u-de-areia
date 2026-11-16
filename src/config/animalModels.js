@@ -13,14 +13,26 @@
  * `tint` / `emissive`: recolore o modelo (materiais copiados só para a espécie).
  * Espécie sem entrada aqui (suricato) usa o corpo procedural.
  */
-const base = `${import.meta.env.BASE_URL}assets/models/animals/`;
+const base = `${(import.meta.env?.BASE_URL ?? "/")}assets/models/animals/`;
 const file = (id) => ({ glb: `${base}${id}.glb`, glbJson: `${base}${id}.glb.json` });
 
 /** Clipes dos animais animados da Quaternius (mesmo esqueleto "AnimalArmature"). */
 const QUATERNIUS = { idle: 'Idle', walk: 'Walk', run: 'Gallop', attack: 'Attack', death: 'Death', eat: 'Eating' };
 
+/**
+ * `rig`: esqueleto gerado pelo AutoRig (`src/render/AutoRig.js`) para modelos
+ * ESTÁTICOS — sem ele o modelo só se move inteiro. `kind`: 'quadruped' |
+ * 'biped' | 'bird' | 'scorpion'; `lateralLegs`: patas abertas para os lados
+ * (jacaré); `spineBones`/`tailBones`: quantos ossos na coluna/cauda.
+ * `rig: false` desliga. Modelos com `clips` já têm esqueleto próprio.
+ */
+const Q = { kind: 'quadruped' };
+
+/** Pacote "Realistic Animated Pack" (enviado pelo dono): estático, cabeça para +X → gira para +Z. */
+const RAP = { yaw: -Math.PI / 2 };
+
 /** Carregador: pasta do decodificador Draco (copiado de three/examples/jsm/libs/draco/gltf). */
-export const ANIMAL_LOADER = { dracoPath: `${import.meta.env.BASE_URL}draco/` };
+export const ANIMAL_LOADER = { dracoPath: `${(import.meta.env?.BASE_URL ?? "/")}draco/` };
 
 /*
  * COMO ADICIONAR O MODELO DE UMA ESPÉCIE NOVA (camelo, víbora, girafa, urso,
@@ -36,30 +48,31 @@ export const ANIMAL_LOADER = { dracoPath: `${import.meta.env.BASE_URL}draco/` };
  *   node -e "const f=require('fs');f.writeFileSync('X.glb.json',JSON.stringify({glb:f.readFileSync('X.glb').toString('base64')}))"
  */
 export const ANIMAL_MODELS = {
-  zebra: { ...file('zebra'), length: 2.4 },
-  leao: { ...file('leao'), length: 2.3 },
-  lobo: { ...file('lobo'), length: 1.5, clips: QUATERNIUS },
-  alce: { ...file('alce'), length: 2.3, clips: { ...QUATERNIUS, attack: 'Attack_Headbutt' } },
-  escorpiao: { ...file('escorpiao'), length: 1.7 },
-  onca: { ...file('onca'), length: 1.9 },
-  capivara: { ...file('capivara'), length: 1.2 },
-  hiena: { ...file('hiena'), length: 1.5 },
-  gorila: { ...file('gorila'), height: 1.6 },
-  leopardo: { ...file('leopardo'), length: 1.9 },
-  javali: { ...file('javali'), length: 1.4 },
-  corvo: { ...file('corvo'), length: 0.5 },
+  zebra: { ...file('zebra'), length: 2.4, rig: Q },
+  leao: { ...file('leao'), ...RAP, length: 2.3, rig: Q },
+  lobo: { ...file('lobo'), ...RAP, length: 1.5, rig: Q },
+  alce: { ...file('alce'), ...RAP, length: 2.6, rig: Q },
+  escorpiao: { ...file('escorpiao'), length: 1.7, rig: { kind: 'scorpion' } },
+  onca: { ...file('onca'), length: 1.9, rig: Q },
+  capivara: { ...file('capivara'), length: 1.2, rig: Q },
+  hiena: { ...file('hiena'), ...RAP, length: 1.5, rig: Q },
+  gorila: { ...file('gorila'), height: 1.6, rig: { kind: 'quadruped', tail: false } },
+  leopardo: { ...file('leopardo'), length: 1.9, rig: Q },
+  javali: { ...file('javali'), ...RAP, length: 1.4, rig: Q },
+  corvo: { ...file('corvo'), length: 0.5, rig: { kind: 'bird', jaw: false } },
   // ---- 3 espécies por bioma (ver CREDITS.md) ----
-  camelo: { ...file('camelo'), length: 3.0 },
+  camelo: { ...file('camelo'), length: 3.0, rig: Q },
   vibora: {
     ...file('vibora'), length: 1.6,
     clips: { idle: 'SnakeArmature|Snake_Idle', walk: 'SnakeArmature|Snake_Walk', run: 'SnakeArmature|Snake_Walk', attack: 'SnakeArmature|Snake_Attack' },
     tint: 0xb89a68, // Quaternius vem verde: pinta de areia (víbora do deserto)
   },
-  girafa: { ...file('girafa'), height: 5.2 },
-  urso: { ...file('urso'), length: 2.2 },
-  arara: { ...file('arara'), length: 0.85 },
-  avestruz: { ...file('avestruz'), height: 2.4 },
-  jacare: { ...file('jacare'), length: 3.4 },
+  girafa: { ...file('girafa'), height: 5.2, rig: Q },
+  urso: { ...file('urso'), ...RAP, length: 2.2, rig: { kind: 'quadruped', tail: false } },
+  arara: { ...file('arara'), length: 0.85, rig: { kind: 'bird', jaw: false } },
+  avestruz: { ...file('avestruz'), height: 2.4, rig: { kind: 'biped', jaw: false } },
+  // yaw: o corpo deste modelo vem ~8° torto em relação ao próprio eixo (cauda curva): corrige para o focinho apontar para a frente.
+  jacare: { ...file('jacare'), yaw: -Math.PI / 2 - 0.14, length: 3.4, rig: { kind: 'quadruped', lateralLegs: true, spineBones: 4, tailBones: 4 } },
   // Cérbero: o lobo animado, maior, quase preto e com brilho vermelho (cão paranormal).
-  cerbero: { ...file('lobo'), length: 2.6, clips: QUATERNIUS, tint: 0x1c1618, emissive: 0x2a0404 },
+  cerbero: { ...file('cerbero'), length: 2.6, clips: QUATERNIUS, tint: 0x1c1618, emissive: 0x2a0404 },
 };

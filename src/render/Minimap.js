@@ -134,10 +134,14 @@ export class Minimap {
       const sunI = this.sun?.intensity, hemiI = this.hemi?.intensity;
       if (this.sun) this.sun.intensity = Math.max(sunI, MINIMAP.minLight.sun);
       if (this.hemi) this.hemi.intensity = Math.max(hemiI, MINIMAP.minLight.hemi);
+      // A cena principal foi desenhada logo antes neste quadro: as matrizes já estão em dia.
+      const autoWorld = this.scene.matrixWorldAutoUpdate;
+      this.scene.matrixWorldAutoUpdate = false;
       r.setRenderTarget(this.target);
       r.clear();
       r.render(this.scene, cam);
       r.setRenderTarget(null);
+      this.scene.matrixWorldAutoUpdate = autoWorld;
       if (this.sun) this.sun.intensity = sunI;
       if (this.hemi) this.hemi.intensity = hemiI;
       this.scene.fog = fog;

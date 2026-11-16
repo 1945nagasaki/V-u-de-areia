@@ -33,6 +33,16 @@ export class Vegetation {
     this.group = new THREE.Group();
     this.group.name = 'vegetation';
     this.material = createVegetationMaterials(timeUniform, photos, oaks);
+    // O LOD distante não recebe sombra. Com o MESMO material nas duas malhas, o three.js
+    // reavaliava o programa a cada troca perto/longe (receiveShadow faz parte da chave):
+    // cópias idênticas (mesmas texturas, mesmo vento) acabam com esse vai-e-vem sem mudar a imagem.
+    this.materialLo = this.material.map((m) => {
+      const c = m.clone();
+      c.defines = { ...m.defines };
+      c.onBeforeCompile = m.onBeforeCompile;
+      c.customProgramCacheKey = m.customProgramCacheKey;
+      return c;
+    });
     this.geos = createTreeGeometries(oaks);
     this.chunks = [];
     this.count = 0;
@@ -203,7 +213,8 @@ export class Vegetation {
       const [type, variant] = key.split('#');
       const geo = variant === undefined ? this.geos[type] : this.geos[type][+variant];
       for (const [group, geometry, detailed] of [[hi, geo.hi, true], [lo, geo.lo, false]]) {
-        const mesh = new THREE.InstancedMesh(geometry, this.material, matrices.length);
+        const mesh = new THREE.InstancedMesh(geometry, detailed ? this.material : this.materialLo, matrices.length);
+        mesh.matrixAutoUpdate = false; // árvores não saem do lugar: nada a recalcular por quadro
         matrices.forEach((mat, i) => { mesh.setMatrixAt(i, mat); mesh.setColorAt(i, colors[i]); });
         mesh.instanceMatrix.needsUpdate = true;
         mesh.instanceColor.needsUpdate = true;
@@ -215,6 +226,7 @@ export class Vegetation {
       this.count += matrices.length;
     }
     hi.visible = lo.visible = false;
+    hi.matrixAutoUpdate = lo.matrixAutoUpdate = false;
     this.group.add(hi, lo);
     return { x: cx, z: cz, hi, lo };
   }

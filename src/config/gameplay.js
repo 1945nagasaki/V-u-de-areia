@@ -1,3 +1,5 @@
+import { COFFEE } from './gear.js';
+
 /**
  * Valores de jogabilidade (data-driven). Ajuste aqui sem mexer na lógica.
  */
@@ -64,7 +66,7 @@ export const GAMEPLAY = {
   /** Itens da hotbar com uso (clique com o item equipado). */
   items: {
     injecao_suspeita: {
-      id: 'injecao_suspeita', nome: 'Injeção Suspeita', icone: '💉', tipo: 'consumivel',
+      id: 'injecao_suspeita', nome: 'Injeção Suspeita', icone: 'syringe', tipo: 'consumivel',
       healChance: 0.5, // 50% cura total (vida + doenças); 50% Febre do Mendigo
     },
   },
@@ -98,6 +100,15 @@ export const GAMEPLAY = {
 
 /** Efeitos de status (buffs e doenças). */
 export const STATUS_EFFECTS = {
+  /** Café (config/gear.js → COFFEE): só velocidade de andar/correr; renovar não acumula. */
+  cafe: {
+    name: 'Café',
+    kind: 'buff',
+    icon: 'cup',
+    description: '+25% de velocidade de movimento.',
+    duration: COFFEE.seconds,
+    modifiers: { speed: COFFEE.speedMultiplier },
+  },
   febre_mendigo: {
     name: 'Febre do Mendigo',
     kind: 'disease',
@@ -116,4 +127,9 @@ export const STATUS_EFFECTS = {
     duration: 120,
     modifiers: { relicPower: 1.2 },
   },
+};
+
+/** Tempos da interface. */
+export const UI_TIMING = {
+  villageCardSeconds: 6, // quadro da vila fica completo por este tempo e depois recolhe
 };
