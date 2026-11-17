@@ -310,7 +310,7 @@ export const PLACEMENT = {
   /** ordem de construção: os essenciais primeiro (pegam os melhores lugares) */
   order: ['market', 'chapel', 'forge', 'farm', 'bakery', 'tavern', 'carpentry', 'mine', 'mill', 'stable', 'lumberyard', 'fishery', 'weavery', 'pottery', 'infirmary', 'library', 'guardpost'],
   /** vilas que não recebem prédios novos (ruínas; vilas suspensas/sobre a água têm arquitetura própria) */
-  skipVillages: ['ruinasKaelen', 'copaAlta', 'zambaRios', 'coroaAlta', 'maoCerrada', 'espelhoTurvo', 'brasaViva', 'veuCarmesim'],
+  skipVillages: ['ruinasKaelen', 'copaAlta', 'zambaRios', 'coroaAlta', 'maoCerrada', 'espelhoTurvo', 'brasaViva', 'veuCarmesim', 'mesaFarta'],
   /** biomas sem certo prédio */
   biomeSkip: { deserto: ['lumberyard', 'fishery'], kalahari: ['lumberyard', 'fishery', 'mill'] },
 };

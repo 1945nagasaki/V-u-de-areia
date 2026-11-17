@@ -31,4 +31,10 @@ export const SHOWCASE = [
     hint: 'Fale (E) com o Pai do Véu e com Ayowe Ilanji, de frente para a Praça.', dx: 12, dz: -2, yaw: Math.PI * 0.75 },
   { village: 'veuCarmesim', title: 'Paço das Faces — Santuário da Última Face',
     hint: 'Aperte E diante da porta alta e diga o seu nome.', dx: 2, dz: -64, yaw: Math.PI },
+  { village: 'mesaFarta', title: 'Mesa-Farta — a Grande Mesa',
+    hint: 'Os sete círculos do banquete. Fale (E) com Vraatsug, o Primeiro Anfitrião.', dx: 0, dz: 30, yaw: Math.PI },
+  { village: 'mesaFarta', title: 'Mesa-Farta — Celeiro-Mor e o Cinto Seco',
+    hint: 'Veja o capim morto em volta do celeiro. Fale (E) com Thiago, a Chave-Mestra.', dx: 20, dz: -70, yaw: Math.PI },
+  { village: 'mesaFarta', title: 'Mesa-Farta — Janela das Sobras',
+    hint: 'A fila de quem tem fome no Portão do Mingau. Fale (E) com Mãe Adjoa.', dx: 6, dz: 140, yaw: Math.PI },
 ];

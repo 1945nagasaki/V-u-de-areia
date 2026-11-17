@@ -1659,6 +1659,27 @@ São 12 ganchos. Nenhum tem solução obrigatória.
 
 ## PARTE XV — IMPLEMENTAÇÃO EM JOGO 3D
 
+> **Estado (2026-11-17): primeira versão jogável no jogo** (`src/villages/MesaFarta.js`, `VILLAGES.mesaFarta`).
+> - **Posição:** `u 0.27, v 0.23`, ~370 m da Vila Abstração. Em `u 0.28, v 0.13` havia um rio.
+> - **Feito:**
+>   - Grande Mesa com sete círculos de bancos de pedra, com corredores norte e sul, e o estrado do Anfitrião;
+>   - Casa do Primeiro Anfitrião;
+>   - Celeiro-Mor (tambor de barro de 13 m de raio com cone de palha e a fechadura de latão), seis Celeiros Grandes e o Muro dos Celeiros;
+>   - Cinto Seco pintado num raio de ~52 m;
+>   - ~12 Pratos (casa do Anfitrião + anel de 6 a 8 casas redondas);
+>   - Mercado dos Sacos com a Casa de Câmbio de Imara Toss e Rua dos Pilões;
+>   - Janela das Sobras com a fila e Casa dos Ancestrais (cestos com rostos ovais de latão);
+>   - Guarda da Mesa, Grande Tanque (água própria) e Salão Vazio (ruína);
+>   - cerca de espinho com três portões, campos de sorgo e baobás;
+>   - NPCs: Vraatsug, Thiago (Chave-Mestra), Wale, Nkeru, Imara, Adjoa, Kesi, Ombe, Dabo e Tano.
+> - **Falta:**
+>   - elefantes (sem modelo licenciado);
+>   - o Santuário da Capa por dentro;
+>   - o banquete como evento;
+>   - o Cinto Seco como efeito que avança com o tempo;
+>   - estilo de interior próprio;
+>   - ligar a cidade ao sistema de trabalho dos NPCs.
+
 > Nota: este plano usa o código do branch atual (`claude/pensive-allen-rsiahd`). O branch `completo` já tem sistemas mais novos (física Rapier no lugar de cannon-es, trabalho dos NPCs com profissões e prédios, mapa-múndi). **A implementação deve partir do `completo`** e adaptar os nomes abaixo quando mudarem.
 
 ### Terreno

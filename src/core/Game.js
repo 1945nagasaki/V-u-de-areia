@@ -46,6 +46,7 @@ import { buildMaoCerrada } from '../villages/MaoCerrada.js';
 import { buildEspelhoTurvo } from '../villages/EspelhoTurvo.js';
 import { buildBrasaViva } from '../villages/BrasaViva.js';
 import { buildVeuCarmesim } from '../villages/VeuCarmesim.js';
+import { buildMesaFarta } from '../villages/MesaFarta.js';
 import { placeStatues } from '../render/Statues.js';
 import { SHOWCASE } from '../config/showcase.js';
 import { FireLights } from '../render/FireLights.js';
@@ -264,7 +265,7 @@ export class Game {
       renascimento: buildRenascimento, perseguicao: buildPerseguicao, abstracao: buildAbstracao, bussola: buildBussola,
       presaDeGelo: buildPresaDeGelo, alZahir: buildAlZahir, copaAlta: buildCopaAlta,
       areiasVivas: buildAreiasVivas, zambaRios: buildZambaRios, ruinasKaelen: buildRuinasKaelen,
-      coroaAlta: buildCoroaAlta, maoCerrada: buildMaoCerrada, espelhoTurvo: buildEspelhoTurvo, brasaViva: buildBrasaViva, veuCarmesim: buildVeuCarmesim,
+      coroaAlta: buildCoroaAlta, maoCerrada: buildMaoCerrada, espelhoTurvo: buildEspelhoTurvo, brasaViva: buildBrasaViva, veuCarmesim: buildVeuCarmesim, mesaFarta: buildMesaFarta,
     };
     let k = 0;
     for (const [id, build] of Object.entries(builders)) {

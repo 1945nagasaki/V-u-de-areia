@@ -443,6 +443,40 @@ export const VILLAGES = {
       ],
     },
   },
+  mesaFarta: {
+    id: 'mesaFarta',
+    name: 'Mesa-Farta',
+    tribe: 'Mesa-Farta',
+    biome: 'savana',
+    region: 'Noroeste — savana aberta, a leste da Vila Abstração',
+    u: 0.27, v: 0.23,
+    radius: 165,
+    flatten: { radius: 168, blend: 40 },
+    /** Grande Tanque (leste): reservatório com água própria. */
+    trenches: [{ dx: 132, dz: 30, hw: 16, hd: 12, depth: 2.4, edge: 3 }],
+    tank: { dx: 132, dz: 30, hw: 16, hd: 12, waterBelow: 0.9 },
+    population: 3400,
+    populationNote: 'Cerca de 3.400 moradores fixos nos Pratos, e mais nas colheitas.',
+    demographics: null,
+    faction: 'Cidade de Vraatsug, o Primeiro Anfitrião — a Mesa-Farta (anti-Akin)',
+    founded: 'Cresceu em volta dos celeiros imperiais; Vraatsug os fechou na noite da Queda.',
+    description:
+      'Uma cidade concêntrica em torno da comida: a Grande Mesa de sete círculos no centro, anéis de ' +
+      'casas em volta de cada Anfitrião e, ao norte, o Celeiro-Mor, onde o grão nunca estraga.',
+    structures: [
+      'A Grande Mesa', 'Casa do Primeiro Anfitrião', 'Celeiro-Mor', 'O Cinto Seco', 'Os Pratos',
+      'Mercado dos Sacos', 'Rua dos Pilões', 'Janela das Sobras', 'Casa dos Ancestrais', 'Grande Tanque', 'Salão Vazio',
+    ],
+    lore: {
+      speaker: 'Porteira do Portão do Mingau', title: 'Mesa-Farta',
+      look: { robe: true, shirt: 0xc8862a, hat: 'wrap', height: 1.7 },
+      pages: [
+        '"Chegou com fome? Fila da Janela das Sobras, à esquerda. Chegou com grão? Mercado dos Sacos, à direita."',
+        '"Cada Prato tem um Anfitrião. Ele come primeiro e serve por último. Ou deveria."',
+        '"Não pise no capim seco em volta do Celeiro-Mor. Ali a terra paga o preço do grão que não estraga."',
+      ],
+    },
+  },
   ruinasKaelen: {
     id: 'ruinasKaelen',
     name: 'Ruínas de Kaelen',
