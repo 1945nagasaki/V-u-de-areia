@@ -1687,6 +1687,29 @@ Todos [GANCHO]. Nenhum tem uma solução única obrigatória.
 
 ## PARTE XV — IMPLEMENTAÇÃO EM JOGO 3D
 
+> **Estado (2026-11-17): primeira versão jogável no jogo** (`src/villages/VeuCarmesim.js`, `VILLAGES.veuCarmesim`).
+> - **Posição:** `u 0.84, v 0.87`, ~500 m das Ruínas de Kaelen. Em `u 0.90, v 0.80` passava um rio.
+> - **Terreno:** a bacia fica a 32 m, o platô a +6 m e o Terraço das Preces a +12 m, com o Caminho Branco subindo do sul (Terraces). As três Bocas são rebaixos (`trenches`):
+>   - Leite, com água leitosa própria (`M.waterMilk`);
+>   - Funda, que desce até o mar;
+>   - Seca, com os sete sulcos.
+> - **Feito:**
+>   - Muro das Faces na borda do platô: ~1.200 cabeças de terracota e cobre esverdeado, além dos nichos vazios dos traidores;
+>   - Portão das Faces com sete nichos, um deles vazio;
+>   - Praça do Véu com o espelho d'água, Casa do Pai e Escola dos Retratos;
+>   - Santuário da Última Face (porta alta e o Sussurro, com névoa local por `presences`) e Torre do Ouvido com sete sinos;
+>   - Feira da Névoa, Fundição, Quartel, Taverna e ~58 casas caiadas, cada uma com uma cabeça de família na porta;
+>   - tanques de decantação e Bairro dos Arrancados;
+>   - ~90 árvores-osso brancas e cabeças-marco no Caminho Branco;
+>   - NPCs: o Pai do Véu, Ayowe, Okaro, Asebi, Nnaru, Sisi, Yewa, Massu Rendi e Ibe Tenwa.
+> - **Falta:**
+>   - babuínos (Tsen), por falta de modelo licenciado;
+>   - a Hora Rubra e a Palidez como efeitos visuais;
+>   - o interior do Santuário (Galeria e Câmara Sem Eco);
+>   - casas de pátio verdadeiras;
+>   - trocar as árvores da Floresta Preta por árvores-osso dentro de ~600 m;
+>   - ligar a cidade ao sistema de trabalho dos NPCs.
+
 Substitui as antigas "Notas para a produção do jogo". O texto se baseia no código deste branch: Three.js, **1 unidade = 1 m**, mundo de 4096 × 2304 m (`src/config/worldConfig.js`).
 
 > **Base de código:** o branch `completo` tem sistemas mais novos que este:

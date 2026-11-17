@@ -25,4 +25,10 @@ export const SHOWCASE = [
     hint: 'Fale (E) com Oyelu e Nkem entre as fornalhas acesas.', dx: 50, dz: -10, yaw: Math.PI / 2 },
   { village: 'brasaViva', title: 'Dique-Rubro — Salão das Placas',
     hint: 'Aperte E diante dos pilares para ler as placas de bronze; Toorn está na Ilha.', dx: -4, dz: 14, yaw: Math.PI },
+  { village: 'veuCarmesim', title: 'Paço das Faces — Muro das Faces',
+    hint: 'Os rostos olham de cima do muro. Segure W pelo Portão das Faces até a Praça do Véu.', dx: 3, dz: 145, yaw: Math.PI },
+  { village: 'veuCarmesim', title: 'Paço das Faces — Casa do Pai',
+    hint: 'Fale (E) com o Pai do Véu e com Ayowe Ilanji, de frente para a Praça.', dx: 12, dz: -2, yaw: Math.PI * 0.75 },
+  { village: 'veuCarmesim', title: 'Paço das Faces — Santuário da Última Face',
+    hint: 'Aperte E diante da porta alta e diga o seu nome.', dx: 2, dz: -64, yaw: Math.PI },
 ];

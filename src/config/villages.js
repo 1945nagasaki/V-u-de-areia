@@ -394,6 +394,55 @@ export const VILLAGES = {
       ],
     },
   },
+  veuCarmesim: {
+    id: 'veuCarmesim',
+    name: 'Paço das Faces',
+    tribe: 'Véu-Carmesim',
+    biome: 'preta',
+    region: 'Sudeste — Jardim Pálido, no interior da Floresta Preta',
+    u: 0.84, v: 0.87,
+    radius: 175,
+    /**
+     * Fundo da bacia (Terra-Branca), o platô da cidade (+6 m) e o terraço do
+     * Santuário da Última Face ao norte (+12 m). O Caminho Branco sobe do sul.
+     */
+    terraces: {
+      base: 32, blend: 45, edge: 3, stair: { width: 9, run: 14 },
+      levels: [
+        { name: 'Bacia', r: 175, shift: 0, y: 0 },
+        { name: 'Platô', r: 118, shift: 8, y: 6 },
+        { name: 'Terraço das Preces', r: 34, shift: 80, y: 12 },
+      ],
+    },
+    /** As Bocas: Leite (leste, água leitosa própria), Funda (oeste, até o mar) e Seca (norte). */
+    trenches: [
+      { dx: 148, dz: 10, hw: 15, hd: 15, depth: 4, edge: 5 },
+      { dx: -148, dz: 20, hw: 13, hd: 13, depth: 40, edge: 6 },
+      { dx: 0, dz: -160, hw: 14, hd: 10, depth: 8, edge: 4 },
+    ],
+    bocaLeite: { dx: 148, dz: 10, hw: 15, hd: 15, waterBelow: 2.2 },
+    population: 1600,
+    populationNote: 'Cerca de 1.600 devotos; chegam mais do que o Jardim consegue alimentar.',
+    demographics: null,
+    faction: 'Cidade do Pai do Véu (Onkuisheid) — guarda do Crânio de Akin',
+    founded: 'Era Terra-Branca, vila de oleiros e retratistas, até Akin chamá-la de "a casa da minha face".',
+    description:
+      'Uma cidade branca numa bacia de árvores pálidas. Milhares de rostos de cobre e terracota olham ' +
+      'de cima dos muros. Ao norte, a Torre do Ouvido e o Santuário da Última Face.',
+    structures: [
+      'Muros das Faces', 'Praça do Véu', 'Casa do Pai', 'Santuário da Última Face', 'Torre do Ouvido',
+      'Feira da Névoa', 'Fundição de Cera Perdida', 'Boca do Leite', 'Boca Funda', 'Boca Seca', 'Bairro dos Arrancados',
+    ],
+    lore: {
+      speaker: 'Velada do Portão das Faces', title: 'Paço das Faces',
+      look: { robe: true, shirt: 0x9a1a22, hat: 'wrap', height: 1.68 },
+      pages: [
+        '"Bem-vindo à Casa do Pai. Qual é o seu nome? E o nome de quem você perdeu?"',
+        '"Os rostos no muro são de quem jurou lealdade. Eles olham, mas não julgam. Ainda."',
+        '"Ao pôr do sol a névoa fica vermelha. Não se assuste se os rostos parecerem sorrir."',
+      ],
+    },
+  },
   ruinasKaelen: {
     id: 'ruinasKaelen',
     name: 'Ruínas de Kaelen',

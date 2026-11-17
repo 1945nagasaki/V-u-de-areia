@@ -80,6 +80,12 @@ export function createMaterials(timeUniform = { value: 0 }) {
     glass: mat({ color: 0x23313a, roughness: 0.15, metalness: 0.2 }, 1),
     gold: mat({ color: 0xc9a64a, roughness: 0.3, metalness: 1 }, 1),
     whitePaint: mat({ color: 0xf0ebe0 }, 1),
+    // Jardim Pálido (Véu-Carmesim): árvore-osso, folha prateada, cabeças de cobre e água leitosa.
+    boneBark: mat({ map: T.bark(), color: 0xf4f0e6 }, 1.5),
+    paleLeaf: mat({ color: 0xc9d4c4, roughness: 0.85 }, 1),
+    copperPatina: mat({ color: 0x5f8f7c, roughness: 0.45, metalness: 0.6 }, 1),
+    terracotta: mat({ color: 0xa8603e, roughness: 0.75 }, 1),
+    waterMilk: rippleWater(mat({ color: 0xcfd4cc, roughness: 0.12, metalness: 0.05 }, 1), timeUniform),
     water: rippleWater(mat({ color: 0x1c3b44, roughness: 0.08, metalness: 0.1 }, 1), timeUniform),
     waterOasis: rippleWater(mat({ color: 0x3a8e92, roughness: 0.05, metalness: 0.15 }, 1), timeUniform),
     clockFace: mat({ map: T.clockFace(), roughness: 0.6 }, 1, { keepUV: true }),
