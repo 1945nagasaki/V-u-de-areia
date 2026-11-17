@@ -4,6 +4,7 @@ import { Noise, smoothstep, lerp, clamp } from './Noise.js';
 import { RELIEF } from '../config/landmarks.js';
 import { prepareRelief, reliefAt } from './Relief.js';
 import { makeTerraceZone, terraceHeight } from './Terraces.js';
+import { makeRidge, ridgeLift } from './Ridges.js';
 
 const BIOME_COUNT = BIOMES.length;
 
@@ -50,6 +51,8 @@ export class WorldGenerator {
     this.flatZones = [];
     /** Cidades em terraços (ver Terraces.js). */
     this.terraceZones = [];
+    /** Escarpas em arco em volta de cidades (ver Ridges.js). */
+    this.ridges = [];
     this._w = new Float32Array(BIOME_COUNT);
   }
 
@@ -73,6 +76,16 @@ export class WorldGenerator {
     const zone = makeTerraceZone({ ...o, base });
     this.terraceZones.push(zone);
     return zone;
+  }
+
+  /**
+   * Registra uma escarpa (anel parcial elevado).
+   * @param {Parameters<typeof makeRidge>[0]} o
+   */
+  addRidge(o) {
+    const r = makeRidge(o);
+    this.ridges.push(r);
+    return r;
   }
 
   /** Preenche `out` (Float32Array de 7) com os pesos dos biomas. */
@@ -185,6 +198,7 @@ export class WorldGenerator {
         }
       }
       for (const tz of this.terraceZones) h = terraceHeight(tz, x, z, h);
+      for (const rg of this.ridges) h += ridgeLift(rg, x, z);
     }
 
     if (!this.ref?.hasHeightmap) h = this.applyRivers(x, z, h);

@@ -111,10 +111,22 @@ export class NPCManager {
       }
       return { x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r, yaw: a + Math.PI };
     };
+    // Vila com pontos de encontro próprios (praças, mercados, poços): os moradores sem prédio
+    // se espalham por eles em vez de se juntarem todos em volta do centro.
+    const spots = (v.npcSpots ?? []).filter((q) => dry(q.x, q.z));
+    const spot = () => {
+      const q = spots[Math.floor(rng() * spots.length)];
+      for (let k = 0; k < 8; k++) {
+        const a = rng() * Math.PI * 2, rr = 1.5 + rng() * (q.r ?? 5);
+        const x = q.x + Math.cos(a) * rr, z = q.z + Math.sin(a) * rr;
+        if (dry(x, z)) return { x, z, yaw: a + Math.PI };
+      }
+      return { x: q.x, z: q.z, yaw: rng() * Math.PI * 2 };
+    };
     const forge = ring(10, 18);
     const water = this.findWater(v, rng);
     const plaza = dry(cx, cz) ? { x: cx + (rng() - 0.5) * 6, z: cz + (rng() - 0.5) * 6 } : ring(4, 12);
-    const leisure = [
+    const leisure = spots.length ? spots.slice(0, 10).map((q, i) => ({ id: i, x: q.x, z: q.z })) : [
       { id: 0, x: plaza.x, z: plaza.z },
       ...v.fires.filter((f) => f.warm && Math.hypot(f.x - cx, f.z - cz) < R).slice(0, 4).map((f, i) => ({ id: i + 1, x: f.x + 2.2, z: f.z })),
     ];
@@ -133,7 +145,7 @@ export class NPCManager {
       let wp;
       switch (prof?.place) {
         case 'farm': wp = ring(R * 0.85, R * 1.05); break;
-        case 'plaza': wp = ring(7, 16); break;
+        case 'plaza': wp = spots.length ? spot() : ring(7, 16); break;
         case 'forge': wp = { ...forge }; break;
         case 'yard': wp = local(home.x, home.z, home.rot, home.half + 1.5, home.half * 0.4); wp.yaw = home.rot; break;
         case 'wild': wp = ring(R + 20, R + 55); break;
@@ -143,7 +155,7 @@ export class NPCManager {
           for (let k = 0; k < 20 && !dry(wp.x, wp.z); k++) { wp.x -= Math.cos(wp.yaw) * 0.8; wp.z -= Math.sin(wp.yaw) * 0.8; }
           break;
         }
-        default: wp = ring(6, 14);
+        default: wp = spots.length ? spot() : ring(6, 14);
       }
       let lunch = { x: wp.x + (rng() - 0.5) * 3, z: wp.z + (rng() - 0.5) * 3, yaw: rng() * Math.PI * 2 };
       if (!dry(lunch.x, lunch.z)) lunch = { x: wp.x, z: wp.z, yaw: lunch.yaw };

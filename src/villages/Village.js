@@ -44,6 +44,8 @@ export class Village {
     this.presences = [];
     /** Objetos dinâmicos (barris, caixotes…) — viram corpos no PhysicsWorld. */
     this.props = [];
+    /** Pontos de encontro dos moradores sem prédio ({x, z, r}); vazio = em volta do centro (NPCManager). */
+    this.npcSpots = [];
     /** Casas com interior (descrições dos construtores) — viram InteriorManager. */
     this.interiors = [];
     this.rnd = mulberry32(seed);

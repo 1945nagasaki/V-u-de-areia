@@ -262,6 +262,7 @@ export function buildCoroaAlta(game) {
         v.reserve(x, z, 2.4);
       }
     }
+    v.npcSpots.push({ x: ax + hw + 10, z: zm, r: 5 }, { x: ax - hw - 10, z: zm, r: 5 });
     const bx = ax + hw + 4, bz = zm + 9, by = ground(bx, bz);
     B.part(ctx, B.G.cyl, M.iron, bx, bz, 0, by, { ly: 1.4, w: 0.1, h: 2.8, d: 0.1 });
     B.part(ctx, B.G.box, M.iron, bx, bz, 0, by, { ly: 2.7, w: 2.4, h: 0.12, d: 0.12 });
@@ -323,6 +324,7 @@ export function buildCoroaAlta(game) {
     v.addFire(X.bonfire(ctx, { x, z, size: 1.4 }), { intensity: 50, range: 26 });
     v.reserve(x, z, 7);
     fires.push({ x, z });
+    v.npcSpots.push({ x, z, r: 6 });
   }
   if (fires[0]) {
     const f = fires[0];
@@ -360,6 +362,14 @@ export function buildCoroaAlta(game) {
     look: { shirt: 0x4a4038, pants: 0x2e2a26, hat: 'wrap', height: 1.72 }, x: ax - hw - 3, z: pe.cz + pe.r - 16, facing: Math.PI,
     onInteract: (g) => Mechanics.talk(g, { speaker: 'Iru', title: 'Vigia do Pé',
       text: '"De noite a gente escala as muralhas. Não para roubar: para provar que a altura não se herda."' }) });
+  // Pontos de encontro nas ruas de cada terraço (moradores sem prédio).
+  for (let i = 0; i < L.length - 1; i++) {
+    const l = L[i], up = L[i + 1], rr = (l.r + up.r - (l.cz - up.cz)) / 2;
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2 + 0.3, x = l.cx + Math.cos(a) * rr, z = l.cz + Math.sin(a) * rr;
+      if (inLevel(i, x, z, 3)) v.npcSpots.push({ x, z, r: 3 });
+    }
+  }
   v.addWanderers(22, { shirt: 0x5a4632, pants: 0x2e2a26, hat: 'wrap' });
 
   v.palace = palace;

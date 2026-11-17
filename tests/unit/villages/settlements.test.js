@@ -39,6 +39,19 @@ test('capitais das tribos: bioma, lore e terraços coerentes', () => {
   assert.equal(L[0].r, coroa.radius);
 });
 
+test('Areia-Funda: a grade e a muralha cabem dentro da área plana e da escarpa', () => {
+  const m = VILLAGES.maoCerrada;
+  assert.equal(m.tribe, 'Mão-Cerrada');
+  assert.equal(m.biome, 'deserto');
+  const G = m.grid, block = 2 * G.lot;
+  const W = G.cols * block + (G.cols + 1) * G.colStreet;
+  const D = G.rows * block + (G.rows + 1) * G.rowStreet;
+  const wallCorner = Math.hypot(W / 2 + 8, D / 2 + 8);
+  assert.ok(wallCorner < m.flatten.radius + m.flatten.blend / 2, `canto da muralha a ${wallCorner.toFixed(0)} m`);
+  for (const rg of m.ridges) assert.ok(rg.r > wallCorner + 20, 'a escarpa fica fora da muralha');
+  assert.ok(m.lore.pages.every((t) => t.length <= 120), 'falas ≤ 120 caracteres');
+});
+
 test('vilas dentro do mapa e sem se sobrepor', () => {
   const list = Object.values(VILLAGES);
   for (const v of list) {

@@ -266,6 +266,47 @@ export const VILLAGES = {
       ],
     },
   },
+  maoCerrada: {
+    id: 'maoCerrada',
+    name: 'Areia-Funda',
+    tribe: 'Mão-Cerrada',
+    biome: 'deserto',
+    region: 'Nordeste — Saara, ao pé do Maciço do Dente',
+    u: 0.82, v: 0.18,
+    radius: 170,
+    /** Chão da grade bem abaixo do deserto em volta: a cidade fica numa bacia. */
+    flatten: { radius: 170, blend: 40, height: 12 },
+    /** Escarpa que fecha a cidade ao norte e a leste (design/narrative/mao-cerrada.md, Parte II). */
+    ridges: [{ r: 215, width: 60, height: 42, from: -2.6, to: -0.2 }],
+    /**
+     * Grade de livro-caixa: Colunas (N–S, 6 m) e Linhas (L–O, 4 m) entre
+     * quadras de 2×2 lotes de 8 m. Haver (credores) a leste, Deve a oeste,
+     * Quitados numa faixa no meio.
+     */
+    grid: { cols: 11, rows: 10, lot: 8, colStreet: 6, rowStreet: 4, haverFrom: 0.62, quitados: [0.5, 0.6] },
+    gateHours: [4, 22],
+    population: 2900,
+    populationNote: 'Cerca de 2.900 dentro da muralha; metade deve à Organização.',
+    demographics: null,
+    faction: 'Sede da organização de Gierigheid — a tribo Mão-Cerrada',
+    founded: 'Cresceu em volta do Aquífero Velho; a Cidade Velha está soterrada ao sul.',
+    description:
+      'Uma cidade em grade como uma página de livro-caixa: cada lote é uma Folha, cada morador uma conta. ' +
+      'A leste os credores, a oeste os devedores, no centro a Casa da Balança e, sob ela, os cofres.',
+    structures: [
+      'Grade de Colunas e Linhas', 'Casa da Balança (cúpula)', 'Quadro dos Devedores', 'Templo do Raio Justo',
+      'Quartel dos Cobradores do Dente', 'Poços Selados', 'Muralha dos Selos', 'Cais de Areia', 'Palmeiral dos Penhores',
+    ],
+    lore: {
+      speaker: 'Escriba do Portão do Pedágio', title: 'Areia-Funda',
+      look: { robe: true, shirt: 0xd8c8a0, hat: 'wrap', accessory: 'staff', height: 1.74 },
+      pages: [
+        '"Nome, Coluna e Folha, por favor. Aqui cada pessoa é uma conta, e cada conta tem dono."',
+        '"Água se compra no poço. Sombra se compra no Cais. A Organização vende as duas e anota tudo."',
+        '"Viu o Quadro na praça? Placa inteira, deve. Quebrada, pagou. Vermelha… melhor não perguntar."',
+      ],
+    },
+  },
   ruinasKaelen: {
     id: 'ruinasKaelen',
     name: 'Ruínas de Kaelen',

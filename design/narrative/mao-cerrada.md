@@ -1942,12 +1942,35 @@ Nenhum tem solução obrigatória. Cada um tem várias saídas possíveis.
 
 ## PARTE XV — IMPLEMENTAÇÃO EM JOGO 3D
 
+> **Estado (2026-11-17): primeira versão jogável no jogo** (`src/villages/MaoCerrada.js`, `VILLAGES.maoCerrada`).
+> - **Posição:** `u 0.82, v 0.18`. Em `u 0.84, v 0.16` o terreno encosta no mar.
+> - **Bacia:** o deserto do jogo é baixo (5–65 m). Então a "bacia" é feita assim:
+>   - o chão da grade fica fixo em 12 m (`flatten.height`);
+>   - uma escarpa de ~40 m fecha o norte e o leste (`src/world/Ridges.js`, `WorldGenerator.addRidge`).
+> - **Feito:**
+>   - grade de 11 Colunas × 10 Linhas, com ~200 casas de teto plano e interior: Haver branco de 2 pisos com torres de vento, Quitados e Deve em adobe;
+>   - Casa da Balança com cúpula, arcada e porta de bronze;
+>   - praça com o Quadro dos Devedores (~300 placas: latão, quebradas e vermelhas);
+>   - Templo do Raio Justo com o Poste do Raio;
+>   - Quartel dos Cobradores e Poços Selados com grade de bronze;
+>   - Muralha dos Selos retangular, com Torres de Espelho e os Portões do Pedágio e do Poço;
+>   - Cais de Areia, Palmeiral dos Penhores (~190 palmeiras em grade) e salinas;
+>   - NPCs Idrel, Djaro, Yaradé, Bako, Kaddo, Hamsa e Mirah, além de guardas-poço e cobradores.
+> - **Falta:**
+>   - cofres no subsolo e o Santuário do Dente;
+>   - rinocerontes e o Curral do Couro;
+>   - a Cidade Velha Soterrada e o Campo do Raio;
+>   - a tempestade seca;
+>   - o estilo de interior `ledger`;
+>   - a rotina do "meio-dia parado";
+>   - ligar a cidade ao sistema de trabalho dos NPCs (hoje fica fora dele).
+
 Escala do jogo: **1 unidade Three.js = 1 m**, mundo de 4096 × 2304 m. Os nomes de funções citados existem no repositório, salvo quando marcados como **(a criar)**.
 
 O branch `completo` tem sistemas mais novos, como física com Rapier, trabalho e rotina dos NPCs e o oceano. A implementação deve partir dele, não do branch deste documento.
 
 ### Terreno
-- **Posição:** entrada nova em `src/config/villages.js`, com `id: 'maoCerrada'`, `biome: 'deserto'`, `u: 0.84, v: 0.16`, `radius: ~180`.
+- **Posição:** entrada nova em `src/config/villages.js`, com `id: 'maoCerrada'`, `biome: 'deserto'`, `u: 0.82, v: 0.18`, `radius: ~180`.
 - **Aplainar:**
   - `flatten: { radius: 200, blend: 50 }` para a grade, no mesmo padrão das outras vilas;
   - a **depressão** pede um `flatten` com **altura-alvo abaixo** do terreno em volta (30–50 m), o que hoje não existe. **(a criar):** `flatten.depth` ou uma zona de "bacia" em `WorldGenerator`/`addFlatZone`.
