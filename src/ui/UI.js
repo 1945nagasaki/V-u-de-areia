@@ -1,3 +1,4 @@
+import { SHOWCASE } from '../config/showcase.js';
 import { ITEMS } from '../systems/PlayerState.js';
 import { VILLAGES } from '../config/villages.js';
 import { BIOMES } from '../config/biomes.js';
@@ -92,7 +93,15 @@ export class UI {
     this.worldMap = el('div', 'worldmap hidden', this.root);
     const wmCard = el('div', 'worldmap-card', this.worldMap);
     el('div', 'worldmap-title', wmCard, 'Mapa do continente <span>clique em um lugar para viajar · M fecha</span>');
-    this.worldCanvas = el('canvas', '', wmCard);
+    const wmBody = el('div', 'worldmap-body', wmCard);
+    this.worldCanvas = el('canvas', '', wmBody);
+    // Novidades: atalhos para testar o que é novo (config/showcase.js).
+    const news = el('div', 'worldmap-news', wmBody, '<div class="worldmap-news-title">Novidades — ir até lá</div>');
+    for (const [i, it] of SHOWCASE.entries()) {
+      if (!VILLAGES[it.village]) continue;
+      const b = el('button', 'worldmap-news-item', news, `<b>${it.title}</b><span>${it.hint}</span>`);
+      b.addEventListener('click', () => { this.toggleWorldMap(false); game.goToShowcase(i); });
+    }
     this.worldCanvas.width = 1024;
     this.worldCanvas.height = 576;
     this.worldCanvas.addEventListener('click', (e) => {

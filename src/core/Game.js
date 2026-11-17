@@ -45,6 +45,7 @@ import { buildCoroaAlta } from '../villages/CoroaAlta.js';
 import { buildMaoCerrada } from '../villages/MaoCerrada.js';
 import { buildEspelhoTurvo } from '../villages/EspelhoTurvo.js';
 import { placeStatues } from '../render/Statues.js';
+import { SHOWCASE } from '../config/showcase.js';
 import { FireLights } from '../render/FireLights.js';
 import { Surfaces } from '../world/Surfaces.js';
 import { Ladders } from '../world/Ladders.js';
@@ -702,6 +703,22 @@ export class Game {
   }
 
   /** Viagem pelo mapa-múndi (M). */
+  /**
+   * Leva o jogador a um atalho de "Novidades" (config/showcase.js), já virado.
+   * @example game.goToShowcase(0)
+   */
+  goToShowcase(i) {
+    const it = SHOWCASE[i];
+    const v = it && this.villages[it.village];
+    if (!v) return;
+    this.player.flying = false;
+    this.travelTo(v.x + it.dx, v.z + it.dz);
+    this.cameraRig.yaw = it.yaw;
+    this.cameraRig.pitch = 0.1;
+    this.cameraRig.snap();
+    this.ui.toast(it.hint);
+  }
+
   travelTo(x, z) {
     if (this.areaId !== 'overworld') {
       this.ui.toast('Saia do subsolo antes de viajar.');
