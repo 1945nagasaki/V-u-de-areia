@@ -1,0 +1,443 @@
+[
+ {
+  "name": "jacare.idle",
+  "category": "animals",
+  "species": "jacare",
+  "key": "idle",
+  "loop": true,
+  "duration": 5.2,
+  "fps": 30,
+  "frames": 157,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Crocodile",
+   "clip": "crocodileidle",
+   "author": "planeta-elefante",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/crocodile-172fe452ff70488191ba92779e5f4c31"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-jacare-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "jacare.walk",
+  "category": "animals",
+  "species": "jacare",
+  "key": "walk",
+  "loop": true,
+  "duration": 0.633,
+  "fps": 30,
+  "frames": 20,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Crocodile",
+   "clip": "crocodilerun",
+   "author": "planeta-elefante",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/crocodile-172fe452ff70488191ba92779e5f4c31"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-jacare-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "jacare.run",
+  "category": "animals",
+  "species": "jacare",
+  "key": "run",
+  "loop": true,
+  "duration": 0.633,
+  "fps": 30,
+  "frames": 20,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Crocodile",
+   "clip": "crocodilerun",
+   "author": "planeta-elefante",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/crocodile-172fe452ff70488191ba92779e5f4c31"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-jacare-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "jacare.attack",
+  "category": "animals",
+  "species": "jacare",
+  "key": "attack",
+  "loop": false,
+  "duration": 0.567,
+  "fps": 30,
+  "frames": 18,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Crocodile",
+   "clip": "crocodileattack",
+   "author": "planeta-elefante",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/crocodile-172fe452ff70488191ba92779e5f4c31"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-jacare-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "leao.idle",
+  "category": "animals",
+  "species": "leao",
+  "key": "idle",
+  "loop": true,
+  "duration": 10,
+  "fps": 30,
+  "frames": 301,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Siberian Tiger - Rigged, Animated, Fur (Amur)",
+   "clip": "01_Idle",
+   "author": "animalanimator",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/siberian-tiger-rigged-animated-fur-amur-860f119b7a9f485096136789eedee908"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-leao-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "leao.walk",
+  "category": "animals",
+  "species": "leao",
+  "key": "walk",
+  "loop": true,
+  "duration": 1,
+  "fps": 30,
+  "frames": 31,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Siberian Tiger - Rigged, Animated, Fur (Amur)",
+   "clip": "02_Walk",
+   "author": "animalanimator",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/siberian-tiger-rigged-animated-fur-amur-860f119b7a9f485096136789eedee908"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-leao-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "leao.trot",
+  "category": "animals",
+  "species": "leao",
+  "key": "trot",
+  "loop": true,
+  "duration": 0.667,
+  "fps": 30,
+  "frames": 21,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Siberian Tiger - Rigged, Animated, Fur (Amur)",
+   "clip": "03_Trot",
+   "author": "animalanimator",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/siberian-tiger-rigged-animated-fur-amur-860f119b7a9f485096136789eedee908"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-leao-clipes-2026-11-17.png",
+  "inGame": false
+ },
+ {
+  "name": "leao.run",
+  "category": "animals",
+  "species": "leao",
+  "key": "run",
+  "loop": true,
+  "duration": 0.467,
+  "fps": 30,
+  "frames": 15,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Siberian Tiger - Rigged, Animated, Fur (Amur)",
+   "clip": "04_Gallop",
+   "author": "animalanimator",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/siberian-tiger-rigged-animated-fur-amur-860f119b7a9f485096136789eedee908"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-leao-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "leao.roar",
+  "category": "animals",
+  "species": "leao",
+  "key": "roar",
+  "loop": false,
+  "duration": 4.467,
+  "fps": 30,
+  "frames": 135,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Siberian Tiger - Rigged, Animated, Fur (Amur)",
+   "clip": "05_Roar",
+   "author": "animalanimator",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/siberian-tiger-rigged-animated-fur-amur-860f119b7a9f485096136789eedee908"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-leao-clipes-2026-11-17.png",
+  "inGame": false
+ },
+ {
+  "name": "leao.attack",
+  "category": "animals",
+  "species": "leao",
+  "key": "attack",
+  "loop": false,
+  "duration": 4,
+  "fps": 30,
+  "frames": 121,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Tiger",
+   "clip": "Attack",
+   "author": "moizmuhammad373",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/tiger-67bbedd727a047869ef7c7b608445484"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-leao-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "mamute.idle",
+  "category": "animals",
+  "species": "mamute",
+  "key": "idle",
+  "loop": true,
+  "duration": 10,
+  "fps": 30,
+  "frames": 301,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "African Elephant Bull - Rigged & Animated",
+   "clip": "01_Idle",
+   "author": "animalanimator",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/african-elephant-bull-rigged-animated-436483857ce84c77bd0f6c76fb3d4d2d"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-mamute-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "mamute.walk",
+  "category": "animals",
+  "species": "mamute",
+  "key": "walk",
+  "loop": true,
+  "duration": 3.6,
+  "fps": 30,
+  "frames": 109,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "African Elephant Bull - Rigged & Animated",
+   "clip": "02_Walk",
+   "author": "animalanimator",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/african-elephant-bull-rigged-animated-436483857ce84c77bd0f6c76fb3d4d2d"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-mamute-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "mamute.run",
+  "category": "animals",
+  "species": "mamute",
+  "key": "run",
+  "loop": true,
+  "duration": 1.733,
+  "fps": 30,
+  "frames": 53,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "African Elephant Bull - Rigged & Animated",
+   "clip": "03_Run",
+   "author": "animalanimator",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/african-elephant-bull-rigged-animated-436483857ce84c77bd0f6c76fb3d4d2d"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-mamute-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "mamute.eat",
+  "category": "animals",
+  "species": "mamute",
+  "key": "eat",
+  "loop": true,
+  "duration": 10,
+  "fps": 30,
+  "frames": 301,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "African Elephant Bull - Rigged & Animated",
+   "clip": "04_Eating",
+   "author": "animalanimator",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/african-elephant-bull-rigged-animated-436483857ce84c77bd0f6c76fb3d4d2d"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-mamute-clipes-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "mamute.attack",
+  "category": "animals",
+  "species": "mamute",
+  "key": "attack",
+  "loop": false,
+  "duration": 6,
+  "fps": 30,
+  "frames": 181,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "African Elephant Bull - Rigged & Animated",
+   "clip": "05_Attack",
+   "author": "animalanimator",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/african-elephant-bull-rigged-animated-436483857ce84c77bd0f6c76fb3d4d2d"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-mamute-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "rinoceronte.walk",
+  "category": "animals",
+  "species": "rinoceronte",
+  "key": "walk",
+  "loop": true,
+  "duration": 1.967,
+  "fps": 30,
+  "frames": 60,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Animated Rhinoceros Walking Animal Loop",
+   "clip": "Animation",
+   "author": "LasquetiSpice",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/animated-rhinoceros-walking-animal-loop-32abc12d4fe44bd0b116b294194d9615"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-rinoceronte-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "rinoceronte.run",
+  "category": "animals",
+  "species": "rinoceronte",
+  "key": "run",
+  "loop": true,
+  "duration": 0.567,
+  "fps": 30,
+  "frames": 18,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Animated 3D Grey Rhino Running Loop",
+   "clip": "Animation",
+   "author": "LasquetiSpice",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/animated-3d-grey-rhino-running-loop-2345603eec5e4e54a293c39833684525"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-rinoceronte-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "hipoEsfolado.idle",
+  "category": "animals",
+  "species": "hipoEsfolado",
+  "key": "idle",
+  "loop": true,
+  "duration": 4,
+  "fps": 30,
+  "frames": 121,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Hippopotamus",
+   "clip": "Armature|Armature|Idle|Idle:BaseAnimation",
+   "author": "planeta-elefante",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/hippopotamus-b6f94ccfd88442b9b92a9484d27561a5"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-hipoEsfolado-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "hipoEsfolado.walk",
+  "category": "animals",
+  "species": "hipoEsfolado",
+  "key": "walk",
+  "loop": true,
+  "duration": 2.667,
+  "fps": 30,
+  "frames": 81,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Hippopotamus",
+   "clip": "Armature|Armature|Walk|Walk:BaseAnimation",
+   "author": "planeta-elefante",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/hippopotamus-b6f94ccfd88442b9b92a9484d27561a5"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-hipoEsfolado-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "hipoEsfolado.run",
+  "category": "animals",
+  "species": "hipoEsfolado",
+  "key": "run",
+  "loop": true,
+  "duration": 1.3,
+  "fps": 30,
+  "frames": 40,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Hippopotamus",
+   "clip": "Armature|Armature|Run|Run:BaseAnimation",
+   "author": "planeta-elefante",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/hippopotamus-b6f94ccfd88442b9b92a9484d27561a5"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-hipoEsfolado-2026-11-17.png",
+  "inGame": true
+ },
+ {
+  "name": "hipoEsfolado.attack",
+  "category": "animals",
+  "species": "hipoEsfolado",
+  "key": "attack",
+  "loop": false,
+  "duration": 3.3,
+  "fps": 30,
+  "frames": 100,
+  "rig": "autorig-quadruped",
+  "source": {
+   "file": "Hippopotamus",
+   "clip": "Armature|Armature|Attack|Attack:BaseAnimation",
+   "author": "planeta-elefante",
+   "license": "CC Attribution",
+   "url": "https://sketchfab.com/3d-models/hippopotamus-b6f94ccfd88442b9b92a9484d27561a5"
+  },
+  "validation": "validado-visual",
+  "evidence": "production/qa/evidence/anim-retarget-hipoEsfolado-2026-11-17.png",
+  "inGame": true
+ }
+]

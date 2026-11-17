@@ -80,7 +80,18 @@ export class AnimalModels {
           for (const m of [o.material].flat()) if (m.metalness) m.metalness = 0;
         }
       });
-      this.ready.set(id, { template, clips: cleanClips(gltf.animations), skinned, rig });
+      // Movimento real adaptado ao esqueleto do AutoRig (tools/anim/retarget.mjs): clipes por espécie.
+      let clips = cleanClips(gltf.animations), motionNames = null;
+      if (cfg.motion && rig) {
+        try {
+          const lib = await (await fetch(cfg.motion)).json();
+          clips = lib.clips.map((c) => THREE.AnimationClip.parse(c));
+          motionNames = lib.names;
+        } catch (err) {
+          console.warn(`Animações de "${id}" não carregaram; fica o movimento procedural.`, err);
+        }
+      }
+      this.ready.set(id, { template, clips, skinned, rig, motionNames });
     } catch (err) {
       this.failed.add(id);
       console.warn(`Modelo do animal "${id}" não carregou; usando o procedural.`, err);
@@ -107,7 +118,7 @@ export class AnimalModels {
     const m = this.ready.get(id);
     if (!m) return null;
     const object = m.skinned ? cloneSkinned(m.template) : m.template.clone();
-    return { object, clips: m.clips, names: this.config[id].clips ?? null, rig: m.rig ?? null };
+    return { object, clips: m.clips, names: this.config[id].clips ?? m.motionNames ?? null, rig: m.rig ?? null };
   }
 }
 

@@ -15,6 +15,8 @@
  */
 const base = `${(import.meta.env?.BASE_URL ?? "/")}assets/models/animals/`;
 const file = (id) => ({ glb: `${base}${id}.glb`, glbJson: `${base}${id}.glb.json` });
+/** Movimento real (clipes do Sketchfab adaptados ao esqueleto do AutoRig por tools/anim/retarget.mjs). */
+const motion = (id) => ({ motion: `${(import.meta.env?.BASE_URL ?? "/")}assets/animations/animals/${id}.json` });
 
 /** Clipes dos animais animados da Quaternius (mesmo esqueleto "AnimalArmature"). */
 const QUATERNIUS = { idle: 'Idle', walk: 'Walk', run: 'Gallop', attack: 'Attack', death: 'Death', eat: 'Eating' };
@@ -49,7 +51,7 @@ export const ANIMAL_LOADER = { dracoPath: `${(import.meta.env?.BASE_URL ?? "/")}
  */
 export const ANIMAL_MODELS = {
   zebra: { ...file('zebra'), length: 2.4, rig: Q },
-  leao: { ...file('leao'), ...RAP, length: 2.3, rig: Q },
+  leao: { ...file('leao'), ...motion('leao'), ...RAP, length: 2.3, rig: Q },
   lobo: { ...file('lobo'), ...RAP, length: 1.5, rig: Q },
   alce: { ...file('alce'), ...RAP, length: 2.6, rig: Q },
   escorpiao: { ...file('escorpiao'), length: 1.7, rig: { kind: 'scorpion' } },
@@ -72,12 +74,12 @@ export const ANIMAL_MODELS = {
   arara: { ...file('arara'), length: 0.85, rig: { kind: 'bird', jaw: false } },
   avestruz: { ...file('avestruz'), height: 2.4, rig: { kind: 'biped', jaw: false } },
   // yaw: o corpo deste modelo vem ~8° torto em relação ao próprio eixo (cauda curva): corrige para o focinho apontar para a frente.
-  jacare: { ...file('jacare'), yaw: -Math.PI / 2 - 0.14, length: 3.4, rig: { kind: 'quadruped', lateralLegs: true, spineBones: 4, tailBones: 4 } },
+  jacare: { ...file('jacare'), ...motion('jacare'), yaw: -Math.PI / 2 - 0.14, length: 3.4, rig: { kind: 'quadruped', lateralLegs: true, spineBones: 4, tailBones: 4 } },
   // Guardiões dos biomas e o macaco-monge (enviados pelo dono do jogo; comprimidos: malha simplificada,
   // texturas 1024 px em WebP e Draco). Estáticos: o AutoRig monta o esqueleto dos quadrúpedes.
-  mamute: { ...file('mamute'), length: 6.2, rig: Q },
-  rinoceronte: { ...file('rinoceronte'), length: 4.2, rig: Q },
-  hipoEsfolado: { ...file('hipopotamo'), yaw: Math.PI / 2, length: 4.6, rig: Q },
+  mamute: { ...file('mamute'), ...motion('mamute'), length: 6.2, rig: Q },
+  rinoceronte: { ...file('rinoceronte'), ...motion('rinoceronte'), length: 4.2, rig: Q },
+  hipoEsfolado: { ...file('hipopotamo'), ...motion('hipoEsfolado'), yaw: Math.PI / 2, length: 4.6, rig: Q },
   serpente: { ...file('serpente'), length: 7.5, rig: false },
   macacoMonge: { ...file('macacoMonge'), height: 1.35, rig: false },
   // Cérbero: o lobo animado, maior, quase preto e com brilho vermelho (cão paranormal).

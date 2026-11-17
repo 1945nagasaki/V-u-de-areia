@@ -10,7 +10,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { AnimalModels } from '/src/render/AnimalModels.js';
-import { ANIMAL_MODELS } from '/src/config/animalModels.js';
+import { ANIMAL_MODELS, ANIMAL_LOADER } from '/src/config/animalModels.js';
 import { SPECIES, FAUNA } from '/src/config/fauna.js';
 import { ANIMATION } from '/src/config/animation.js';
 import { FOOD_WEB } from '/src/config/foodWeb.js';
@@ -30,7 +30,7 @@ const sun = new THREE.DirectionalLight(0xffffff, 2.4); sun.position.set(6, 8, 3)
 const line = (y, color) => { const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, y, -30), new THREE.Vector3(0, y, 30), new THREE.Vector3(-30, y, 0), new THREE.Vector3(30, y, 0)]); return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color })); };
 const groundLine = line(0, 0xffffff), waterLine = line(0, 0x1e6fd0); scene.add(groundLine, waterLine);
 
-const models = new AnimalModels(ANIMAL_MODELS);
+const models = new AnimalModels(q.get('motion') === '0' ? Object.fromEntries(Object.entries(ANIMAL_MODELS).map(([k, c]) => [k, { ...c, motion: undefined }])) : ANIMAL_MODELS, { dracoPath: ANIMAL_LOADER.dracoPath });
 await models.load(id);
 const spec = SPECIES[id];
 const mk = () => { const a = new Animal({ spec, speciesId: id, fauna: FAUNA, rng: () => 0.5, model: models.instance(id), x: 0, z: 0, groundAt: () => 0 }); a.root.rotation.y = 0; return a; };
@@ -61,6 +61,26 @@ r.clear();
 states.forEach((st, row) => {
   const a = mk(); scene.add(a.root);
   const anim = a.body.anim, dt = 1 / 120, swim = st.startsWith('swim') || st === 'lurk';
+  // "clip:<chave>": toca o clipe da biblioteca direto (sem a máquina de estados), cobrindo a duração toda.
+  const clipKey = st.startsWith('clip:') ? st.slice(5) : null;
+  if (clipKey) {
+    const act = anim?.actions?.[clipKey];
+    if (!act) { report[st] = { erro: 'sem clipe' }; scene.remove(a.root); return; }
+    anim.play(clipKey, 0);
+    const step = act.getClip().duration / COLS;
+    for (let c = 0; c < COLS; c++) {
+      if (c) anim.mixer.update(step); else anim.mixer.update(0);
+      a.root.updateMatrixWorld(true);
+      cam.position.set(-50, size.y * 0.5, 0); cam.up.set(0, 1, 0); cam.lookAt(0, size.y * 0.5, 0);
+      waterLine.visible = false; groundLine.visible = true;
+      const x = c * CW, y = (states.length - 1 - row) * CH;
+      r.setViewport(x, y, CW, CH); r.setScissor(x, y, CW, CH); r.setScissorTest(true);
+      r.render(scene, cam);
+    }
+    report[st] = { clip: act.getClip().name, duration: act.getClip().duration };
+    scene.remove(a.root);
+    return;
+  }
   const depth = swim ? (st === 'lurk' ? spec.swim?.lurk : spec.swim?.depth) ?? spec.size * 0.6 : 0;
   let t = 0;
   const run = (secs) => { for (let s = 0; s < secs - 1e-9; s += dt) { t += dt; anim?.update(dt, ctxFor(st, st === 'jump' || st === 'attack' || st === 'dead' ? t - WARM : t)); } };

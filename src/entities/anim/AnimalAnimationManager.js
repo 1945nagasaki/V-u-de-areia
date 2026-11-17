@@ -145,7 +145,7 @@ export class AnimalAnimationManager {
       this.actions[key] = a;
     }
     model.object.traverse((o) => {
-      if (o.isBone && !this.headBone && /^(Head|Neck)$/i.test(o.name)) this.headBone = o;
+      if (o.isBone && !this.headBone && /^(Head|Neck|ar_head)$/i.test(o.name)) this.headBone = o;
     });
     this.lookQ = new THREE.Quaternion();
     this.lookYaw = 0;
@@ -158,8 +158,17 @@ export class AnimalAnimationManager {
    */
   play(key, fade = this.cfg.blend.crossFade, { sync = false } = {}) {
     const next = this.actions[key];
-    if (!next || this.current === key) return;
+    if (this.current === key) return;
     const prev = this.actions[this.current];
+    if (!next) {
+      // Sem clipe de repouso (fonte só com andar/correr): esmaece o atual e o
+      // mixer mistura de volta à pose original do modelo, em vez de congelar no passo.
+      if (key === 'idle' && prev) {
+        prev.fadeOut(fade > 0 ? fade : 0.001);
+        this.current = key;
+      }
+      return;
+    }
     next.stopFading();
     next.stopWarping();
     next.enabled = true;
@@ -354,7 +363,9 @@ export class AnimalAnimationManager {
       if (this.mixer || !this.rig) this.rootPos.y -= this.jump.crouch * (this.jump.phase === 'landing' ? cfg.jump.absorb : cfg.jump.squat) * this.dims.legTop * 0.6;
     }
 
-    if (this.mixer) {
+    // Na água, o animal com AutoRig volta ao nado procedural (os clipes são de terra).
+    const clipMode = this.mixer && !(swimming && this.rig);
+    if (clipMode) {
       this.updateClips(dt, ctx);
       this.layerAttackRoot(0.5);
     } else if (this.rig) {
@@ -388,7 +399,7 @@ export class AnimalAnimationManager {
     const { H } = this.dims;
     if (state === 'fly') this.rootPos.y += Math.min(25, stateTime * stateTime * 3 + stateTime * 2);
     if (state === 'burrow') this.rootPos.y -= stateTime * H * 1.2;
-    if (!this.mixer && this.w.dead > 0.001) {
+    if ((!this.mixer || !this.actions.death) && this.w.dead > 0.001) {
       // Tomba de lado (o corpo procedural/AutoRig não tem clipe de morte).
       const k = this.w.dead;
       this.rootRot.z += this.deadSide * k * Math.PI * 0.47;

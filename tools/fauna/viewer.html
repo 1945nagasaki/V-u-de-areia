@@ -19,7 +19,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { AnimalModels } from '/src/render/AnimalModels.js';
-import { ANIMAL_MODELS } from '/src/config/animalModels.js';
+import { ANIMAL_MODELS, ANIMAL_LOADER } from '/src/config/animalModels.js';
 import { SPECIES, FAUNA } from '/src/config/fauna.js';
 import { ANIMATION, ATTACK_STYLE } from '/src/config/animation.js';
 import { FOOD_WEB } from '/src/config/foodWeb.js';
@@ -27,7 +27,7 @@ import { Animal } from '/src/entities/Animal.js';
 import { jumpEnvelope } from '/src/entities/anim/AnimMath.js';
 
 const q = new URLSearchParams(location.search);
-const ui = { id: q.get('id') ?? 'leao', state: q.get('state') ?? 'walk', skeleton: q.get('skeleton') === '1', box: q.get('box') === '1', speed: +(q.get('speed') ?? 1) };
+const ui = { motion: q.get('motion') !== '0', id: q.get('id') ?? 'leao', state: q.get('state') ?? 'walk', skeleton: q.get('skeleton') === '1', box: q.get('box') === '1', speed: +(q.get('speed') ?? 1) };
 
 const r = new THREE.WebGLRenderer({ antialias: true });
 r.setPixelRatio(Math.min(devicePixelRatio, 2)); r.setSize(innerWidth, innerHeight);
@@ -52,7 +52,8 @@ addEventListener('pointermove', (e) => { if (!drag) return; orbit.yaw -= (e.clie
 addEventListener('wheel', (e) => { orbit.dist = Math.max(1, Math.min(40, orbit.dist * (1 + Math.sign(e.deltaY) * 0.1))); });
 addEventListener('resize', () => { r.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); });
 
-const models = new AnimalModels(ANIMAL_MODELS);
+// motion=0: mostra o movimento procedural antigo (sem os clipes reais adaptados), para comparar.
+const models = new AnimalModels(ui.motion ? ANIMAL_MODELS : Object.fromEntries(Object.entries(ANIMAL_MODELS).map(([k, c]) => [k, { ...c, motion: undefined }])), { dracoPath: ANIMAL_LOADER.dracoPath });
 let cur = null, helpers = [], t = 0, attackIn = 0;
 const STATES = [['idle', 'Parado'], ['walk', 'Andar'], ['run', 'Correr'], ['attack', 'Atacar'], ['graze', 'Pastar'], ['browse', 'Folhas'], ['drink', 'Beber'], ['swim', 'Nadar'], ['jump', 'Saltar'], ['dead', 'Morto']];
 
@@ -89,6 +90,7 @@ function buildSide() {
     + '<h3>Estado</h3>' + STATES.map(([k, l]) => `<button data-state="${k}" class="${k === ui.state ? 'on' : ''}">${l}</button>`).join('')
     + `<h3>Ver</h3><label><input type="checkbox" data-t="skeleton" ${ui.skeleton ? 'checked' : ''}> esqueleto</label><label><input type="checkbox" data-t="box" ${ui.box ? 'checked' : ''}> caixa de colisão</label>
        <label>velocidade do tempo <input type="range" min="0" max="2" step="0.05" value="${ui.speed}" data-t="speed"></label>
+       <p><a style="color:#e8b85a" href="?id=${ui.id}&state=${ui.state}&motion=${ui.motion ? 0 : 1}">${ui.motion ? 'Ver o movimento procedural antigo' : 'Ver o movimento real (clipes adaptados)'}</a></p>
        <p style="color:#9aa;font-size:11px">Laranja = espécie não africana ou modelo a substituir. O chão quadriculado tem 1 m por quadro: a pata apoiada deve ficar parada em relação a ele.</p>`;
 }
 document.getElementById('side').addEventListener('click', (e) => {
