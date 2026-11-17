@@ -39,6 +39,12 @@ export class Player {
     /** Escadas de mão (Ladders): W anda contra ela → sobe. */
     this.ladders = ladders;
     this.climbing = null;
+    /**
+     * Combate corpo a corpo (src/combat): no meio de um golpe, esquiva ou
+     * atordoado, o controle não anda nem gira o corpo — quem move é o golpe
+     * (avanço, investida, esquiva, empurrão). O MeleeController liga a cada quadro.
+     */
+    this.combatLock = false;
     /** Opcional: `{ canSprint(): boolean }` (Survival) — sem stamina, não corre. */
     this.stamina = null;
     this.collisions = collisions;
@@ -140,7 +146,7 @@ export class Player {
 
     // Atordoado (coice) ou preso (agarrão): sem controle; lento: mordida no calcanhar.
     this.status.update(dt);
-    if (this.status.immobile) move.set(0, 0, 0);
+    if (this.status.immobile || this.combatLock) move.set(0, 0, 0);
     let moving = move.lengthSq() > 0;
     // Stamina (Survival): zerada, não corre até recuperar.
     this.sprinting = wantsSprint(input, moving, { swimming: this.swimming }) && (this.stamina?.canSprint() ?? true);
@@ -193,7 +199,7 @@ export class Player {
       if (g > this.position.y) this.position.y = g;
       this.grounded = false;
     } else {
-      if (this.grounded && !sl.slipping && !this.status.immobile && input.pressed('Space')) { // escorregando não dá impulso
+      if (this.grounded && !sl.slipping && !this.status.immobile && !this.combatLock && input.pressed('Space')) { // escorregando não dá impulso
         this.velocity.y = PLAYER.jumpSpeed * this.state.modifier('jump'); // lama/frio: pulo fraco
         this.grounded = false;
       }

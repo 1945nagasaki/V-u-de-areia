@@ -44,6 +44,9 @@ export class CameraRig {
     this.keyTurnSpeed = config.keyTurnSpeed;
     this.focus = new THREE.Vector3();
     this.kickAmount = 0; // rad, decai sozinho (tranco do soco)
+    this.shakeAmount = 0; // m, tremor de impacto (decai sozinho)
+    this.shakeDecay = 9;
+    this._shakeT = 0;
     this._desired = new THREE.Vector3();
     this._look = new THREE.Vector3();
     this.first = true;
@@ -94,6 +97,16 @@ export class CameraRig {
     this.kickAmount = Math.max(this.kickAmount, amount);
   }
 
+  /**
+   * Tremor de câmera (impacto de golpe): deslocamento pequeno e rápido que decai sozinho.
+   * @param {number} amount metros de amplitude (ex.: 0,06)
+   * @param {number} [decay] 1/s
+   */
+  shake(amount, decay = this.shakeDecay) {
+    this.shakeAmount = Math.max(this.shakeAmount, amount);
+    this.shakeDecay = decay;
+  }
+
   /** Direção "para frente" no chão (para o movimento do jogador). */
   forward(out = new THREE.Vector3()) {
     return out.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
@@ -134,6 +147,15 @@ export class CameraRig {
     if (this.kickAmount > 0) {
       this.camera.rotateX(-this.kickAmount);
       this.kickAmount = Math.max(0, this.kickAmount - dt * 0.9);
+    }
+    if (this.shakeAmount > 1e-4) {
+      // Ruído suave (senos de frequências diferentes), não um pulo aleatório por quadro.
+      this._shakeT += dt;
+      const a = this.shakeAmount, t = this._shakeT * 60;
+      this.camera.position.x += Math.sin(t * 1.3) * a;
+      this.camera.position.y += Math.sin(t * 1.7 + 1) * a * 0.8;
+      this.camera.position.z += Math.sin(t * 1.1 + 2) * a;
+      this.shakeAmount *= Math.exp(-this.shakeDecay * dt);
     }
     this.first = false;
   }

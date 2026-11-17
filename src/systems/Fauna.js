@@ -372,6 +372,9 @@ export class Fauna {
       if (this.game.physics) {
         animal.agent = this.game.physics.addAgent({ x: animal.position.x, y: animal.position.y, z: animal.position.z, radius: animal.bodyRadius ?? 0.4, height: animal.bodyHeight ?? 1 });
       }
+      // Tamanho do corpo para a hitbox do combate corpo a corpo (cilindro).
+      animal.root.userData.hitRadius = animal.bodyRadius ?? 0.5;
+      animal.root.userData.hitHeight = animal.bodyHeight ?? 1.2;
       this.game.combat.register({
         name: spec.nome, object: animal.root,
         enabled: () => animal.alive,

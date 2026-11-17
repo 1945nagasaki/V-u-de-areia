@@ -30,6 +30,7 @@ import { AnimalModels } from '../render/AnimalModels.js';
 import { HumanClipLibrary } from '../entities/anim/HumanClips.js';
 import { setHumanClipLibrary } from '../entities/Humanoid.js';
 import { HUMAN_ANIMATION } from '../config/humanAnimation.js';
+import { MeleeController } from '../systems/MeleeController.js';
 import { ANIMAL_MODELS, ANIMAL_LOADER } from '../config/animalModels.js';
 import { Oxygen } from '../systems/Oxygen.js';
 import { ITEM_USES } from '../systems/Items.js';
@@ -468,6 +469,8 @@ export class Game {
     this.setupCamera();
     this.inspection = new BodyInspection(this); // precisa da câmera, do braço de 1ª pessoa e da mochila
     this.setupCombat();
+    // Combate corpo a corpo com skills, hitboxes e IA (src/combat; teclas em config/meleeCombat.js).
+    this.melee = new MeleeController(this);
     // Pacote de itens (armas, ferramentas, munição, comida, relíquias): regras, item na mão, HUD e save.
     this.gear = new GearController(this);
     // Animais: cache já cheio (preloader acima); espécie sem modelo usa o corpo procedural.
@@ -553,6 +556,8 @@ export class Game {
     const dummy = new TrainingDummy({ x: dx, z: dz, y: this.groundHeight(dx, dz), facing: Math.PI, ...GAMEPLAY.trainingDummy });
     this.scene.add(dummy.root);
     this.collisions.addCircle?.(dx, dz, 0.4);
+    dummy.hitbox.userData.hitCentered = true; // caixa no meio do corpo (a hitbox do combate acha os pés)
+    dummy.hitbox.userData.hitHeight = 1.7;
     this.combat.register({
       name: dummy.name,
       object: dummy.hitbox,
@@ -589,6 +594,8 @@ export class Game {
       talk.target.talk();
       return;
     }
+    // Combate corpo a corpo (combo com hitbox por fase); o soco antigo fica só se o combate não puder agir.
+    if (this.melee?.canFight()) { this.melee.combo(); return; }
     if (!this.combat.canPunch(this.time)) return;
     this.player.startPunch(dir, punch.duration);
     if (this.cameraRig.isFirstPerson) this.fpArm.punch(punch.duration);
@@ -1864,7 +1871,8 @@ export class Game {
       || this.inspection.active || this.backpack.open || this.notebookUI.open;
     if (this.input.pressed('Escape') && (this.pauseMenu.open || !othersOpen)) { this.pauseMenu.toggle(); this.input.consume?.('Escape'); }
     // menu aberto = jogo pausado (dt 0: nada anda, a cena continua desenhada)
-    const dt = this.pauseMenu.open ? 0 : Math.min(rawDt, 0.1);
+    // timeScale: câmera lenta de depuração (F7, para ajustar o tempo das hitboxes); 0 congela.
+    const dt = this.pauseMenu.open ? 0 : Math.min(rawDt, 0.1) * (this.timeScale ?? 1);
     if (this.fpsMeter.tick(rawDt) && this.graphics.id !== GRAPHICS_PRESETS[0].id && !this._fpsHinted) {
       this._fpsHinted = true;
       this.ui.toast(`O jogo está lento (${Math.round(this.fpsMeter.fps)} FPS). Aperte <b>G</b> para baixar os gráficos.`);
@@ -1927,6 +1935,7 @@ export class Game {
     ui.hotbarWrap.classList.toggle('dim', busy);
 
     const inspecting = this.inspection.active;
+    this.melee?.handleInput(input, { busy }); // skills (Z/X/B, clique direito) e trava do movimento no golpe
     if (busy) { if (!inspecting) this.player.model.update(dt, 0); } // na inspeção a pose é da BodyInspection
     else {
       if (!this.boat?.busy) this.player.update(dt, input, this.cameraRig);
@@ -1935,6 +1944,8 @@ export class Game {
       // Em 1ª pessoa o corpo acompanha para onde se olha (o soco sai daí).
       if (this.cameraRig.isFirstPerson) this.player.faceDirection(this.cameraRig.forward(this._camFwd));
     }
+    // Combate: fases dos golpes, hitboxes, IA dos duelistas, pose do golpe por cima da animação base, efeitos.
+    if (!inspecting) this.melee?.update(dt);
     if (inspecting) this.inspection.update(dt, input);
     else this.cameraRig.update(dt, this.player.position, busy ? null : input, {
       flying: this.player.flying,
