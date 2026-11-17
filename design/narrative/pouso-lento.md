@@ -1576,6 +1576,28 @@ Todos [GANCHO]. Nenhum tem solução única.
 
 ## PARTE XV — IMPLEMENTAÇÃO EM JOGO 3D
 
+> **Estado (2026-11-17): primeira versão jogável no jogo** (`src/villages/PousoLento.js`, `VILLAGES.pousoLento`).
+> - **Terreno:** vale entre dunas com o chão fixo em 6 m. Os rebaixos são feitos com `trenches`:
+>   - Olho Lento: fundo abaixo do mar, então a água do jogo fica ~6 m abaixo do chão;
+>   - a Roda;
+>   - 36 Covas de 10 m, com 2,4 m de fundo.
+>   - A laje do Santuário é uma escarpa baixa (Ridges).
+> - **Feito:**
+>   - Olho Lento com mureta, onde os crocodilos sagrados nascem (guardião `jacare` em `GUARDIANS`, `src/config/fauna.js`);
+>   - 36 Covas com casa de cúpula, mureta e escada de terra;
+>   - a Roda com três anéis de bancos e o Lugar de Ninguém;
+>   - Santuário da Costela na laje, com a Calma como névoa local (`presences`);
+>   - Árvore dos Tecelões e Campo das Ferramentas;
+>   - Mercado da Lua com lanternas, Celeiros Enterrados, Pátio dos Ofícios e Hortas de Mureta;
+>   - Vigias da Duna, Ruas de Duna e Canal do Imperador soterrado;
+>   - NPCs: Luiheid, Enzo, Nhara, Dikelo, Ilo, Moti, Feso Garan, Lissa Orun e Sereba Onu.
+> - **Falta:**
+>   - casas de cova com interior;
+>   - a vida noturna (rotina invertida);
+>   - a Calma como efeito de jogo (o jogador senta);
+>   - a Fenda do Sono;
+>   - ligar a cidade ao sistema de trabalho dos NPCs.
+
 Esta parte converte o documento para o projeto atual (Three.js, Vite, 1 unidade = 1 m, mundo 4096 × 2304 m). Nomes entre crases existem no código; o resto está marcado **a criar**. **Atenção:** o branch `completo` tem sistemas mais novos (física com Rapier em vez de cannon-es, trabalho e rotina dos NPCs, famílias e diálogos). A implementação deve partir dele.
 
 ### Terreno

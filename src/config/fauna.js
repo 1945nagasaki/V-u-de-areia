@@ -91,6 +91,8 @@ export const BIOME_FAUNA = {
  */
 export const GUARDIANS = [
   { species: 'cerbero', village: 'ruinasKaelen', trigger: 220, spread: 30, respawn: 120 },
+  // Crocodilos sagrados do Olho Lento (As Covas): nascem dentro do poço.
+  { species: 'jacare', village: 'pousoLento', trigger: 160, spread: 4, respawn: 300 },
 ];
 
 /** Spawner: mantém alguns grupos vivos perto do jogador. */

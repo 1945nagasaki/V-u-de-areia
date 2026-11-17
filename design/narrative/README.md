@@ -17,6 +17,20 @@ marcadas como [PROPOSTA] ou [GANCHO].
 | VI. Mesa-Farta | [mesa-farta.md](mesa-farta.md) | Escrito |
 | VII. Pouso-Lento | [pouso-lento.md](pouso-lento.md) | Escrito |
 
+## No jogo (primeira versão jogável das sete capitais)
+
+| Tribo | Cidade no jogo | Arquivo | Posição (u, v) |
+|---|---|---|---|
+| Coroa-Alta | Cidadela do Cume-Leão | `src/villages/CoroaAlta.js` | 0.55, 0.11 |
+| Mão-Cerrada | Areia-Funda | `src/villages/MaoCerrada.js` | 0.82, 0.18 |
+| Espelho-Turvo | Vale do Espelho-Turvo | `src/villages/EspelhoTurvo.js` | 0.18, 0.58 |
+| Brasa-Viva | Dique-Rubro | `src/villages/BrasaViva.js` | 0.92, 0.46 |
+| Véu-Carmesim | Paço das Faces | `src/villages/VeuCarmesim.js` | 0.84, 0.87 |
+| Mesa-Farta | Mesa-Farta | `src/villages/MesaFarta.js` | 0.27, 0.23 |
+| Pouso-Lento | As Covas | `src/villages/PousoLento.js` | 0.60, 0.88 |
+
+Para testar: no jogo, tecla **M** → lista "Novidades — ir até lá" (`src/config/showcase.js`).
+
 ## Akin — história central (cânone)
 
 - Imperador de poder extraordinário, associado ao paranormal. Queria fazer da

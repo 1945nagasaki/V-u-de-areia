@@ -477,6 +477,47 @@ export const VILLAGES = {
       ],
     },
   },
+  pousoLento: {
+    id: 'pousoLento',
+    name: 'As Covas',
+    tribe: 'Pouso-Lento',
+    biome: 'kalahari',
+    region: 'Sul — vale entre dunas do Kalahari, entre as Areias Vivas e Kaelen',
+    u: 0.6, v: 0.88,
+    radius: 140,
+    /** Vale entre dunas: chão fixo e baixo (as Covas se escondem do calor). */
+    flatten: { radius: 140, blend: 40, height: 6 },
+    /** Laje de calcário do Santuário da Costela (norte). */
+    ridges: [{ r: 52, width: 34, height: 4, from: -2.05, to: -1.09, fade: 0.12 }],
+    /** Centros das covas (pátios rebaixados), relativos ao centro do Olho Lento. */
+    covas: [[24.3, 17.6], [9.3, 28.5], [-9.3, 28.5], [-24.3, 17.6], [-24.3, -17.6], [-9.3, -28.5], [9.3, -28.5], [24.3, -17.6], [48.8, 17.8], [38.3, 35.2], [21.9, 47.1], [-17.8, 48.8], [-35.2, 38.3], [-47.1, 21.9], [-38.3, -35.2], [-21.9, -47.1], [17.8, -48.8], [35.2, -38.3], [47.1, -21.9], [58.1, 49.0], [40.2, 64.5], [18.2, 73.8], [-28.6, 70.4], [-49.0, 58.1], [-64.5, 40.2], [-73.8, 18.2], [-75.8, -5.4], [-70.4, -28.6], [-58.1, -49.0], [-40.2, -64.5], [28.6, -70.4], [49.0, -58.1], [64.5, -40.2], [73.8, -18.2], [75.8, 5.4], [70.4, 28.6]],
+    trenches: [
+      { dx: 0, dz: 0, hw: 11, hd: 11, depth: 11, edge: 4 },
+      { dx: -40, dz: 0, hw: 13, hd: 13, depth: 2.2, edge: 7 },
+      ...[[24.3, 17.6], [9.3, 28.5], [-9.3, 28.5], [-24.3, 17.6], [-24.3, -17.6], [-9.3, -28.5], [9.3, -28.5], [24.3, -17.6], [48.8, 17.8], [38.3, 35.2], [21.9, 47.1], [-17.8, 48.8], [-35.2, 38.3], [-47.1, 21.9], [-38.3, -35.2], [-21.9, -47.1], [17.8, -48.8], [35.2, -38.3], [47.1, -21.9], [58.1, 49.0], [40.2, 64.5], [18.2, 73.8], [-28.6, 70.4], [-49.0, 58.1], [-64.5, 40.2], [-73.8, 18.2], [-75.8, -5.4], [-70.4, -28.6], [-58.1, -49.0], [-40.2, -64.5], [28.6, -70.4], [49.0, -58.1], [64.5, -40.2], [73.8, -18.2], [75.8, 5.4], [70.4, 28.6]].map(([dx, dz]) => ({ dx, dz, hw: 5.2, hd: 5.2, depth: 2.6, edge: 3 })),
+    ],
+    population: 1300,
+    populationNote: 'Cerca de 1.300; a maioria vive de noite e dorme nas horas quentes.',
+    demographics: null,
+    faction: 'Covas da tribo Luiheid — a Pouso-Lento (anti-Akin); aliada comercial da Bússola do Sul',
+    founded: 'Onde as famílias que largaram as obras de Akin pararam de andar, em volta do Olho Lento.',
+    description:
+      'Um vale entre dunas onde as casas ficam em pátios afundados, frescos. No centro, o Olho Lento, um poço ' +
+      'fundo com crocodilos; a oeste, a Roda, onde as famílias decidem devagar diante de um assento vazio.',
+    structures: [
+      'Olho Lento (poço sagrado)', 'Covas Antigas e Novas', 'A Roda e o Lugar de Ninguém', 'Mercado da Lua',
+      'Celeiros Enterrados', 'Árvore dos Tecelões', 'Santuário da Costela', 'Vigias da Duna', 'Canal do Imperador',
+    ],
+    lore: {
+      speaker: 'Vigia da Rua de Duna', title: 'As Covas',
+      look: { shirt: 0xc8a070, pants: 0x6a5038, hat: 'wrap', accessory: 'staff' },
+      pages: [
+        '"Chegou na hora errada. De dia a gente dorme. Volte quando o sol cair, o Mercado da Lua abre."',
+        '"Aqui ninguém manda em ninguém. A Roda decide, e a Roda pensa três noites antes de falar."',
+        '"Não chegue perto da laje do norte se tiver pressa. Quem chega lá senta e esquece por quê."',
+      ],
+    },
+  },
   ruinasKaelen: {
     id: 'ruinasKaelen',
     name: 'Ruínas de Kaelen',

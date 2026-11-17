@@ -37,4 +37,10 @@ export const SHOWCASE = [
     hint: 'Veja o capim morto em volta do celeiro. Fale (E) com Thiago, a Chave-Mestra.', dx: 20, dz: -70, yaw: Math.PI },
   { village: 'mesaFarta', title: 'Mesa-Farta — Janela das Sobras',
     hint: 'A fila de quem tem fome no Portão do Mingau. Fale (E) com Mãe Adjoa.', dx: 6, dz: 140, yaw: Math.PI },
+  { village: 'pousoLento', title: 'As Covas — o Olho Lento',
+    hint: 'O poço sagrado dos crocodilos. Não caia! Fale (E) com Nhara Kesi.', dx: 0, dz: 17, yaw: Math.PI },
+  { village: 'pousoLento', title: 'As Covas — a Roda e o Lugar de Ninguém',
+    hint: 'Aperte E no assento vazio do centro. Luiheid escuta sentado.', dx: -40, dz: 18, yaw: Math.PI },
+  { village: 'pousoLento', title: 'As Covas — Santuário da Costela',
+    hint: 'Ande devagar até a laje do norte: a Calma faz quem tem pressa sentar.', dx: 4, dz: -36, yaw: Math.PI },
 ];
