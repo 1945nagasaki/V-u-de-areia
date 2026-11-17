@@ -43,4 +43,6 @@ export const SHOWCASE = [
     hint: 'Aperte E no assento vazio do centro. Luiheid escuta sentado.', dx: -40, dz: 18, yaw: Math.PI },
   { village: 'pousoLento', title: 'As Covas — Santuário da Costela',
     hint: 'Ande devagar até a laje do norte: a Calma faz quem tem pressa sentar.', dx: 4, dz: -36, yaw: Math.PI },
+  { village: 'veuCarmesim', title: 'Tsen, o macaco-monge',
+    hint: 'Ele fica num galho de uma das três grandes árvores-osso da bacia (muda de árvore a cada dia). Aperte E.', dx: -125, dz: 102, yaw: 1.06 },
 ];

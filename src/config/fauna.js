@@ -69,18 +69,27 @@ export const SPECIES = {
   jacare: { nome: 'Jacaré do Rio', behavior: 'ambush', model: 'croc', size: 0.45, color: 0x3a4228, swims: true, aquatic: true, landSpeed: 0.3, shoreRange: 9,
     swim: { depth: 0.36, lurk: 0.47, lurkRange: 22, hysteresis: 0.06, rate: 1.6 },
     walk: 0.7, run: 6, health: 70, damage: 24, attackRange: 1.9, strikeRange: 5, attackCooldown: 1.6, sense: 9, giveUp: 12, group: [1, 2] },
+  // Guardiões dos biomas (modelos enviados pelo dono do jogo): soltos pela região da capital da tribo.
+  mamute: { nome: 'Mamute das Cinzas', behavior: 'territorial', model: 'bear', size: 2.6, color: 0x2a2826,
+    walk: 1.1, run: 7.5, health: 420, damage: 42, attackRange: 3.4, attackCooldown: 2.2, sense: 26, territory: 14, giveUp: 40, group: [1, 1] },
+  rinoceronte: { nome: 'Rinoceronte de Guerra', behavior: 'territorial', model: 'bear', size: 1.9, color: 0xc8c4bc,
+    walk: 1.2, run: 10.5, health: 320, damage: 46, attackRange: 2.8, attackCooldown: 1.8, sense: 24, territory: 18, giveUp: 45, group: [1, 1] },
+  hipoEsfolado: { nome: 'Hipopótamo Esfolado', behavior: 'territorial', model: 'bear', size: 1.7, color: 0x8a3a3a, swims: true,
+    walk: 1.0, run: 8, health: 360, damage: 50, attackRange: 2.6, attackCooldown: 1.6, sense: 20, territory: 12, giveUp: 35, group: [1, 1] },
+  serpente: { nome: 'Serpente-Centopeia', behavior: 'territorial', model: 'croc', size: 1.1, color: 0x6a5030,
+    walk: 1.4, run: 7, health: 260, damage: 36, attackRange: 3, attackCooldown: 1.4, sense: 22, territory: 12, giveUp: 40, group: [1, 1] },
   cerbero: { nome: 'Cérbero', behavior: 'guardian', model: 'cerberus', size: 1.25, color: 0x18141a, glow: 0xff3a2a,
     walk: 1.4, run: 10, health: 160, damage: 28, attackRange: 2.2, attackCooldown: 1.2, sense: 26, guardRadius: 70, giveUp: 90, group: [1, 1] },
 };
 
 /** Espécies por bioma (id de `BIOMES`) com peso relativo de sorteio. */
 export const BIOME_FAUNA = {
-  savana: { zebra: 3, leao: 1, girafa: 2 },
+  savana: { zebra: 3, leao: 1, girafa: 2, mamute: 0.2 },
   taiga: { lobo: 2, alce: 2, urso: 1 },
-  deserto: { escorpiao: 2, camelo: 2, vibora: 2 },
-  tropical: { onca: 1, capivara: 3, arara: 3 },
+  deserto: { escorpiao: 2, camelo: 2, vibora: 2, rinoceronte: 0.2 },
+  tropical: { onca: 1, capivara: 3, arara: 3, serpente: 0.2 },
   kalahari: { hiena: 2, suricato: 3, avestruz: 2 },
-  equatorial: { gorila: 2, leopardo: 1, jacare: 2 },
+  equatorial: { gorila: 2, leopardo: 1, jacare: 2, hipoEsfolado: 0.2 },
   preta: { javali: 2, corvo: 3 }, // + cérbero, guardião das Ruínas de Kaelen (GUARDIANS)
 };
 
@@ -92,6 +101,11 @@ export const BIOME_FAUNA = {
 export const GUARDIANS = [
   { species: 'cerbero', village: 'ruinasKaelen', trigger: 220, spread: 30, respawn: 120 },
   // Crocodilos sagrados do Olho Lento (As Covas): nascem dentro do poço.
+  // Guardiões dos biomas: nascem na região em volta da capital (fora da cidade) e andam soltos.
+  { species: 'mamute', village: 'mesaFarta', trigger: 450, ring: 190, spread: 320, respawn: 600 },
+  { species: 'rinoceronte', village: 'maoCerrada', trigger: 450, ring: 200, spread: 330, respawn: 600 },
+  { species: 'hipoEsfolado', village: 'brasaViva', trigger: 450, ring: 190, spread: 300, respawn: 600 },
+  { species: 'serpente', village: 'espelhoTurvo', trigger: 450, ring: 160, spread: 300, respawn: 600 },
   { species: 'jacare', village: 'pousoLento', trigger: 160, spread: 4, respawn: 300 },
 ];
 

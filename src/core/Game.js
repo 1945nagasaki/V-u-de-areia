@@ -466,6 +466,7 @@ export class Game {
     // Estátuas de animais (modelo real em pedra): Avenida dos Leões da Cidadela.
     for (const v of Object.values(this.villages)) {
       if (v.statues?.length) placeStatues(v.group, this.animalModels, v.statues, this.materials.stoneLight);
+      v.onModelsReady?.(this); // personagens feitos de modelos 3D (ex.: Tsen, o macaco-monge)
     }
     this.fauna = new Fauna(this, { rng: this.random, models: this.animalModels });
     applyGraphics(this, this.graphics); // antes de compilar: o nível gráfico muda os shaders (sombras, reflexos)

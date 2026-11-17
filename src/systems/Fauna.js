@@ -298,9 +298,12 @@ export class Fauna {
       if (cur && !cur.animal && this.game.time < cur.back) continue;
       if (Math.hypot(playerPos.x - v.x, playerPos.z - v.z) > g.trigger) continue;
       for (let t = 0; t < 12; t++) {
-        const a = this.rng() * Math.PI * 2, r = this.rng() * g.spread;
+        // `ring`: distância mínima do centro (nasce fora da cidade, na região em volta).
+        const r0 = g.ring ?? 0, a = this.rng() * Math.PI * 2, r = r0 + this.rng() * (g.spread - r0);
         const x = v.x + Math.cos(a) * r, z = v.z + Math.sin(a) * r;
         if (this.game.collisions?.overlaps(x, z, 2)) continue;
+        // Em terra firme (o hipopótamo nada, mas nasce na margem, não no mar); o jacaré do Olho é aquático.
+        if (!SPECIES[g.species]?.aquatic && (this.game.terrain?.heightAt(x, z) ?? 1) < 0.8) continue;
         const [animal] = this.spawnGroup(g.species, x, z, 1, { force: true });
         animal.guardianOf = g;
         this.guardians.set(g.species, { animal, back: 0 });

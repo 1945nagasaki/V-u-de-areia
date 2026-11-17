@@ -73,6 +73,13 @@ export const ANIMAL_MODELS = {
   avestruz: { ...file('avestruz'), height: 2.4, rig: { kind: 'biped', jaw: false } },
   // yaw: o corpo deste modelo vem ~8° torto em relação ao próprio eixo (cauda curva): corrige para o focinho apontar para a frente.
   jacare: { ...file('jacare'), yaw: -Math.PI / 2 - 0.14, length: 3.4, rig: { kind: 'quadruped', lateralLegs: true, spineBones: 4, tailBones: 4 } },
+  // Guardiões dos biomas e o macaco-monge (enviados pelo dono do jogo; comprimidos: malha simplificada,
+  // texturas 1024 px em WebP e Draco). Estáticos: o AutoRig monta o esqueleto dos quadrúpedes.
+  mamute: { ...file('mamute'), length: 6.2, rig: Q },
+  rinoceronte: { ...file('rinoceronte'), length: 4.2, rig: Q },
+  hipoEsfolado: { ...file('hipopotamo'), yaw: Math.PI / 2, length: 4.6, rig: Q },
+  serpente: { ...file('serpente'), length: 7.5, rig: false },
+  macacoMonge: { ...file('macacoMonge'), height: 1.35, rig: false },
   // Cérbero: o lobo animado, maior, quase preto e com brilho vermelho (cão paranormal).
   cerbero: { ...file('cerbero'), length: 2.6, clips: QUATERNIUS, tint: 0x1c1618, emissive: 0x2a0404 },
 };

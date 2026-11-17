@@ -259,6 +259,47 @@ export function buildVeuCarmesim(game) {
     }
   }
 
+  // ------------------------------------------------ Tsen, o macaco-monge (sábio da mata)
+  // Três grandes árvores-osso na bacia, cada uma com um galho largo a ~4,5 m. A cada dia
+  // do jogo ele está numa delas (anda solto) e conversa de lá de cima.
+  const tsenSpots = [];
+  for (const [a, d] of [[2.4, 158], [0.5, 162], [-2.6, 160]]) {
+    const x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, y = ground(x, z);
+    boneTree(ctx, { x, z, h: 15 });
+    ctx.batch.add(B.G.cyl6, M.boneBark, { x: x + Math.cos(a) * 1.4, y: y + 4.4, z: z + Math.sin(a) * 1.4, rz: Math.PI / 2, ry: -a, sx: 0.45, sy: 3.2, sz: 0.45 });
+    tsenSpots.push({ x: x + Math.cos(a) * 1.6, y: y + 4.85, z: z + Math.sin(a) * 1.6, rot: Math.atan2(cx - x, cz - z) });
+    v.reserve(x, z, 4);
+  }
+  v.onModelsReady = (g) => {
+    const inst = g.animalModels?.instance('macacoMonge');
+    if (!inst) return;
+    const tsen = inst.object;
+    tsen.name = 'tsen-macaco-monge';
+    tsen.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    v.group.add(tsen);
+    const place = () => {
+      const day = Math.floor((g.gameClock?.totalHours ?? 0) / 24);
+      const sp = tsenSpots[((day % tsenSpots.length) + tsenSpots.length) % tsenSpots.length];
+      tsen.position.set(sp.x, sp.y, sp.z);
+      tsen.rotation.y = sp.rot;
+      return sp;
+    };
+    let spot = place();
+    const prevTick = v.tick;
+    v.tick = (dt, pos) => { prevTick?.(dt, pos); const d = Math.floor((g.gameClock?.totalHours ?? 0) / 24); if (d !== v._tsenDay) { v._tsenDay = d; spot = place(); } };
+    g.interactions.register({
+      id: 'veu-tsen', label: 'Falar com Tsen, o macaco-monge', radius: 7,
+      position: () => ({ x: spot.x, y: spot.y - 3.2, z: spot.z }),
+      onInteract: (gg) => Mechanics.lore(gg, { speaker: 'Tsen, o macaco-monge', title: 'No galho da árvore-osso', pages: [
+        '"Ah! Um visitante que olha para baixo. Olhe para cima, criança. As respostas gostam de galhos."',
+        '"Você pergunta quem é. Eu pergunto: quem você perdeu? Aqui embaixo todos sabem responder a segunda."',
+        '"O Crânio lembra de Akin. Os babuínos lembram de tudo. E eu? Eu lembro de onde deixei as minhas bananas."',
+        '"Cada rosto daquele muro foi alguém com pressa. Agora todos esperam. Você ainda tem a escolha de não esperar."',
+        '"Amanhã estarei noutra árvore. Procure. Quem procura um macaco aprende a olhar para o alto."',
+      ] }),
+    });
+  };
+
   v.addElder(zone.x + hw + 3, plat.cz + plat.r + 8, 0);
   v.addWanderers(20, { robe: true, shirt: 0xe8e0d0, hat: 'wrap' });
   v.finalize();

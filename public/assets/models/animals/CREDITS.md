@@ -42,3 +42,17 @@ Origem: "ULTIMATE ANIMAL PACK | 100 ANIMALS | 50% OFF",
 https://sketchfab.com/3d-models/ultimate-animal-pack-100-animals-50-off-c7be3f41fb3a4ed6be31d0bcd86a4684.
 Os sete arquivos estão sem esqueleto e sem clipes (o jogo gera o esqueleto). Detalhes e pendências:
 `design/fauna/catalogo-fauna.md`.
+
+## Guardiões dos biomas e Tsen (enviados pelo dono do jogo, 2026-11-17)
+
+Arquivos originais enviados pelo dono do projeto; **autor e licença a confirmar** (pedir o link de origem
+de cada um antes de publicar o jogo fora do círculo privado). Comprimidos para o navegador: malha
+simplificada (meshoptimizer), texturas 1024 px em WebP e Draco.
+
+| Arquivo | Uso no jogo | Original → otimizado |
+|---|---|---|
+| `mamute.glb` (elefanteexu.glb) | Mamute das Cinzas — guardião da savana (Mesa-Farta) | 16,9 MB / 104 mil tri → 0,64 MB / 40 mil tri |
+| `rinoceronte.glb` (rinoexu.glb) | Rinoceronte de Guerra — guardião do deserto (Mão-Cerrada) | 15,8 MB / 104 mil tri → 0,50 MB / 26 mil tri |
+| `hipopotamo.glb` (hipoxu.glb) | Hipopótamo Esfolado — guardião da floresta equatorial (Brasa-Viva) | 15,6 MB / 1,9 mi tri → 0,34 MB / 28 mil tri |
+| `serpente.glb` (serpent_centipede.glb) | Serpente-Centopeia — guardiã da floresta tropical (Espelho-Turvo) | 16,2 MB / 1 mi tri → 0,66 MB / 29 mil tri |
+| `macacoMonge.glb` (monkey_monk.glb) | Tsen, o macaco-monge — sábio do Jardim Pálido (Véu-Carmesim) | 14,1 MB / 1 mi tri → 0,28 MB / 24 mil tri |
