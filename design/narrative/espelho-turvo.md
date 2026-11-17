@@ -2177,6 +2177,27 @@ Todos são [GANCHO]. Nenhum tem solução única.
 
 ## PARTE XV — IMPLEMENTAÇÃO EM JOGO 3D
 
+> **Estado (2026-11-17): primeira versão jogável no jogo** (`src/villages/EspelhoTurvo.js`, `VILLAGES.espelhoTurvo`).
+> - **Terreno:**
+>   - o vale é um platô com o rebaixo retangular do lago (`makeTrench`, em `src/world/Ridges.js`);
+>   - as encostas leste e oeste sobem ~24 m e a soleira da cachoeira, ~18 m (escarpas em arco).
+> - **Lago Nhanzu:** tem água própria, acima do nível do mar, a 1,5 m de profundidade.
+> - **Espelhamento:** cada margem é construída pela função `pair()`, que espelha a posição e nega a rotação (sem escala negativa).
+> - **Feito:**
+>   - Casa Segunda e Casa Primeira (falta uma coluna nesta) e Salão das Formas com o pátio de treino;
+>   - Casa dos Estudos, Mercados de Fora e de Dentro e 32 casas-par;
+>   - jardins simétricos, duas pontes de corda, torres e cachoeira;
+>   - Ilhota do Erro com pedras de passagem e os Pares do Escudo;
+>   - Casas de Lavagem sul e norte. A interação "Lavar-se" zera a sujeira (`Survival.wash`);
+>   - NPCs: Afguns, Dauro, Sela, Ritu, Nyela e os Pares.
+> - **Falta:**
+>   - estilo de interior `espelho` (móveis aos pares);
+>   - bambu e pítons;
+>   - calçada submersa que muda com a estação;
+>   - corredor em anel da Ilhota;
+>   - Grutas da Muda e Bairro do Segundo Silêncio;
+>   - ligar a vila ao sistema de trabalho dos NPCs.
+
 Escala: 1 unidade = 1 m. Mundo de 4096 × 2304 m (`src/config/worldConfig.js`). Referências de código do branch `claude/pensive-allen-rsiahd`.
 
 > **Branch `completo`:** tem sistemas mais novos que esta implementação deve considerar: física dos objetos em Rapier (no lugar de cannon-es), o sistema de trabalho dos moradores (`docs/WORK-SYSTEM-PENDENCIAS.md`), a água FFT com `WaterSurface`, rotinas e famílias de NPCs. A implementação do Espelho-Turvo deve partir do `completo`.

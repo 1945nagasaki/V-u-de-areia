@@ -180,6 +180,11 @@ export class Survival {
     return parts.join(' · ');
   }
 
+  /** Lavar-se (Casa de Lavagem do Espelho-Turvo): tira toda a sujeira. */
+  wash() {
+    this.dirt = 0;
+  }
+
   /** Médico da vila: trata tudo (ferimentos, doenças, sujeira). */
   treatAll() {
     this.body.clear();

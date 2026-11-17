@@ -43,6 +43,7 @@ import { buildZambaRios } from '../villages/ZambaRios.js';
 import { buildRuinasKaelen } from '../villages/RuinasKaelen.js';
 import { buildCoroaAlta } from '../villages/CoroaAlta.js';
 import { buildMaoCerrada } from '../villages/MaoCerrada.js';
+import { buildEspelhoTurvo } from '../villages/EspelhoTurvo.js';
 import { placeStatues } from '../render/Statues.js';
 import { FireLights } from '../render/FireLights.js';
 import { Surfaces } from '../world/Surfaces.js';
@@ -232,6 +233,7 @@ export class Game {
       if (v.terraces) this.terraceZones[v.id] = this.generator.addTerraceZone({ x: c.x, z: c.z, ...v.terraces });
       else this.generator.addFlatZone({ x: c.x, z: c.z, ...v.flatten });
       for (const r of v.ridges ?? []) this.generator.addRidge({ x: c.x, z: c.z, ...r });
+      for (const t of v.trenches ?? []) this.generator.addTrench({ x: c.x, z: c.z, ...t });
     }
     for (const z of EXTRA_FLAT_ZONES) {
       const c = uvToWorld(z.u, z.v);
@@ -259,7 +261,7 @@ export class Game {
       renascimento: buildRenascimento, perseguicao: buildPerseguicao, abstracao: buildAbstracao, bussola: buildBussola,
       presaDeGelo: buildPresaDeGelo, alZahir: buildAlZahir, copaAlta: buildCopaAlta,
       areiasVivas: buildAreiasVivas, zambaRios: buildZambaRios, ruinasKaelen: buildRuinasKaelen,
-      coroaAlta: buildCoroaAlta, maoCerrada: buildMaoCerrada,
+      coroaAlta: buildCoroaAlta, maoCerrada: buildMaoCerrada, espelhoTurvo: buildEspelhoTurvo,
     };
     let k = 0;
     for (const [id, build] of Object.entries(builders)) {

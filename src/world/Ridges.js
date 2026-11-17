@@ -43,3 +43,22 @@ export function ridgeLift(R, x, z) {
   const down = 1 - smoothstep(R.r + R.face + R.width * 0.4, R.r + R.face + R.width, d);
   return R.height * up * down * arc;
 }
+
+/**
+ * Rebaixo retangular (canal ou lago fora do nível do mar): o fundo desce
+ * `depth` m dentro do retângulo, com borda suave de `edge` m.
+ * @example
+ * const t = makeTrench({ x: 0, z: 0, hw: 30, hd: 130, depth: 2.6, edge: 4 });
+ * h -= trenchDrop(t, x, z);
+ */
+export function makeTrench(o) {
+  return { edge: 4, ...o };
+}
+
+/** Quanto o terreno desce no ponto (0 fora do rebaixo). */
+export function trenchDrop(T, x, z) {
+  const dx = Math.abs(x - T.x) - T.hw, dz = Math.abs(z - T.z) - T.hd;
+  const out = Math.max(dx, dz); // > 0 fora do retângulo
+  if (out >= 0) return 0;
+  return T.depth * smoothstep(0, T.edge, -out);
+}

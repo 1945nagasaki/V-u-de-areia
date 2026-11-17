@@ -307,6 +307,46 @@ export const VILLAGES = {
       ],
     },
   },
+  espelhoTurvo: {
+    id: 'espelhoTurvo',
+    name: 'Vale do Espelho-Turvo',
+    tribe: 'Espelho-Turvo',
+    biome: 'tropical',
+    region: 'Oeste — vale escondido na Floresta Tropical',
+    u: 0.18, v: 0.58,
+    radius: 150,
+    flatten: { radius: 150, blend: 35 },
+    /** Lago Nhanzu: o eixo do vale, acima do nível do mar (água própria, não a global). */
+    trenches: [{ hw: 30, hd: 125, depth: 2.6, edge: 4 }],
+    lake: { hw: 30, hd: 125, waterBelow: 1.1 },
+    /** Encostas leste e oeste do vale e a soleira da cachoeira ao norte. */
+    ridges: [
+      { r: 122, width: 45, height: 24, from: -0.95, to: 0.95 },
+      { r: 122, width: 45, height: 24, from: Math.PI - 0.95, to: Math.PI + 0.95 },
+      { r: 140, width: 30, height: 18, from: -Math.PI / 2 - 0.35, to: -Math.PI / 2 + 0.35, fade: 0.15 },
+    ],
+    population: 3000,
+    populationNote: 'Cerca de 3.000, metade em cada margem; cada morador tem um Par.',
+    demographics: null,
+    faction: 'Sede da tribo de Afguns — o Espelho-Turvo',
+    founded: 'Uma escola de formas que virou cidade, escondida num vale com um lago reto no meio.',
+    description:
+      'Duas margens iguais de um lago reto: a Segunda a oeste, onde Afguns governa, e a Primeira a leste, ' +
+      'com um palácio vazio. No meio da água, a Ilhota do Erro guarda o Escudo de Akin.',
+    structures: [
+      'Lago Nhanzu', 'Casa Segunda e Casa Primeira', 'Salão das Formas', 'Casa dos Estudos',
+      'Ilhota do Erro', 'Pontes do lago', 'Casas de Lavagem', 'Bairros-Par', 'Cachoeira',
+    ],
+    lore: {
+      speaker: 'Lavadora do Portão do Corte', title: 'Vale do Espelho-Turvo',
+      look: { robe: true, shirt: 0xe8e8e0, hat: 'wrap', height: 1.7 },
+      pages: [
+        '"Ninguém entra sujo no vale. Lave as mãos, o rosto e o nome. Depois a gente conversa."',
+        '"Aqui cada um tem um Par. Você também vai ter, se ficar. É assim que se aprende a perder."',
+        '"A casa do outro lado do lago está vazia. Ela espera o Primeiro. O Mestre espera mais ainda."',
+      ],
+    },
+  },
   ruinasKaelen: {
     id: 'ruinasKaelen',
     name: 'Ruínas de Kaelen',

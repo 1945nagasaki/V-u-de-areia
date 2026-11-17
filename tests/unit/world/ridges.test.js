@@ -27,3 +27,14 @@ test('fora do arco (ao sul) não há escarpa', () => {
 test('longe, além da encosta externa, volta a zero', () => {
   assert.equal(ridgeLift(ridge(), 0, -(200 + 8 + 51)), 0);
 });
+
+import { makeTrench, trenchDrop } from '../../../src/world/Ridges.js';
+
+test('rebaixo do lago: fundo plano no meio, zero fora, borda suave', () => {
+  const t = makeTrench({ x: 0, z: 0, hw: 30, hd: 130, depth: 2.6, edge: 4 });
+  assert.equal(trenchDrop(t, 0, 0), 2.6);
+  assert.equal(trenchDrop(t, 31, 0), 0);
+  assert.equal(trenchDrop(t, 0, -131), 0);
+  const mid = trenchDrop(t, 28, 0);
+  assert.ok(mid > 0 && mid < 2.6, `borda ${mid}`);
+});
