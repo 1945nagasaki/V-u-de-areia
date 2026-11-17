@@ -44,6 +44,7 @@ import { buildRuinasKaelen } from '../villages/RuinasKaelen.js';
 import { buildCoroaAlta } from '../villages/CoroaAlta.js';
 import { buildMaoCerrada } from '../villages/MaoCerrada.js';
 import { buildEspelhoTurvo } from '../villages/EspelhoTurvo.js';
+import { buildBrasaViva } from '../villages/BrasaViva.js';
 import { placeStatues } from '../render/Statues.js';
 import { SHOWCASE } from '../config/showcase.js';
 import { FireLights } from '../render/FireLights.js';
@@ -234,7 +235,7 @@ export class Game {
       if (v.terraces) this.terraceZones[v.id] = this.generator.addTerraceZone({ x: c.x, z: c.z, ...v.terraces });
       else this.generator.addFlatZone({ x: c.x, z: c.z, ...v.flatten });
       for (const r of v.ridges ?? []) this.generator.addRidge({ x: c.x, z: c.z, ...r });
-      for (const t of v.trenches ?? []) this.generator.addTrench({ x: c.x, z: c.z, ...t });
+      for (const t of v.trenches ?? []) this.generator.addTrench({ ...t, x: c.x + (t.dx ?? 0), z: c.z + (t.dz ?? 0) });
     }
     for (const z of EXTRA_FLAT_ZONES) {
       const c = uvToWorld(z.u, z.v);
@@ -262,7 +263,7 @@ export class Game {
       renascimento: buildRenascimento, perseguicao: buildPerseguicao, abstracao: buildAbstracao, bussola: buildBussola,
       presaDeGelo: buildPresaDeGelo, alZahir: buildAlZahir, copaAlta: buildCopaAlta,
       areiasVivas: buildAreiasVivas, zambaRios: buildZambaRios, ruinasKaelen: buildRuinasKaelen,
-      coroaAlta: buildCoroaAlta, maoCerrada: buildMaoCerrada, espelhoTurvo: buildEspelhoTurvo,
+      coroaAlta: buildCoroaAlta, maoCerrada: buildMaoCerrada, espelhoTurvo: buildEspelhoTurvo, brasaViva: buildBrasaViva,
     };
     let k = 0;
     for (const [id, build] of Object.entries(builders)) {

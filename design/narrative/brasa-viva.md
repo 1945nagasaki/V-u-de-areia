@@ -1882,6 +1882,28 @@ Todos são [PROPOSTA]. Nenhum tem solução obrigatória.
 
 ## PARTE XV — IMPLEMENTAÇÃO EM JOGO 3D
 
+> **Estado (2026-11-17): primeira versão jogável no jogo** (`src/villages/BrasaViva.js`, `VILLAGES.brasaViva`).
+> - **Posição:** `u 0.92, v 0.46`. Em `u 0.91, v 0.56` um rio do mapa atravessava a cidade.
+> - **Terreno:**
+>   - o chão dentro do Dique é fixo em 8 m;
+>   - a Ilha dos Pilares é um terrapleno de +6 m com rampa (Terraces);
+>   - o Dique é um anel de terra de 5 m, em três arcos, com as Portas norte e oeste e a Comporta leste (Ridges);
+>   - a Lagoa dos Grandes é um rebaixo abaixo do nível do mar, e a água do jogo a enche (`trenches`).
+> - **Feito:**
+>   - Salão das Placas com pilares de placas de bronze, Torre de Toorn e Grande Cisterna;
+>   - Santuário da Têmpera e ~18 fornalhas com chaminé e boca acesa;
+>   - Pátio do Metal, ~60 casas dos Bairros do Turno (cor por turno) e Quartel com o Fosso do Lodo;
+>   - Bairro Afogado (ruínas), Crista do Dique com bancas e Posto dos Cobradores do Dente;
+>   - o Lodo (cabanas de palha) e a Lagoa com altares;
+>   - NPCs: Toorn, Edeyo, Oyelu, Nkem, Bayo, Seko Varrah, Irede, Ma Ndofe e Ikoro.
+> - **Falta:**
+>   - hipopótamos (não há modelo licenciado) e o Hipopótamo de Bronze;
+>   - rodas d'água;
+>   - Charco Fervente;
+>   - a Entrega da Cheia como evento;
+>   - estilo de interior próprio;
+>   - ligar a cidade ao sistema de trabalho dos NPCs.
+
 Escala do projeto: Three.js, **1 unidade = 1 m**, mundo de 4096 × 2304 m (`src/config/worldConfig.js`). Este plano usa os sistemas do branch atual e marca **"a criar"** o que falta.
 
 > **Branch `completo`:** tem sistemas mais novos que devem ser considerados ao implementar: física com **Rapier** no lugar de cannon-es, sistema de **trabalho dos NPCs** (profissões, prédios e estações; ver `docs/WORK-SYSTEM-PENDENCIAS.md` naquele branch), oceano/água com `WaterSurface`, barco pilotável e IA de fauna com ecossistema. A implementação da Brasa-Viva deve partir de lá.

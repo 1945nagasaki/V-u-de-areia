@@ -347,6 +347,53 @@ export const VILLAGES = {
       ],
     },
   },
+  brasaViva: {
+    id: 'brasaViva',
+    name: 'Dique-Rubro',
+    tribe: 'Brasa-Viva',
+    biome: 'equatorial',
+    region: 'Leste — várzea da Floresta Equatorial, junto ao mar',
+    u: 0.92, v: 0.46,
+    radius: 165,
+    /** Chão dentro do Dique (base) e a Ilha dos Pilares, terrapleno 6 m mais alto no centro. */
+    terraces: {
+      base: 8, blend: 40, edge: 3, stair: { width: 10, run: 14 },
+      levels: [
+        { name: 'Dentro do Dique', r: 150, shift: 0, y: 0 },
+        { name: 'Ilha dos Pilares', r: 27, shift: 0, y: 6 },
+      ],
+    },
+    /** O Dique: anel de terra de 5 m com três Portas (norte, oeste e a Comporta leste). */
+    ridges: [
+      { r: 150, width: 18, height: 5, from: -Math.PI / 2 + 0.12, to: -0.12, fade: 0.04 },
+      { r: 150, width: 18, height: 5, from: 0.12, to: Math.PI - 0.12, fade: 0.04 },
+      { r: 150, width: 18, height: 5, from: -Math.PI + 0.12, to: -Math.PI / 2 - 0.12, fade: 0.04 },
+    ],
+    /** Lagoa dos Grandes (sudoeste, fora do Dique): fundo abaixo do mar, a água do jogo a enche. */
+    lagoon: { dx: -150, dz: 165, hw: 55, hd: 36 },
+    trenches: [{ dx: -150, dz: 165, hw: 55, hd: 36, depth: 16, edge: 10 }],
+    population: 4100,
+    populationNote: 'Cerca de 4.100, a maioria trabalhadores das fornalhas, por turno.',
+    demographics: null,
+    faction: 'Cidade de Toorn — a Brasa-Viva (dívida com a organização de Gierigheid)',
+    founded: 'Cresceu como forja do império sobre terraplenos de barro, protegida da cheia por um dique.',
+    description:
+      'Uma cidade-forja cercada por um dique de terra. No centro, a Ilha dos Pilares; a leste, as Mil ' +
+      'Fornalhas. Fora do Dique ficam a Lagoa dos Grandes e o Lodo, onde Toorn nasceu.',
+    structures: [
+      'O Dique e suas três Portas', 'Ilha dos Pilares', 'Salão das Placas', 'Torre de Toorn', 'As Mil Fornalhas',
+      'Bairros do Turno', 'Fosso do Lodo', 'Santuário da Têmpera', 'Posto dos Cobradores do Dente', 'O Lodo', 'Lagoa dos Grandes',
+    ],
+    lore: {
+      speaker: 'Foleiro da Porta da Calçada', title: 'Dique-Rubro',
+      look: { shirt: 0x7a3a22, pants: 0x3a2a1c, hat: 'wrap', build: 1.15 },
+      pages: [
+        '"Ouve o fole? Três turnos, dia e noite. Vermelho, Branco e Negro. A cidade nunca apaga."',
+        '"O Dique segura a cheia. A dívida, ninguém segura. Na Entrega da Cheia, os Cobradores levam o melhor metal."',
+        '"Não fale alto perto do Mestre Toorn. E não pergunte do pai dele. Nunca."',
+      ],
+    },
+  },
   ruinasKaelen: {
     id: 'ruinasKaelen',
     name: 'Ruínas de Kaelen',

@@ -19,4 +19,10 @@ export const SHOWCASE = [
     hint: 'Aperte E em "Lavar-se": a barra de Sujeira zera.', dx: 0, dz: 129, yaw: 0 },
   { village: 'espelhoTurvo', title: 'Espelho-Turvo — Ilhota do Erro',
     hint: 'Pule pelas pedras de passagem até a ilhota.', dx: -28, dz: 0, yaw: Math.PI / 2 },
+  { village: 'brasaViva', title: 'Dique-Rubro — Porta da Calçada',
+    hint: 'Segure W: entre pelo Dique e suba a rampa da Ilha dos Pilares.', dx: -175, dz: 0, yaw: Math.PI / 2 },
+  { village: 'brasaViva', title: 'Dique-Rubro — as Mil Fornalhas',
+    hint: 'Fale (E) com Oyelu e Nkem entre as fornalhas acesas.', dx: 50, dz: -10, yaw: Math.PI / 2 },
+  { village: 'brasaViva', title: 'Dique-Rubro — Salão das Placas',
+    hint: 'Aperte E diante dos pilares para ler as placas de bronze; Toorn está na Ilha.', dx: -4, dz: 14, yaw: Math.PI },
 ];
