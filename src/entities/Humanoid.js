@@ -3,6 +3,18 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { approach } from './Locomotion.js';
 import { ANIMATION } from '../config/animation.js';
 import { dampFactor, slopeTilt, twoBoneIK, clamp } from './anim/AnimMath.js';
+import { HumanPose, samplePose, blendPose, applyPose, UPPER_BODY } from './anim/HumanClips.js';
+import { HUMAN_ANIMATION } from '../config/humanAnimation.js';
+
+/** Biblioteca de clipes humanos compartilhada (HumanClipLibrary); null = só procedural. */
+let clipLibrary = null;
+/**
+ * Liga as animações reais em todos os bonecos (o jogo chama uma vez, depois de criar a biblioteca).
+ * @param {import('./anim/HumanClips.js').HumanClipLibrary | null} lib
+ */
+export function setHumanClipLibrary(lib) { clipLibrary = lib; }
+const _pI = new HumanPose(), _pW = new HumanPose(), _pR = new HumanPose(), _pL = new HumanPose(), _pF = new HumanPose(), _pG = new HumanPose();
+const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
 const TAU = Math.PI * 2;
 const _qA = new THREE.Quaternion();
@@ -290,6 +302,12 @@ export class Humanoid {
     this.fadeFromPos = new THREE.Vector3();
     this.fadeTo = this.joints.map((jt) => jt.quaternion.clone()); // alvo do crossfade no quadro anterior (sinal contínuo)
     this.fadeW = 0;
+    // Clipes reais (quando a biblioteca existe): idle sorteado, fase da passada e gesto em curso.
+    const idles = HUMAN_ANIMATION.locomotion.idle;
+    this.idleKey = idles[Math.floor(rng() * idles.length) % idles.length];
+    this.locoPhase = rng();
+    this.clipIdleT = rng() * 10;
+    this.gest = { key: null, clip: null, t: 0, w: 0, full: false };
     this.ik = [0, 0]; // compensação suavizada de cada pé (m)
     this.ikDrop = 0;
     this.slope = 0;
@@ -434,7 +452,66 @@ export class Humanoid {
     this.body.position.y = -Math.abs(sw) * (0.025 + 0.015 * r) * w;
     this.body.position.x = sw * 0.012 * w + Math.sin(this.idleT * 0.31) * 0.01 * idle;
     this.body.rotation.z = sw * 0.03 * w + Math.sin(this.idleT * 0.31) * 0.012 * idle;
+    this.clipLocomotion(dt, speed, sprinting, w, a);
     if (ground && ANIMATION.terrain.footIK) this.followTerrain(dt, ground, w, a);
+  }
+
+  /**
+   * Parado/andando/correndo com clipes reais por cima do procedural (peso 1 =
+   * substitui; no ar volta ao procedural do pulo). O ciclo avança pela
+   * velocidade real ÷ velocidade natural do clipe (o pé de apoio não escorrega)
+   * e andar/correr compartilham a fase, alinhada pela perna 0.
+   * @returns {boolean} se aplicou
+   */
+  clipLocomotion(dt, speed, sprinting, w, air) {
+    const C = HUMAN_ANIMATION.locomotion;
+    if (!HUMAN_ANIMATION.enabled || !clipLibrary) return false;
+    const idle = clipLibrary.get(this.idleKey), walk = clipLibrary.get(C.walk), run = clipLibrary.get(C.run);
+    if (!idle || !walk || !run) return false;
+    const runW = Math.max(sprinting ? 1 : 0, smoothstep(C.runFrom, C.runTo, speed));
+    const gw = walk.userData.gait ?? { speed: 1.3, phase0: 0 }, gr = run.userData.gait ?? { speed: 3, phase0: 0 };
+    const natural = (gw.speed + (gr.speed - gw.speed) * runW) * this.scale;
+    const cycle = walk.duration + (run.duration - walk.duration) * runW;
+    if (speed > 0.2) this.locoPhase = (this.locoPhase + (dt * clamp(speed / natural, C.minRate, C.maxRate)) / cycle) % 1;
+    this.clipIdleT += dt;
+    samplePose(idle, this.clipIdleT, _pI);
+    samplePose(walk, ((this.locoPhase + gw.phase0) % 1) * walk.duration, _pW);
+    samplePose(run, ((this.locoPhase + gr.phase0) % 1) * run.duration, _pR);
+    blendPose(_pW, _pR, runW, _pL);
+    blendPose(_pI, _pL, w, _pF);
+    const k = C.weight * (1 - air);
+    if (k <= 0) return false;
+    applyPose(this, _pF, k);
+    return true;
+  }
+
+  /**
+   * Gesto de trabalho/conversa com clipe real, por cima da pose deste quadro
+   * (chamar DEPOIS de update). Entra e sai em `gestureFade` s. Sem clipe para o
+   * gesto, devolve false e quem chamou usa o gesto procedural.
+   * @param {string|null} key gesto (ver HUMAN_ANIMATION.gestures)
+   * @param {number} dt
+   * @param {{ upperOnly?: boolean, variant?: number }} [o] upperOnly: sentado/andando (pernas são de outra animação)
+   * @returns {boolean} se o gesto está sendo feito por clipe
+   */
+  clipGesture(key, dt, { upperOnly = false, variant = 0 } = {}) {
+    const G = this.gest, H = HUMAN_ANIMATION;
+    const map = key && H.enabled && clipLibrary ? H.gestures[key] : null;
+    const clip = map ? clipLibrary.get(map.clips[Math.abs(variant) % map.clips.length]) : null;
+    const rate = 1 / Math.max(0.05, H.gestureFade);
+    if (clip && clip !== G.clip) {
+      // Novo gesto: começa do peso zero (mistura a partir da pose atual), fase desencontrada por NPC.
+      G.clip = clip; G.key = key; G.t = (Math.abs(variant) * 0.37) % clip.duration; G.w = 0;
+    }
+    if (clip) G.w = Math.min(1, G.w + dt * rate);
+    else G.w = Math.max(0, G.w - dt * rate); // saindo: continua o último clipe até o peso zerar
+    if (!G.clip || G.w <= 0) { G.clip = null; G.key = null; return false; }
+    G.t += dt;
+    G.full = !!map?.full && !upperOnly;
+    samplePose(G.clip, G.t, _pG);
+    const ease = G.w * G.w * (3 - 2 * G.w);
+    applyPose(this, _pG, ease, G.full ? undefined : UPPER_BODY);
+    return !!clip;
   }
 
   /**

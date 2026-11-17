@@ -440,7 +440,9 @@ export class NPCAgent {
     this.syncTool(m);
     if (sleeping) return;
     if (sitting) for (let i = 0; i < 2; i++) { m.legs[i].quaternion.setFromEuler(_e.set(-1.45, 0, 0)); m.knees[i].quaternion.setFromEuler(_e.set(1.5, 0, 0)); }
-    applyGesture(m, this.gestureNow(env), this.t);
+    // Gesto: clipe real quando existe (sentado/andando só o tronco e os braços); senão o procedural.
+    const gesture = this.gestureNow(env);
+    if (!m.clipGesture(gesture, dt, { upperOnly: sitting || this.state === 'WALK' || this.speed > 0.2, variant: (this._variant ??= [...String(this.id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0)) })) applyGesture(m, gesture, this.t);
     if (working && this.goal.station.fx) this.manager.fx?.beat(this, this.goal.station);
   }
 

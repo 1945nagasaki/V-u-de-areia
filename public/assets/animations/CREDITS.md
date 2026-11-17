@@ -1,5 +1,7 @@
 # Créditos — animações
 
+## Animais
+
 As animações em `animals/` foram **retargetadas** (movimento copiado osso a
 osso, sem geometria nem texturas) a partir dos modelos abaixo, todos sob
 **CC Attribution 4.0** (https://creativecommons.org/licenses/by/4.0/).
@@ -20,3 +22,25 @@ Ferramenta: `tools/anim/retarget.mjs`. Catálogo: `animals/catalog.json`.
 Alteração (exigida pela CC BY): as animações foram convertidas para outro
 esqueleto, reamostradas a 30 quadros/s, com o sobe-e-desce da cauda amortecido
 (30 %) e o deslocamento vertical do corpo limitado.
+
+## Humanos
+
+As animações em `humans/` (82 clipes: locomoção, social, profissões e
+transições) foram **retargetadas** para o boneco humano do jogo (`Humanoid`,
+feito de peças com juntas). Nenhuma malha, textura ou material das fontes vai
+para o jogo: só a rotação das juntas, quadro a quadro. Todas sob **CC BY 4.0**.
+Ferramenta: `tools/anim/retargetHuman.mjs`; catálogo: `humans/catalog.json`
+(diz a fonte e o clipe de origem de cada animação).
+
+| Fonte (Sketchfab) | Autor | Usada para |
+|---|---|---|
+| [Nerd Survivor](https://sketchfab.com/3d-models/nerd-survivor-8820dc9256a84aed8598eef5b67afad9) | HighPolyDensity | idles, andar/correr (frente, trás, lados), furtivo, pulo, escalada, gestos (acenar, pedir ajuda, recusar), personalidades, comer/beber, ofício, conserto, luta, transições |
+| [Viking Framps Worker](https://sketchfab.com/3d-models/viking-framps-worker-cef34035d74c4dfdb9cad45fa36da294) | RG3D (Reifus.Rufus) | idles e andares de aldeão, ferreiro, semear, colher, trabalho braçal, cozinhar, pagar, levantar, mortes |
+| [Marie Survivor](https://sketchfab.com/3d-models/marie-survivor-05e8bdf53c3f411ba2517430a22368c9) | RG3D (Reifus.Rufus) | conversar (3), dar/receber, andar carregando, pegar do chão, pisar, puxar corda, cair ferido |
+| [Business Man - Low Polygon game character](https://sketchfab.com/3d-models/business-man-low-polygon-game-character-b6f6740f883b4749abac47af0045a9dd) | manoeldarochadeoliveira | sentar, sentado, levantar, girar no lugar |
+| [Male Adventurer](https://sketchfab.com/3d-models/male-adventurer-3f5f7d12c07445fe9b8c4958935970e2) | manoeldarochadeoliveira | idle cansado, andar de lado, queda, aterrissar, acordar do chão |
+
+Alteração (exigida pela CC BY): convertidas para outro esqueleto (direção dos
+segmentos + rotação da bacia/cabeça), reamostradas a 30 quadros/s (15 nos
+clipes longos), com pés presos ao chão, mão e pé amortecidos, emenda dos laços
+suavizada e deslocamento do corpo removido (o jogo move o personagem).

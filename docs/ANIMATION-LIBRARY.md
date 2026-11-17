@@ -1,4 +1,4 @@
-# Biblioteca de animações — estado em 2026-11-17
+# Biblioteca de animações — estado em 2026-11-17 (animais + humanos)
 
 Relatório pedido pelo "Prompt Mestre — Importação e reformulação de animações
 3D reais". Regra seguida: **nada é dado como importado sem o arquivo verificado,
@@ -72,31 +72,107 @@ Créditos CC BY: `public/assets/animations/CREDITS.md`.
 | leao.lie (Tiger/Idle_Lie Prone) | Patas esticadas com o corpo no alto, sem deitar | Mesmo ajuste, e transferir a altura absoluta da pelve |
 | hipoEsfolado.death (Hippopotamus/Die) | A queda é um giro do corpo todo e o retarget só passa a direção dos ossos, então fica agachado de lado | Transferir a rotação da pelve (raiz) além da direção dos segmentos |
 
+## Humanas (82 clipes, 4 categorias)
+
+O boneco humano do jogo (`src/entities/Humanoid.js`) é feito de peças com
+juntas (quadril→joelho→pé, ombro→cotovelo→mão, tronco, cabeça), sem malha com
+esqueleto. Por isso tem um retarget próprio:
+
+- **Ferramenta**: `node tools/anim/retargetHuman.mjs <pasta-das-fontes> [categoria|chave…]`.
+  As fontes e os pedidos estão em `tools/anim/humanSources.mjs`.
+- **Como converte**:
+  - **Coxa, canela, braço e antebraço**: seguem a **direção** do segmento da
+    fonte, no referencial da junta-mãe. Isso independe da pose de repouso e
+    das proporções.
+  - **Tronco**: orientação absoluta (bacia→pescoço × ombro→ombro).
+  - **Bacia e cabeça**: rotação relativa ao quadro 0 de um idle da fonte.
+  - **Pé**: direção tornozelo→ponta.
+  - **Mão**: amortecida e limitada a 46°.
+- **Chão**: cinemática direta com as medidas reais do boneco.
+  - Clipes de pé: o pé mais baixo fica exatamente no chão.
+  - Corridas, pulos, quedas e mortes: só não atravessam o chão, contando
+    também bacia, peito e cabeça.
+- **Laços**: os últimos 0,2 s se misturam até o quadro 0, sem emenda.
+- **Cadência**: medida no próprio clipe. É a velocidade com que o pé de apoio
+  desliza para trás, nas proporções do boneco. Junto vai a fase em que a
+  perna 0 está à frente.
+- **Saída**: `public/assets/animations/humans/{locomotion,social,professions,transitions}.json`
+  e `catalog.json`.
+- **No jogo** (configurado em `src/config/humanAnimation.js`):
+  - **Carregamento**: a `HumanClipLibrary` baixa locomoção, social e
+    profissões no início. As transições ficam para quando forem pedidas.
+    Até chegarem, ou se falharem, o boneco usa o procedural de antes.
+  - **Locomoção** (todos os humanos, inclusive o jogador): parado, andando e
+    correndo vêm dos clipes. A corrida entra pela velocidade (2→3 m/s).
+  - **Ritmo dos passos**: velocidade real ÷ velocidade natural do clipe, para
+    o pé não escorregar.
+  - **Andar ↔ correr**: os dois compartilham a fase, alinhada pela perna 0.
+  - **Por cima**: rampa, IK dos pés, pulo, nado e voo continuam procedurais.
+  - **Gestos dos NPCs**: martelar, minerar, capinar, ofício, consertar,
+    cozinhar, comer, conversar (3 variações por NPC), pregar, punhos e
+    exausto viram clipes.
+    - Sentado ou andando, o clipe vale só para tronco, cabeça e braços.
+    - De pé no posto de trabalho, vale para o corpo inteiro.
+    - Entrada e saída levam 0,3 s.
+    - Gesto sem clipe continua procedural.
+- **Testes** (`tests/unit/animation/human-clips.test.js`): verificam
+  - clipes válidos;
+  - laços sem emenda (regressão do martelo, que saltava 0,9 rad);
+  - cadência = velocidade real;
+  - pernas vindas do clipe;
+  - procedural sem biblioteca;
+  - gesto sentado que não mexe nas pernas;
+  - entrada e saída sem salto;
+  - clipe sem laço parado no último quadro.
+
+| Categoria | Clipes |
+|---|---|
+| Locomoção (29) | idle, idleAlt, idleTired, idleWounded, idleWounded2, idleVillager, idleVillager2, walk, walkRelaxed, walkHeavy, walkTired, walkCarry, walkBack, walkStrafeLeft, walkStrafeRight, walkForwardLeft, walkForwardRight, run, runBack, runStrafeLeft, runStrafeRight, sneak, sneakIdle, sneakBack, hop, climb, turnLeft, turnRight, fall |
+| Social (20) | wave, callHelp, refuse, puzzled, talkA, talkB, talkC, pay, giveTake, kneelPoint, bravado, stoic, fidget, vain, simple, wary, eat, drink, unwrap, sitIdle |
+| Profissões e guarda (20) | smith, sow, gather, labor, laborB, cook, readyWork, craft, repair, grab, smash, haul · guardIdle, meleeIdle, punchRight, punchLeft, kick, swing, strike, stab |
+| Transições (13) | sitDown, standUp, riseUp, wakeUp, idleToSneak, jumpStart, jumpLand, land, takeHit, fallWounded, deathA, deathB, lieDead |
+
+Fontes, todas CC BY:
+- Nerd Survivor (HighPolyDensity);
+- Viking Framps Worker (RG3D);
+- Marie Survivor (RG3D);
+- Business Man (manoeldarochadeoliveira);
+- Male Adventurer (manoeldarochadeoliveira).
+
+Créditos em `public/assets/animations/CREDITS.md`.
+
+**Reprovada:** `business/cycle_talking`. O corpo não se mexe: é animação do
+rosto (maxilar e fonemas), e o boneco não tem rosto articulado.
+
+**Ficam na biblioteca, sem uso automático:**
+- `turnLeft`/`turnRight` giram o corpo inteiro, e no jogo o giro vem da raiz
+  do personagem.
+- Transições e mortes ainda não estão ligadas a eventos do jogo.
+
 ## Pendentes
 
-A meta do prompt é 100 animações: 25 de locomoção humana, 20 sociais, 20 de
-profissões, 10 de transição e 25 de animais. **Feito: 21 de animais. Falta o
-restante:**
+Meta do prompt: 100 animações, sendo 25 de locomoção humana, 20 sociais, 20 de
+profissões, 10 de transição e 25 de animais.
 
-- **Humanas (75)**: locomoção, social, profissões e transições. Nenhuma foi
-  importada ainda.
-  - O `Humanoid` do jogo é feito de peças com juntas, não de malha com
-    esqueleto. Precisa de um passo de retarget próprio: fonte humanoide →
-    juntas do `Humanoid`.
-  - As bibliotecas citadas (Quaternius UAL, KayKit, Mixamo…) não estão
-    acessíveis neste ambiente: o GitHub e os sites delas estão fora da rede
-    liberada, e o Mixamo exige login da Adobe.
-  - Caminho possível: humanoides CC0/CC BY do próprio Sketchfab, já liberado,
-    ou o dono do jogo enviar os arquivos `.glb`/`.fbx`.
-- **Animais faltando da lista prioritária**: babuíno e píton. A píton precisa
-  de outro rig, de cobra (cadeia única), e o modelo `serpente` do jogo não é
-  riggado.
-- **Clipes extras do leão**: trot e roar estão na biblioteca mas a máquina
-  de estados ainda não tem estados para eles (trote em velocidade média;
-  rugido no aviso territorial).
-- **IK de pés, inclinação em rampa e camadas aditivas**: com clipes, o
-  ajuste em rampa e o pé no chão ainda são os do procedural (só fora d'água).
-  Falta IK sobre o resultado do mixer.
-- **Revalidação**: rodar o `retarget.mjs` de novo regrava o catálogo, e as
-  entradas perdem o estado `validado-visual` (voltam a `gerado`) até nova
-  revisão dos strips.
+**Feito: 103.**
+- Humanas (82): 29 de locomoção, 20 sociais, 20 de profissões e guarda,
+  13 de transição.
+- Animais (21).
+
+Falta ou está incompleto:
+
+- **Animais: 21 de 25.** Faltam babuíno e píton. A píton precisa de um rig
+  de cobra (cadeia única), e o modelo `serpente` do jogo não é riggado.
+- **Profissões**: 12 são de ofício e 8 de luta/guarda. Faltam ofícios
+  específicos: pescar, cortar lenha com machado, serrar, tecer, amassar pão
+  (hoje "ofício" genérico ou procedural).
+- **Clipes reprovados dos animais**: leao.eat, leao.lie e hipoEsfolado.death
+  (ver acima).
+- **Transições e mortes humanas**: estão na biblioteca, mas não ligadas a
+  eventos do jogo (sentar/levantar no banco, cair nocauteado, acordar). Hoje
+  essas poses continuam procedurais.
+- **Leão**: trote e rugido estão na biblioteca, sem estado que os use.
+- **IK e camadas**: o IK dos pés e a inclinação em rampa dos humanos rodam
+  por cima do clipe; nos animais com clipes, ainda não.
+- **Revalidação**: rodar os retargets de novo regrava o catálogo, e as
+  entradas voltam a `gerado` até nova revisão dos strips.

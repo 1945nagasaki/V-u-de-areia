@@ -27,6 +27,9 @@ import { FirstPersonArm } from '../entities/FirstPersonArm.js';
 import { GAMEPLAY } from '../config/gameplay.js';
 import { Fauna } from '../systems/Fauna.js';
 import { AnimalModels } from '../render/AnimalModels.js';
+import { HumanClipLibrary } from '../entities/anim/HumanClips.js';
+import { setHumanClipLibrary } from '../entities/Humanoid.js';
+import { HUMAN_ANIMATION } from '../config/humanAnimation.js';
 import { ANIMAL_MODELS, ANIMAL_LOADER } from '../config/animalModels.js';
 import { Oxygen } from '../systems/Oxygen.js';
 import { ITEM_USES } from '../systems/Items.js';
@@ -224,6 +227,12 @@ export class Game {
     await step(0.03, 'Carregando texturas fotográficas e árvores 3D…');
     // Preloader: animais carregam junto com as texturas (cache cheio antes do jogo).
     this.animalModels = new AnimalModels(ANIMAL_MODELS, { dracoPath: ANIMAL_LOADER.dracoPath });
+    // Animações humanas reais: baixam em paralelo; até chegarem (ou se falharem) os bonecos usam o procedural.
+    if (HUMAN_ANIMATION.enabled) {
+      this.humanClips = new HumanClipLibrary(HUMAN_ANIMATION.base);
+      for (const c of HUMAN_ANIMATION.preload) this.humanClips.load(c);
+      setHumanClipLibrary(this.humanClips);
+    }
     const animalsReady = this.animalModels.loadAll((done, total) => ui.setLoading(0.03, `Carregando animais 3D… ${done}/${total}`));
     [this.photos, this.oaks] = await Promise.all([
       loadPhotoTextures(this.renderer),

@@ -1,0 +1,63 @@
+<!doctype html>
+<!-- Tira de quadros do boneco humano (Humanoid do jogo) tocando clipes retargetados.
+     Uma linha por clipe, 8 quadros cobrindo a duração toda; câmera de lado (frente = direita)
+     ou de frente (?view=front). Linha branca = chão.
+     http://localhost:5173/tools/anim/human-strip.html?clips=locomotion:walk,social:talkA -->
+<html><head><meta charset="utf-8"><title>Humanos — tira de quadros</title>
+<style>body{margin:0;background:#15181c;font:12px system-ui;color:#ddd}#info{position:fixed;left:6px;top:4px;background:rgba(0,0,0,.6);padding:2px 8px;border-radius:6px}
+.lab{position:absolute;left:4px;background:rgba(0,0,0,.55);padding:1px 6px;border-radius:4px}</style></head>
+<body><div id="info"></div>
+<script type="module">
+import * as THREE from 'three';
+import { Humanoid } from '/src/entities/Humanoid.js';
+import { HumanClipLibrary, HumanPose, samplePose, applyPose } from '/src/entities/anim/HumanClips.js';
+
+const q = new URLSearchParams(location.search);
+const list = (q.get('clips') ?? 'locomotion:idle,locomotion:walk').split(',').map((s) => s.split(':'));
+const view = q.get('view') ?? 'side';
+const COLS = +(q.get('cols') ?? 8), CW = +(q.get('cw') ?? 150), CH = +(q.get('h') ?? 190), ZOOM = +(q.get('zoom') ?? 1);
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+r.setSize(COLS * CW, list.length * CH); r.outputColorSpace = THREE.SRGBColorSpace; r.autoClear = false;
+document.body.prepend(r.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xb9c8d6);
+const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(-4, 8, 6); scene.add(sun, new THREE.HemisphereLight(0xffffff, 0x8a7a6a, 1.2));
+const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-5, 0, 0), new THREE.Vector3(5, 0, 0), new THREE.Vector3(0, 0, -5), new THREE.Vector3(0, 0, 5)]);
+scene.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xffffff })));
+const span = 1.15 / ZOOM, aspect = CW / CH;
+const cam = new THREE.OrthographicCamera(-span * aspect, span * aspect, span, -span, 0.1, 100);
+if (view === 'front') cam.position.set(0, 0.95, 20); else cam.position.set(-20, 0.95, 0);
+cam.lookAt(cam.position.x === 0 ? 0 : 0, 0.95, 0);
+
+const lib = new HumanClipLibrary('/assets/animations/humans/');
+await Promise.all([...new Set(list.map(([c]) => c))].map((c) => lib.load(c)));
+const pose = new HumanPose();
+const report = {};
+list.forEach(([cat, key], row) => {
+  const clip = lib.get(key);
+  const h = new Humanoid({ rng: () => 0.5 });
+  scene.add(h.root);
+  const lab = document.createElement('div'); lab.className = 'lab'; lab.style.top = `${row * CH + 22}px`;
+  lab.textContent = clip ? `${cat}:${key} (${clip.duration.toFixed(2)} s)` : `${cat}:${key} — SEM CLIPE`;
+  document.body.append(lab);
+  let minY = Infinity;
+  for (let c = 0; c < COLS; c++) {
+    if (clip) {
+      const t = clip.userData.loop ? (c / COLS) * clip.duration : (c / (COLS - 1)) * clip.duration;
+      h.body.position.set(0, 0, 0);
+      samplePose(clip, t, pose);
+      applyPose(h, pose, 1);
+    }
+    h.root.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(h.body, true);
+    minY = Math.min(minY, b.min.y);
+    const x = c * CW, y = (list.length - 1 - row) * CH;
+    r.setViewport(x, y, CW, CH); r.setScissor(x, y, CW, CH); r.setScissorTest(true);
+    r.render(scene, cam);
+  }
+  report[key] = { minY: +minY.toFixed(3) };
+  scene.remove(h.root);
+});
+document.getElementById('info').textContent = `Humanoid · ${view} · ${list.length} clipes`;
+window.report = report;
+window.done = true;
+</script></body></html>
