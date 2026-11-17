@@ -176,7 +176,19 @@ export async function loadBoatModel(model, cfg = BOAT) {
   if (!m?.url) return false;
   try {
     const base = import.meta.env?.BASE_URL ?? '/';
-    const gltf = await new GLTFLoader().loadAsync(base + m.url);
+    const loader = new GLTFLoader();
+    // Busca o .glb direto; se o servidor não entregar (ex.: artefato publicado), usa a cópia
+    // em base64 ao lado ({ "glb": "<base64>" }).
+    let buf = null;
+    try {
+      const res = await fetch(base + m.url);
+      if (res.ok) buf = await res.arrayBuffer();
+    } catch { /* sem rede para o .glb: tenta a cópia */ }
+    if (!buf || new Uint32Array(buf.slice(0, 4))[0] !== 0x46546c67) { // 'glTF'
+      const { glb } = await (await fetch(`${base}${m.url}.json`)).json();
+      buf = Uint8Array.from(atob(glb), (c) => c.charCodeAt(0)).buffer;
+    }
+    const gltf = await loader.parseAsync(buf, '');
     const { holder, size } = fitBoatModel(gltf.scene, m);
     holder.name = 'barco-glb';
     holder.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
