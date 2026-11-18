@@ -1,8 +1,11 @@
-/** Câmera: 3ª pessoa (atrás e acima) ou 1ª pessoa (olhos). Tecla C alterna. */
+import { ZOOM } from './survival.js';
+
+/** Câmera: 3ª pessoa (atrás e acima) ou 1ª pessoa (olhos). Tecla P alterna; C dá zoom. */
 export const CAMERA = {
   startMode: 'third', // 'third' | 'first'
-  fov: 62, // graus, andando
-  sprintFov: 72, // graus, correndo (Shift) — abre suavemente
+  fov: ZOOM.normalFov, // graus, andando (75°)
+  sprintFov: ZOOM.sprintFov, // graus, correndo (Shift) — abre suavemente
+  zoomFov: ZOOM.zoomFov, // graus, segurando/pressionando C (40°)
   fovLerp: 6, // velocidade da interpolação do FOV (1/s)
   /** Balanço da câmera ao andar/correr (head bobbing). freq em ciclos/s (2 quiques por ciclo), amp em metros. */
   bob: {

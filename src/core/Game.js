@@ -38,6 +38,7 @@ import { Dungeons } from '../villages/Dungeons.js';
 import { Landmarks } from '../world/Landmarks.js';
 import { LANDMARKS } from '../config/landmarks.js';
 import { UI } from '../ui/UI.js';
+import { SurvivalDirector } from '../systems/SurvivalDirector.js';
 
 import { yieldToBrowser as nextFrame } from './yieldToBrowser.js';
 
@@ -188,6 +189,8 @@ export class Game {
       collisions: this.collisions,
       state: this.state,
       isUnderground: () => this.areaId !== 'overworld',
+      canSprint: () => this.survivalDirector?.survival.canSprint ?? true,
+      speedBonus: () => this.survivalDirector?.speedMultiplier ?? 1,
     });
     this.scene.add(this.player.root);
     const ren = this.villages.renascimento;
@@ -201,10 +204,15 @@ export class Game {
     this.animalModels.loadAll();
     this.fauna = new Fauna(this, { rng: this.random, models: this.animalModels });
 
+    // Missão: Véu de Areia — prólogo no mar, costa do deserto, sobrevivência e skills.
+    this.survivalDirector = new SurvivalDirector(this);
+    this.survivalDirector.begin();
+    this.inventory.onChange((inv) => this.survivalDirector.setWeapon(inv.equipado));
+
     this.ready = true;
     ui.setLoading(1, 'Pronto! Pressione ALT para travar a câmera no mouse.');
     ui.hideLoading();
-    ui.toast('Bem-vindo à Vila Renascimento. ALT trava/destrava a câmera · C alterna 1ª/3ª pessoa.');
+    ui.toast('ALT trava/destrava a câmera · P alterna 1ª/3ª pessoa · C dá zoom.');
   }
 
   /**
@@ -284,7 +292,8 @@ export class Game {
    */
   tryAttack() {
     if (this.dead) return;
-    if (!this.inventory.maosLivres) {
+    const weapon = this.inventory.equipado.tipo === 'arma';
+    if (!this.inventory.maosLivres && !weapon) {
       this.useEquipped(this.inventory.equipado);
       return;
     }
@@ -304,6 +313,7 @@ export class Game {
       return;
     }
     if (!this.combat.canPunch(this.time)) return;
+    this.survivalDirector?.tutorial.notify('punch');
     this.player.startPunch(dir, punch.duration);
     if (this.cameraRig.isFirstPerson) this.fpArm.punch(punch.duration);
     const { hit } = this.combat.punch(origin, dir, this.time);
@@ -317,6 +327,16 @@ export class Game {
     } else {
       this.ui.showHit('Soco no ar', false);
     }
+  }
+
+  /** Completa uma missão: XP de missão + checkpoint. Ex.: `game.completarMissao('Portão da Bússola')`. */
+  completarMissao(nome) {
+    this.survivalDirector?.completeMission(nome);
+  }
+
+  /** Abate de animal (chamado pela Fauna): XP + carne. */
+  onAnimalKilled(animal) {
+    this.survivalDirector?.onAnimalKilled(animal);
   }
 
   /** Usa o item do slot ativo (`ITEM_USES`); se ele for gasto, sai da hotbar. */
@@ -356,10 +376,15 @@ export class Game {
   /** Volta à vida na última vila visitada (ou Renascimento), com vida e fôlego cheios. */
   respawn() {
     if (this.areaId !== 'overworld') this.enterArea('overworld');
-    const v = this.lastVillage ?? this.villages.renascimento;
+    const v = this.lastVillage;
     const off = GAMEPLAY.death.respawnOffset;
-    if (v === this.villages.renascimento) this.player.teleport(v.x + 3, v.z + 17, Math.PI);
+    const sd = this.survivalDirector;
+    const rp = sd?.respawnPoint();
+    if (!v && rp?.sea) sd.spawnAtSea();
+    else if (!v && rp) this.player.teleport(rp.x, rp.z, -Math.PI / 2);
+    else if (v === this.villages.renascimento) this.player.teleport(v.x + 3, v.z + 17, Math.PI);
     else this.player.teleport(v.x + off, v.z + v.radius * 0.5, Math.PI);
+    sd?.survival.eat(30);
     this.player.swimming = false;
     this.player.submerged = false;
     this.state.healFull();
@@ -369,7 +394,7 @@ export class Game {
     this.cameraRig.snap();
     this.dead = false;
     this.ui.hideDeath();
-    this.ui.toast(`Você acordou em ${v.config.name}.`);
+    this.ui.toast(v ? `Você acordou em ${v.config.name}.` : rp?.sea ? 'Você volta a boiar no mar revolto…' : 'Você acorda na Costa do Deserto.');
   }
 
   /**
@@ -441,14 +466,15 @@ export class Game {
     this.timeUniform.value = this.time;
     const input = this.input;
     const ui = this.ui;
-    const busy = this.dead || ui.dialogue.isOpen || !ui.worldMap.classList.contains('hidden');
+    const sd = this.survivalDirector;
+    const busy = this.dead || ui.dialogue.isOpen || !ui.worldMap.classList.contains('hidden') || sd.busy;
     if (this.dead && this.time >= this.respawnAt) this.respawn();
 
     if (input.pressed('KeyM')) ui.toggleWorldMap();
     if (input.pressed('KeyV') && this.areaId === 'overworld') ui.toast(this.player.flying ? 'Modo voo desligado.' : 'Modo voo: Espaço sobe · Ctrl desce · Shift acelera · roda afasta a câmera · V sai');
     if (input.pressed('Escape') && !ui.worldMap.classList.contains('hidden')) ui.toggleWorldMap(false);
     if (!busy) {
-      if (input.pressed('KeyC')) this.cameraRig.toggleMode();
+      if (input.pressed('KeyP')) this.cameraRig.toggleMode();
       if (input.pressed('KeyE')) this.interactions.interact(this);
       if (input.pressed('KeyH')) this.state.usePotion();
       // 1–8 escolhem o slot. No quadro em que um diálogo fecha, o número
@@ -461,9 +487,11 @@ export class Game {
     this._wasBusy = busy;
     ui.hotbarWrap.classList.toggle('dim', busy);
 
+    sd.beforePlayer();
     if (busy) this.player.model.update(dt, 0);
     else {
       this.player.update(dt, input, this.cameraRig);
+      sd.afterPlayer(dt);
       // Em 1ª pessoa o corpo acompanha para onde se olha (o soco sai daí).
       if (this.cameraRig.isFirstPerson) this.player.faceDirection(this.cameraRig.forward(this._camFwd));
     }
@@ -473,14 +501,18 @@ export class Game {
       sprinting: !busy && this.player.sprinting,
       speed: busy ? 0 : this.player.speed,
       grounded: this.player.grounded,
+      zoom: !busy && sd.zooming,
     });
     this.state.update(dt);
+    sd.update(dt, input, busy);
 
     // Fôlego: só aparece na água; zerou → afogou.
-    if (!this.dead && this.oxygen.update(dt, { inWater: this.player.swimming, submerged: this.player.submerged })) {
+    // No prólogo o perigo é o cronômetro de 10 min da tempestade, não o fôlego.
+    const prologue = sd.landfall.phase === 'ocean';
+    if (!this.dead && this.oxygen.update(dt, { inWater: this.player.swimming && !prologue, submerged: this.player.submerged })) {
       this.killPlayer('Você se afogou');
     }
-    ui.setOxygen(this.oxygen.fraction, this.player.swimming || this.oxygen.fraction < 0.999, GAMEPLAY.swimming.warnFraction);
+    ui.setOxygen(this.oxygen.fraction, !prologue && (this.player.swimming || this.oxygen.fraction < 0.999), GAMEPLAY.swimming.warnFraction);
     ui.setUnderwater(this.areaId === 'overworld' && this.camera.position.y < WORLD.waterLevel - 0.05);
 
     const item = this.interactions.update(this.player.position, this.player.facing, this.areaId);

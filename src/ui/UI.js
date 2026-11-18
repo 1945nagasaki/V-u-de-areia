@@ -46,7 +46,7 @@ export class UI {
     this.prompt = el('div', 'prompt hidden', this.root);
     this.toasts = el('div', 'toasts', this.root);
     this.help = el('div', 'help', this.root,
-      '<b>WASD</b> mover · <b>Shift</b> correr · <b>Espaço</b> pular · <b>ALT</b> trava câmera · <b>C</b> 1ª/3ª pessoa · <b>Roda</b> zoom · '
+      '<b>WASD</b> mover · <b>Shift</b> correr · <b>Espaço</b> pular · <b>ALT</b> trava câmera · <b>P</b> 1ª/3ª pessoa · <b>C</b> zoom · <b>I/TAB</b> inventário · <b>K</b> skills · '
       + '<b>E</b> interagir · <b>H</b> poção · <b>M</b> mapa · <b>F</b> viagem rápida · <b>V</b> voar · '
       + '<b>1–8</b> slot · <b>Clique</b> bater');
     this.speedTag = el('div', 'speed-tag hidden', this.root, 'VIAGEM RÁPIDA');
@@ -173,8 +173,8 @@ export class UI {
   setCameraStatus({ locked, firstPerson }) {
     const view = firstPerson ? '1ª pessoa' : '3ª pessoa';
     this.lockHint.innerHTML = locked
-      ? `<b>Câmera travada</b> · ALT ou Esc solta · ${view} · <b>C</b> alterna`
-      : `Pressione <b>ALT</b> para travar/destravar a câmera · ${view} · <b>C</b> alterna`;
+      ? `<b>Câmera travada</b> · ALT ou Esc solta · ${view} · <b>P</b> alterna`
+      : `Pressione <b>ALT</b> para travar/destravar a câmera · ${view} · <b>P</b> alterna`;
     this.lockHint.classList.toggle('locked', locked);
     this.crosshair.classList.toggle('hidden', !firstPerson);
   }

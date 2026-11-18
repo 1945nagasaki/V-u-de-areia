@@ -14,7 +14,11 @@ import { swimVerticalSpeed } from './Swimming.js';
  * Dependências injetadas: groundAt(x,z), collisions, state (PlayerState).
  */
 export class Player {
-  constructor({ groundAt, collisions, state, isUnderground }) {
+  constructor({ groundAt, collisions, state, isUnderground, canSprint = () => true, speedBonus = () => 1 }) {
+    /** Estamina permite correr? (Survival) */
+    this.canSprint = canSprint;
+    /** Multiplicador de velocidade (ramo ENERGIA). */
+    this.speedBonus = speedBonus;
     this.groundAt = groundAt;
     this.collisions = collisions;
     this.state = state;
@@ -78,11 +82,11 @@ export class Player {
     this.submerged = false;
 
     const moving = move.lengthSq() > 0;
-    this.sprinting = wantsSprint(input, moving, { swimming: this.swimming });
+    this.sprinting = wantsSprint(input, moving, { swimming: this.swimming }) && this.canSprint();
     const speed = resolveMoveSpeed(PLAYER, {
       sprinting: this.sprinting,
       swimming: this.swimming,
-      modifier: this.state.modifier('speed'),
+      modifier: this.state.modifier('speed') * this.speedBonus(),
       fastTravel: this.fastTravel && !underground,
     });
 
