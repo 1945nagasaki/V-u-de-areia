@@ -19,6 +19,11 @@ export const OCEAN = {
   cascadeSizes: [733, 157, 33.3, 7.1],
   /** Profundidade de referência do espectro (m) [Tidewater 500]. */
   depth: 500,
+  /**
+   * Fora do mapa: a profundidade sai da borda e vai suave até `depth` m em `fade` m
+   * (sem costura na borda e sem as listras de repetir a última linha do mapa).
+   */
+  outside: { depth: 120, fade: 300 },
   seed: 1337,
   /** Ondas de vento locais [Tidewater: windSpeed 7, dir 25°, fetch 120 km, spreadBlend 0.85, swell 0.05]. */
   local: { scale: 1, windSpeed: 7, windDirection: 25, fetch: 120, spreadBlend: 0.85, swell: 0.05, peakEnhancement: 3.3, shortWavesFade: 0.01 },

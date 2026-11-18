@@ -62,6 +62,7 @@ export class Water {
         uTexel: { value: new THREE.Vector4(...OCEAN.cascadeSizes.map((L) => L / OCEAN.fftSize)) },
         uDepthTex: { value: this.buildDepthTexture(terrain) },
         uDepthRect: { value: new THREE.Vector4(-WORLD.width / 2, -WORLD.depth / 2, WORLD.width, WORLD.depth) },
+        uOutside: { value: new THREE.Vector2(this.cfg.outside?.depth ?? 120, this.cfg.outside?.fade ?? 300) },
         uFrame: { value: null }, uHasFrame: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) },
         uRefl: { value: null }, uHasRefl: { value: 0 }, uReflMat: { value: new THREE.Matrix4() },
         uRefr: { value: OCEAN.optics.refraction }, uIor: { value: OCEAN.optics.ior },
@@ -341,6 +342,7 @@ const COMMON = /* glsl */ `
 uniform sampler2D uDisp[4];
 uniform sampler2D uDeriv[4];
 uniform vec4 uSizes, uD0, uFloor, uFoamW, uTexel, uDepthRect;
+uniform vec2 uOutside;
 uniform float uAmp;
 uniform sampler2D uDepthTex;
 
@@ -356,10 +358,13 @@ vec4 wakeSample(vec2 xz) {
   return texture(uWake, xz / uWakeRect.zw) * m;
 }
 float seaDepth(vec2 xz) {
-  // fora do mapa: a profundidade da borda (como o terreno, que também prende na borda);
-  // assumir "mar fundo" ali criava uma costura reta na água junto da borda do mundo
-  vec2 uv = clamp((xz - uDepthRect.xy) / uDepthRect.zw, vec2(0.0), vec2(1.0));
-  return texture(uDepthTex, uv).r;
+  // Fora do mapa: começa na profundidade da borda (sem costura reta) e vai suave até o
+  // mar fundo em uOutside.y m — repetir a última linha esticava o ruído da borda em listras.
+  vec2 uvRaw = (xz - uDepthRect.xy) / uDepthRect.zw;
+  vec2 uv = clamp(uvRaw, vec2(0.0), vec2(1.0));
+  float d = texture(uDepthTex, uv).r;
+  float out_ = length((uvRaw - uv) * uDepthRect.zw);
+  return out_ > 0.0 ? mix(d, max(d, uOutside.x), smoothstep(0.0, uOutside.y, out_)) : d;
 }
 // Atenuação por cascata no raso [Tidewater waterSurfaceCascadeAttenuation].
 float atten(int c, float depth) {
