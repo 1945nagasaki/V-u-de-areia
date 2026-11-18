@@ -32,6 +32,13 @@ export const PROLOGUE = {
     // ainda aparece como silhueta a 600 m quando o relâmpago clareia).
     fogDensityMax: 0.0036,
     windSpeed: 15, // m/s do vento do oceano (padrão 7): ondas bem maiores; volta ao normal na praia
+    // Escuridão da tempestade noturna (a névoa da chuva tropical é cinza-claro e clareava a noite):
+    // névoa/céu puxados para esta cor, luz ambiente e exposição reduzidas. O clarão do relâmpago
+    // soma por cima (fica mais dramático no escuro).
+    darkColor: 0x0d1218,
+    darkMix: 0.82,
+    hemiMul: 0.45,
+    exposureMul: 0.62,
   },
 
   /** Cronômetro de exaustão/afogamento. */

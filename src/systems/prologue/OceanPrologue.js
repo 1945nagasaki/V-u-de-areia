@@ -144,10 +144,26 @@ export class OceanPrologue {
     else if (this.state === 'drown') this.updateDrown(dt, paused);
   }
 
+  /**
+   * Noite de tempestade: neblina limitada (a ilha aparece como silhueta), névoa/céu escuros,
+   * menos luz ambiente e exposição. O Environment reescreve tudo a cada quadro, então nada
+   * acumula; vale também com o jogo pausado (a cena continua desenhada).
+   */
+  applyStormLook() {
+    const g = this.game, C = this.cfg.storm, fog = g.scene.fog;
+    if (!fog) return;
+    if (fog.density > C.fogDensityMax) fog.density = C.fogDensityMax;
+    this._dark ??= new THREE.Color(C.darkColor);
+    fog.color.lerp(this._dark, C.darkMix);
+    const sky = g.environment?.skyUniforms;
+    if (sky) { sky.uTop.value.lerp(this._dark, C.darkMix); sky.uHorizon.value.lerp(this._dark, C.darkMix * 0.9); }
+    if (g.environment?.hemi) g.environment.hemi.intensity *= C.hemiMul;
+    g.renderer.toneMappingExposure *= C.exposureMul;
+  }
+
   updateSwim(dt, paused) {
     const g = this.game, p = g.player, C = this.cfg;
-    // Neblina da tempestade: no máximo isto (a ilha aparece como silhueta nos relâmpagos).
-    if (g.scene.fog?.density > C.storm.fogDensityMax) g.scene.fog.density = C.storm.fogDensityMax;
+    this.applyStormLook();
     for (const w of this.timer.tick(dt)) {
       const msg = { 420: 'Seus braços começam a pesar…', 480: 'A respiração fica curta. Ache a ilha.', 540: 'Você está no limite. Mais um minuto.' }[w];
       if (msg) g.ui.toast(msg);
@@ -203,6 +219,7 @@ export class OceanPrologue {
 
   updateDrown(dt, paused) {
     const g = this.game, p = g.player, D = this.cfg.drowning;
+    this.applyStormLook();
     this.sea.update(dt, { paused, underwater: this.drownT > 0.8, drowning: true });
     if (paused) return;
     this.drownT += dt;

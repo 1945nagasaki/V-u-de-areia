@@ -31,7 +31,7 @@ const CSS = `
 .pl-video .cs-click{display:none}
 .pl-video.blocked .cs-click{display:block}
 .pl-fade{position:fixed;inset:0;background:#000;z-index:8900;pointer-events:none;opacity:0}
-.pl-hud{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:8000;pointer-events:none;text-align:center;font-family:system-ui,sans-serif;color:#f1ece2;text-shadow:0 1px 6px #000}
+.pl-hud{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9500;pointer-events:none;text-align:center;font-family:system-ui,sans-serif;color:#f1ece2;text-shadow:0 1px 6px #000;background:rgba(8,10,14,.72);border:1px solid rgba(241,236,226,.18);border-radius:8px;padding:6px 16px 7px}
 .pl-hud .t{font-size:30px;font-variant-numeric:tabular-nums;letter-spacing:.06em}
 .pl-hud .l{font-size:11px;letter-spacing:.25em;opacity:.75}
 .pl-hud.low .t{color:#ff8a7a;animation:plpulse 1s infinite}
