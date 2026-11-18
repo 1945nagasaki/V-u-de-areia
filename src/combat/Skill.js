@@ -119,6 +119,12 @@ export class ComboSkill extends MeleeSkill {
     this.applyStep();
   }
 
+  /** Multiplicador de dano (ex.: Força da Árvore de Skills). Vale a partir do próximo golpe. */
+  setDamageScale(m) {
+    this.scale.damage = m;
+    this.applyStep();
+  }
+
   applyStep() {
     const s = this.step();
     this.shape.range = s.range; this.shape.angle = s.angle;

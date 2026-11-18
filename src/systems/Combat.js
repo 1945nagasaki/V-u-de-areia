@@ -27,6 +27,8 @@ export class Combat {
     this.obstacles = [];
     this.raycaster = new THREE.Raycaster();
     this.nextPunchAt = -Infinity;
+    /** Multiplica o dano (Força da Árvore de Skills × arma equipada). */
+    this.damageMultiplier = 1;
   }
 
   /**
@@ -110,7 +112,7 @@ export class Combat {
         distance: first.distance,
         point: first.point,
         direction: dir,
-        damage: cfg.damage,
+        damage: cfg.damage * this.damageMultiplier,
         target,
       };
       target?.onHit?.(hit);

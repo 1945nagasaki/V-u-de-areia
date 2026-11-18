@@ -61,6 +61,7 @@ const HAND_RECIPES = [
   { id: 'flecha', output: { item: 'flecha', amount: 3 }, station: 'HANDS', craftTime: 2, ingredients: [ing('graveto'), ing('lamina_pedra'), ing('pena')], category: 'WEAPONS', hint: 'Ponta de pedra. As de ouro e metal só com o ferreiro.' },
   { id: 'flecha_madeira', output: { item: 'flecha_madeira', amount: 1 }, station: 'HANDS', craftTime: 1.5, ingredients: [ing('graveto')], category: 'WEAPONS', hint: 'Só madeira: afie a ponta do graveto. Fraca, mas não custa pedra nem pena.' },
   // ---- ferramentas
+  { id: 'fogueira', output: { item: 'fogueira', amount: 1 }, station: 'HANDS', craftTime: 2, ingredients: [ing('graveto', 2), ing('pedra', 2)], category: 'TOOLS', hint: 'Posicione no chão pela mochila e acenda com E.' },
   { id: 'faca_osso', output: { item: 'faca_osso', amount: 1 }, station: 'HANDS', craftTime: 2.5, ingredients: [ing('osso'), ing('corda')], category: 'TOOLS' },
   { id: 'faca_pedra', output: { item: 'faca_pedra', amount: 1 }, station: 'HANDS', craftTime: 2.5, ingredients: [ing('lamina_pedra'), ing('graveto'), ing('corda')], category: 'TOOLS' },
   { id: 'agulha_osso', output: { item: 'agulha_osso', amount: 1 }, station: 'HANDS', craftTime: 2, ingredients: [ing('fragmento_osso')], tools: ['faca_osso'], category: 'TOOLS', hint: 'Fragmento fincado na faca.' },

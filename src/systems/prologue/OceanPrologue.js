@@ -62,6 +62,7 @@ export class OceanPrologue {
   async newGame() {
     const g = this.game;
     this.checkpoint.clear();
+    g.progress?.reset(); // novo jogo: XP, skills, tutorial e fogueiras do zero
     this.sea.start(); // dentro do clique: o navegador libera o áudio
     this.sea.stop(); // (silencioso durante o vídeo)
     g.mode = 'cutscene';
@@ -80,12 +81,14 @@ export class OceanPrologue {
     this.state = 'done';
     g.mode = 'play';
     g.ui.toast('Progresso carregado: a praia onde você chegou depois do naufrágio.');
+    g.progress?.resume(); // tutorial de onde parou, fogueiras acesas
   }
 
   freeMode() {
     const g = this.game;
     this.state = 'done';
     g.mode = 'play';
+    g.progress?.resume(); // fogueiras salvas (o tutorial só começa pelo prólogo)
     g.ui.toast('Bem-vindo à Vila Renascimento. ALT trava/destrava a câmera · T alterna 1ª/3ª pessoa · C examina o corpo.');
   }
 
@@ -207,6 +210,7 @@ export class OceanPrologue {
     if (this.windSaved) { g.water.setWind?.(this.windSaved); this.windSaved = null; }
     const ok = this.checkpoint.save({ x: p.position.x, y: p.position.y, z: p.position.z, yaw: Math.atan2(p.facing.x, p.facing.z), hour: g.gameClock.hour, phase: 'ilha' });
     g.ui.toast(`Você chegou à ilha, exausto, mas vivo.${ok ? ' Progresso salvo.' : ''}`);
+    g.progress?.onLanded(); // XP da chegada e começo do tutorial
   }
 
   // ------------------------------------------------------------ afogamento

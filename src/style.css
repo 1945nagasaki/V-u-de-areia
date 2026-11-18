@@ -869,3 +869,41 @@ svg.i.lg { width: 1.6em; height: 1.6em; }
 .work-debug-labels .wdl em { color: #f0a020; font-style: normal; }
 .work-debug-labels .wdl small { color: #9aa8a0; }
 .work-debug-panel { position: absolute; left: 14px; top: 190px; max-width: 340px; padding: 6px 10px; border-radius: 6px; background: rgba(8, 10, 14, 0.8); color: #dfe8df; font: 11px/1.35 ui-monospace, monospace; pointer-events: none; }
+
+/* ===== Progressão: Nível/XP, tutorial, Árvore de Skills (Missão: Véu de Areia) ===== */
+.sv { position: absolute; inset: 0; pointer-events: none; font-family: 'Segoe UI', system-ui, sans-serif; z-index: 40; }
+.sv-meter { height: 5px; background: rgba(255, 255, 255, 0.09); overflow: hidden; }
+.sv-meter i { display: block; height: 100%; transition: width 0.25s linear; }
+.sv-meter .xp { background: #7aa8c8; }
+.sv-level { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: grid; grid-template-columns: auto 120px auto auto; align-items: center; gap: 8px;
+  padding: 4px 10px; background: rgba(8, 8, 9, 0.55); border-radius: 3px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #cfc6b4; }
+.sv-level b { color: #e8c27a; font-weight: 600; } .sv-level em { font-style: normal; color: #eee6d6; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.sv-level kbd { font-size: 10px; opacity: .6; } .sv-level.can kbd { opacity: 1; color: #e8c27a; animation: pulse 1.2s infinite; }
+.sv-act { pointer-events: auto; cursor: pointer; border: 1px solid rgba(230, 210, 170, 0.28); background: rgba(255, 255, 255, 0.04);
+  color: #eee6d6; font: 500 11px system-ui; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 9px; border-radius: 2px; }
+.sv-act:hover:not(:disabled) { background: rgba(232, 194, 122, 0.18); border-color: #e8c27a; }
+.sv-act:disabled { opacity: 0.35; cursor: default; }
+.sv-tut { position: absolute; right: 22px; top: 38%; width: 330px; padding: 14px 16px 12px; color: #eee6d6;
+  background: linear-gradient(90deg, rgba(5, 5, 6, 0.0), rgba(5, 5, 6, 0.78) 18%); border-right: 2px solid #e8c27a; text-align: right; }
+.sv-tut.hidden, .sv-modal.hidden { display: none; }
+.sv-tut.enter { animation: tutIn 0.5s ease; }
+@keyframes tutIn { from { opacity: 0; transform: translateX(20px); } }
+.sv-tut .t-head { display: flex; justify-content: flex-end; gap: 10px; font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase; }
+.sv-tut .t-num { color: #e8c27a; } .sv-tut .t-title { color: #cfc6b4; }
+.sv-tut .t-text { margin: 8px 0 10px; font-size: 15px; line-height: 1.45; }
+.sv-tut kbd { color: #fff; }
+.sv-tut .t-prog { height: 2px; background: rgba(255,255,255,0.1); } .sv-tut .t-prog i { display: block; height: 100%; background: #e8c27a; transition: width 0.2s; }
+.sv-tut.done { border-color: #7fbf7a; }
+.sv-modal { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); pointer-events: auto; }
+.sv-card { width: min(640px, 94vw); padding: 18px 20px; background: rgba(12, 11, 10, 0.94); border: 1px solid rgba(230, 210, 170, 0.18); color: #eee6d6; }
+.sv-title { font: 300 24px Georgia, serif; letter-spacing: 0.06em; margin-bottom: 12px; }
+.sv-title small { font: 11px system-ui; letter-spacing: 0.15em; color: #9a917f; margin-left: 10px; text-transform: uppercase; }
+.sv-card .dim { color: #8a8272; font-size: 12px; }
+.xp-pool { font-size: 13px; color: #cfc6b4; margin-bottom: 12px; } .xp-pool b { color: #7aa8c8; font-size: 18px; }
+.branches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+.branch { padding: 12px; border: 1px solid rgba(255,255,255,0.08); border-top: 3px solid; display: grid; gap: 6px; }
+.branch.b-vida { border-top-color: #b8392b; } .branch.b-energia { border-top-color: #d9d2bf; } .branch.b-forca { border-top-color: #c98a3a; }
+.b-name { font-size: 15px; letter-spacing: 0.2em; } .b-desc, .b-eff { font-size: 12px; color: #a99f8c; } .b-eff b { color: #eee6d6; }
+.tiers { display: flex; gap: 4px; } .tiers i { flex: 1; height: 6px; background: rgba(255,255,255,0.1); } .tiers i.on { background: #e8c27a; }
+@media (max-width: 700px) { .branches { grid-template-columns: 1fr; } .sv-tut { width: 260px; } }
+@media (prefers-reduced-motion: reduce) { .sv-tut.enter, .sv-level.can kbd { animation: none; } }

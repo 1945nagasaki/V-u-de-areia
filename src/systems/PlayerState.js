@@ -129,9 +129,18 @@ export class PlayerState {
     this.envModifiers = mods;
   }
 
-  /** Multiplica os modificadores ativos (ex.: 'speed', 'relicPower') e os do ambiente. */
+  /**
+   * Bônus permanentes da Árvore de Skills (ex.: { speed: 1.1 }). Entram junto
+   * com os dos efeitos e os do ambiente.
+   * @param {Record<string, number>} mods
+   */
+  setSkillModifiers(mods) {
+    this.skillModifiers = mods;
+  }
+
+  /** Multiplica os modificadores ativos (ex.: 'speed', 'relicPower'), os do ambiente e os das skills. */
   modifier(name) {
-    let m = this.envModifiers?.[name] ?? 1;
+    let m = (this.envModifiers?.[name] ?? 1) * (this.skillModifiers?.[name] ?? 1);
     for (const e of this.effects) if (e.def.modifiers?.[name]) m *= e.def.modifiers[name];
     return m;
   }

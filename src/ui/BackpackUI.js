@@ -228,6 +228,7 @@ export class BackpackUI {
     if (d.consumable) acts.push(`<button data-act="consume" data-id="${id}">${d.drink ? 'Beber' : 'Comer'}</button>`);
     if (d.comfort) acts.push(`<button data-act="use" data-id="${id}">Usar</button>`);
     if (this.mode === 'full') acts.push(`<button data-act="book" data-id="${id}">${icon('book')} Usos <kbd>U</kbd></button>`);
+    if (d.placeable) acts.push(`<button data-act="place" data-id="${id}">Posicionar</button>`);
     if (d.hotbar) acts.push(`<button data-act="equip" data-id="${id}">Pôr na hotbar</button>`);
     if (this.mode === 'full' && this.table.length < 4) acts.push(`<button data-act="table" data-id="${id}">Pôr na mesa</button>`);
     const stats = d.gear ? `<ul class="bp-stats">${gearStats(d).map((s) => `<li>${s}</li>`).join('')}</ul>` : '';
@@ -256,6 +257,8 @@ export class BackpackUI {
       g.useComfortItem(id);
     } else if (act === 'eat') {
       if (g.state.removeItem(id)) g.ui.toast(`Você consumiu: ${g.survival.consume(id)}`);
+    } else if (act === 'place') {
+      g.progress?.placeCampfire(id);
     } else if (act === 'equip') {
       g.equipFromBackpack(id);
     } else if (act === 'table') {

@@ -70,6 +70,8 @@ export class MeleeController {
       if (g.cameraRig.isFirstPerson) g.fpArm.punch(0.3);
     };
     this.world.add(this.player);
+    /** Multiplicador de dano dos golpes do jogador (Força da Árvore de Skills). */
+    this.setPlayerDamageScale = (m) => { for (const s of this.player.skills.values()) s.setDamageScale(m); };
     this.playerAnim = new HumanoidCombatAnimator(player.model);
 
     // ---- efeitos

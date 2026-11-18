@@ -135,12 +135,12 @@ export class CameraRig {
    * @param {number} dt
    * @param {THREE.Vector3} target pés do personagem
    * @param {object|null} input `Input` (null = não lê controles, ex.: diálogo aberto)
-   * @param {{ flying?: boolean, underground?: boolean, sprinting?: boolean, speed?: number, grounded?: boolean }} [state]
+   * @param {{ flying?: boolean, underground?: boolean, sprinting?: boolean, speed?: number, grounded?: boolean, zoom?: boolean }} [state]
    *   `speed` (m/s) e `sprinting` alimentam o balanço e o FOV.
    */
-  update(dt, target, input, { flying = false, underground = false, sprinting = false, speed = 0, grounded = true } = {}) {
+  update(dt, target, input, { flying = false, underground = false, sprinting = false, speed = 0, grounded = true, zoom = false } = {}) {
     if (input) this.applyInput(dt, input);
-    this.updateFov(dt, sprinting && !flying);
+    this.updateFov(dt, sprinting && !flying, zoom);
     this.updateBob(dt, speed, sprinting, grounded && !flying);
     if (this.isFirstPerson) this.updateFirst(target);
     else this.updateThird(dt, target, flying, underground);
@@ -161,8 +161,9 @@ export class CameraRig {
   }
 
   /** FOV abre ao correr e fecha ao parar, sempre suave (lerp por tempo). */
-  updateFov(dt, sprinting) {
-    const target = sprinting ? this.config.sprintFov : this.config.fov;
+  updateFov(dt, sprinting, zoom = false) {
+    // Zoom (tecla C) tem prioridade: fecha o FOV para observar o horizonte.
+    const target = zoom ? this.config.zoomFov : sprinting ? this.config.sprintFov : this.config.fov;
     if (Math.abs(this.fov - target) < 0.01) return;
     this.fov = approach(this.fov, target, this.config.fovLerp, dt);
     this.camera.fov = this.fov;

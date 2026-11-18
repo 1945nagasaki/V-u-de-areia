@@ -2,6 +2,7 @@
 export const CAMERA = {
   startMode: 'third', // 'third' | 'first'
   fov: 62, // graus, andando
+  zoomFov: 40, // graus, segurando Z (zoom para observar o horizonte; ver config/progression.js ZOOM)
   sprintFov: 72, // graus, correndo (Shift) — abre suavemente
   fovLerp: 6, // velocidade da interpolação do FOV (1/s)
   /** Balanço da câmera ao andar/correr (head bobbing). freq em ciclos/s (2 quiques por ciclo), amp em metros. */

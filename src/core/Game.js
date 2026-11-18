@@ -31,6 +31,7 @@ import { HumanClipLibrary } from '../entities/anim/HumanClips.js';
 import { setHumanClipLibrary } from '../entities/Humanoid.js';
 import { HUMAN_ANIMATION } from '../config/humanAnimation.js';
 import { MeleeController } from '../systems/MeleeController.js';
+import { ProgressionDirector } from '../systems/ProgressionDirector.js';
 import { OceanPrologue } from '../systems/prologue/OceanPrologue.js';
 import { ANIMAL_MODELS, ANIMAL_LOADER } from '../config/animalModels.js';
 import { Oxygen } from '../systems/Oxygen.js';
@@ -494,6 +495,7 @@ export class Game {
     ui.setLoading(1, 'Pronto! Pressione ALT para travar a câmera no mouse.');
     ui.hideLoading();
     // Tela inicial: Novo Jogo (abertura + naufrágio) · Continuar (checkpoint) · Modo livre (Vila Renascimento).
+    this.progress = new ProgressionDirector(this);
     this.prologue = new OceanPrologue(this);
     this.prologue.showMenu();
   }
@@ -1878,7 +1880,7 @@ export class Game {
     }
     // Esc abre/fecha o menu quando nenhum outro painel está aberto (os outros fecham com Esc antes)
     const ui0 = this.ui, othersOpen = ui0.graphicsOpen || ui0.dialogue.isOpen || !ui0.worldMap.classList.contains('hidden')
-      || this.inspection.active || this.backpack.open || this.notebookUI.open;
+      || this.inspection.active || this.backpack.open || this.notebookUI.open || this.progress?.panelOpen;
     if (this.input.pressed('Escape') && (this.pauseMenu.open || !othersOpen)) { this.pauseMenu.toggle(); this.input.consume?.('Escape'); }
     // menu aberto = jogo pausado (dt 0: nada anda, a cena continua desenhada)
     // timeScale: câmera lenta de depuração (F7, para ajustar o tempo das hitboxes); 0 congela.
@@ -1900,7 +1902,7 @@ export class Game {
       if (input.pressed('ArrowRight')) this.setGraphics(stepPreset(this.graphics.id, 1).id);
       if (input.pressed('Escape')) ui.toggleGraphics(false);
     }
-    const panels = this.inspection.active || this.backpack.open || this.notebookUI.open;
+    const panels = this.inspection.active || this.backpack.open || this.notebookUI.open || this.progress?.panelOpen;
     const busy = this.dead || this.survival.fainted || panels || ui.dialogue.isOpen || ui.graphicsOpen || this.pauseMenu.open || !ui.worldMap.classList.contains('hidden');
     // Painéis de sobrevivência: C inspeção, I mochila, N caderneta, Esc fecha.
     if (!this.dead && !ui.dialogue.isOpen && !ui.graphicsOpen) {
@@ -1908,11 +1910,13 @@ export class Game {
       // Hub de crafting (mochila + catálogo JEI): I ou Tab; J abre já na busca.
       if ((input.pressed('KeyI') || input.pressed('Tab')) && !this.inspection.active && !this.notebookUI.open) this.backpack.toggle();
       if (input.pressed('KeyJ') && !this.inspection.active) { this.notebookUI.toggle(false); this.backpack.openSearch(); }
-      if (input.pressed('KeyN') && !this.inspection.active) { this.backpack.hide(); this.notebookUI.toggle(); }
+      if (input.pressed('KeyN') && !this.inspection.active) { this.backpack.hide(); this.progress?.toggleSkills(false); this.notebookUI.toggle(); }
+      // Árvore de Skills (XP): K.
+      if (input.pressed('KeyK') && !this.inspection.active && this.progress) { this.backpack.hide(); this.notebookUI.toggle(false); this.progress.toggleSkills(); }
       // Esc fecha primeiro a janela de receita; de novo, o resto.
       if (input.pressed('Escape')) {
         if (this.backpack.viewer.open) this.backpack.viewer.close();
-        else { this.inspection.close(); this.backpack.hide(); this.notebookUI.toggle(false); }
+        else { this.inspection.close(); this.backpack.hide(); this.notebookUI.toggle(false); this.progress?.toggleSkills(false); }
       }
       if (this.inspection.active) {
         [...Object.keys(LIMBS), null].forEach((id, i) => { if (input.pressed(`Digit${i + 1}`) || input.pressed(`Numpad${i + 1}`)) this.inspection.selectLimb(id); });
@@ -1963,6 +1967,7 @@ export class Game {
       sprinting: !busy && this.player.sprinting,
       speed: busy ? 0 : this.player.speed,
       grounded: this.player.grounded,
+      zoom: !!this.progress?.zooming,
     });
     // 3ª pessoa num cômodo apertado: câmera colada na cabeça esconde o corpo
     // (senão a tela mostra o interior do personagem).
@@ -2031,6 +2036,7 @@ export class Game {
       if (this._villageKey !== 'under') { this._villageKey = 'under'; ui.setVillage(null); }
     }
     this.applyWeatherDebuffs(dt);
+    this.progress?.update(dt, input, busy); // XP, tutorial, zoom (Z), fogueiras
     this.prologue?.update(dt); // naufrágio: cronômetro, neblina, áudio do mar, chegada/afogamento
     this.updateSurvival(dt);
     this.updateSanity(dt);

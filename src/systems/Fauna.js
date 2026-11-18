@@ -378,7 +378,11 @@ export class Fauna {
       this.game.combat.register({
         name: spec.nome, object: animal.root,
         enabled: () => animal.alive,
-        onHit: (hit) => animal.takeHit(hit),
+        onHit: (hit) => {
+          const wasAlive = animal.alive;
+          animal.takeHit(hit);
+          if (wasAlive && !animal.alive) this.game.onAnimalKilled?.(animal);
+        },
       });
       this.animals.push(animal);
       this.ecosystem.register(animal);

@@ -12,6 +12,7 @@ const LEGACY_CATALOG = {
   // ---- materiais ----
   graveto: { name: 'Graveto', icon: 'stick', kind: 'material', description: 'Pau curto e seco. Flechas e fogueira.' },
   graveto_longo: { name: 'Graveto Longo', icon: 'log', kind: 'material', description: 'Vara reta de 2 m. Base de lanças e arcos.' },
+  fogueira: { name: 'Fogueira', icon: 'flame', kind: 'tool', placeable: true, description: 'Anel de pedras e lenha. Posicione no chão e acenda com E: aquece, ilumina e cozinha.' },
   pedra: { name: 'Pedra', icon: 'stone', kind: 'material', description: 'Bata uma na outra para lascar uma lâmina.' },
   lamina_pedra: { name: 'Lâmina de Pedra', icon: 'blade', kind: 'material', description: 'Lasca afiada. Ponta de lança e faca.' },
   cipo: { name: 'Cipó', icon: 'leaf', kind: 'material', description: 'Fibra vegetal. Torça para fazer corda.' },

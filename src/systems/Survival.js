@@ -113,7 +113,7 @@ export class Survival {
   get staminaMax() {
     const deficits = this.nutrition.deficits().length;
     const fever = Math.min(1, this.body.fever);
-    return Math.max(15, STAMINA.max - deficits * DEFICIENCY.staminaMaxPerDeficit - fever * CONDITIONS.febre.staminaMax);
+    return Math.max(15, STAMINA.max + (this.staminaBonus ?? 0) - deficits * DEFICIENCY.staminaMaxPerDeficit - fever * CONDITIONS.febre.staminaMax);
   }
 
   /** Correr: precisa de stamina (zerou → espera recuperar `recoverThreshold`). */
