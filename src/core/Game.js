@@ -31,6 +31,7 @@ import { HumanClipLibrary } from '../entities/anim/HumanClips.js';
 import { setHumanClipLibrary } from '../entities/Humanoid.js';
 import { HUMAN_ANIMATION } from '../config/humanAnimation.js';
 import { MeleeController } from '../systems/MeleeController.js';
+import { OceanPrologue } from '../systems/prologue/OceanPrologue.js';
 import { ANIMAL_MODELS, ANIMAL_LOADER } from '../config/animalModels.js';
 import { Oxygen } from '../systems/Oxygen.js';
 import { ITEM_USES } from '../systems/Items.js';
@@ -307,7 +308,7 @@ export class Game {
     this.environment = new Environment(this.scene, this.renderer);
     // Clima por bioma + névoa paranormal (roda depois do Environment no loop).
     this.weather = new WeatherManager({
-      scene: this.scene, environment: this.environment, renderer: this.renderer, rng: this.random, audio: new Thunder(),
+      scene: this.scene, environment: this.environment, renderer: this.renderer, rng: this.random, audio: (this.thunder = new Thunder()),
       groundAt: (x, z) => this.groundHeight(x, z),
     });
     /** Criaturas paranormais: empurre aqui (`game.paranormalCreatures.push(obj)`) — a névoa engrossa perto delas. */
@@ -492,7 +493,9 @@ export class Game {
     this.ready = true;
     ui.setLoading(1, 'Pronto! Pressione ALT para travar a câmera no mouse.');
     ui.hideLoading();
-    ui.toast('Bem-vindo à Vila Renascimento. ALT trava/destrava a câmera · T alterna 1ª/3ª pessoa · C examina o corpo.');
+    // Tela inicial: Novo Jogo (abertura + naufrágio) · Continuar (checkpoint) · Modo livre (Vila Renascimento).
+    this.prologue = new OceanPrologue(this);
+    this.prologue.showMenu();
   }
 
   /**
@@ -1867,6 +1870,12 @@ export class Game {
   update() {
     const rawDt = this.clock.getDelta();
     if (!this.ready) return;
+    // Tela inicial, vídeo de abertura e Game Over: o mundo fica parado (nada conta, nada anda).
+    if (this.mode === 'menu' || this.mode === 'cutscene' || this.mode === 'over') {
+      if (this.mode === 'over') this.pipeline.render();
+      this.input.endFrame();
+      return;
+    }
     // Esc abre/fecha o menu quando nenhum outro painel está aberto (os outros fecham com Esc antes)
     const ui0 = this.ui, othersOpen = ui0.graphicsOpen || ui0.dialogue.isOpen || !ui0.worldMap.classList.contains('hidden')
       || this.inspection.active || this.backpack.open || this.notebookUI.open;
@@ -1939,7 +1948,7 @@ export class Game {
     this.melee?.handleInput(input, { busy }); // skills (Z/X/B, clique direito) e trava do movimento no golpe
     if (busy) { if (!inspecting) this.player.model.update(dt, 0); } // na inspeção a pose é da BodyInspection
     else {
-      if (!this.boat?.busy) this.player.update(dt, input, this.cameraRig);
+      if (!this.boat?.busy && !this.player.frozen) this.player.update(dt, input, this.cameraRig);
       this.slopeHint ??= new SlopeHint(ui.root);
       this.slopeHint.update(this.player.slope, this.player.status);
       // Em 1ª pessoa o corpo acompanha para onde se olha (o soco sai daí).
@@ -1963,7 +1972,9 @@ export class Game {
     this.state.update(dt);
 
     // Fôlego: só aparece na água; zerou → afogou.
-    if (!this.dead && this.oxygen.update(dt, { inWater: this.player.swimming, submerged: this.player.submerged })) {
+    const prologueSwim = this.prologue?.swimming || this.prologue?.state === 'drown';
+    const drains = this.player.swimming && (!prologueSwim || this.player.submerged) && this.prologue?.state !== 'drown';
+    if (!this.dead && this.oxygen.update(dt, { inWater: drains, submerged: this.player.submerged })) {
       this.killPlayer('Você se afogou');
     }
     ui.setOxygen(this.oxygen.fraction, this.player.swimming || this.oxygen.fraction < 0.999, GAMEPLAY.swimming.warnFraction);
@@ -2020,6 +2031,7 @@ export class Game {
       if (this._villageKey !== 'under') { this._villageKey = 'under'; ui.setVillage(null); }
     }
     this.applyWeatherDebuffs(dt);
+    this.prologue?.update(dt); // naufrágio: cronômetro, neblina, áudio do mar, chegada/afogamento
     this.updateSurvival(dt);
     this.updateSanity(dt);
     this.updateAfflictions(dt);

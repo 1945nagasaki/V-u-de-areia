@@ -254,8 +254,12 @@ export class Player {
    */
   updateSwimming(dt, input, move, camera, surfaceY) {
     const cfg = GAMEPLAY.swimming;
-    const speed = PLAYER.walkSpeed * cfg.speedMultiplier * this.state.modifier('speed');
     const moving = move.lengthSq() > 0;
+    // Shift: braçada forte (gasta stamina como a corrida). `swimSprint` (prólogo) muda o multiplicador
+    // e o reduz com a exaustão.
+    const sprint = moving && (input.isDown('ShiftLeft') || input.isDown('ShiftRight')) && (this.stamina?.canSprint() ?? true);
+    const sprintMul = sprint ? (this.swimSprint?.multiplier ?? cfg.sprintMultiplier ?? 1.5) * (this.swimSprint?.factor ?? 1) : 1;
+    const speed = PLAYER.walkSpeed * cfg.speedMultiplier * this.state.modifier('speed') * sprintMul;
     if (moving) {
       move.normalize();
       this.facing.lerp(move, 1 - Math.exp(-8 * dt)).normalize();
@@ -275,7 +279,7 @@ export class Player {
     this.position.y = Math.min(surfaceY, Math.max(floor, this.position.y + vy * dt));
     this.velocity.set(0, 0, 0);
     this.grounded = false;
-    this.sprinting = false;
+    this.sprinting = sprint;
     this.submerged = this.position.y < surfaceY + cfg.surfaceDepth - cfg.submergedDepth;
     this.speed = moving ? speed : 0;
     this.model.update(dt, this.speed, { swimming: true });

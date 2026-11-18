@@ -409,15 +409,17 @@ export class WeatherManager {
     this.sunFlash = cfg.sunFlash * strength;
     this.nextStrike = cfg.every[0] + this.rng() * (cfg.every[1] - cfg.every[0]);
     const dist = cfg.distance[0] + this.rng() * (cfg.distance[1] - cfg.distance[0]);
-    this.placeBolt(camera, dist);
+    const off = this.placeBolt(camera, dist);
     const delay = cfg.thunderDelay[0] + (dist - cfg.distance[0]) / (cfg.distance[1] - cfg.distance[0]) * (cfg.thunderDelay[1] - cfg.thunderDelay[0]);
-    this.audio?.thunder(delay, strength * (1 - dist / (cfg.distance[1] * 1.6)));
+    // Raio a δ rad à esquerda/direita da frente da câmera → trovão do mesmo lado (direita = −sen δ).
+    this.audio?.thunder(delay, strength * (1 - dist / (cfg.distance[1] * 1.6)), -Math.sin(off));
   }
 
   /** Monta o zigue-zague do raio entre o céu e o chão, de frente para a câmera. */
   placeBolt(camera, dist) {
     const fwd = camera.getWorldDirection(this._v);
-    const yaw = Math.atan2(fwd.x, fwd.z) + (this.rng() - 0.5) * 1.6;
+    const off = (this.rng() - 0.5) * 1.6;
+    const yaw = Math.atan2(fwd.x, fwd.z) + off;
     const bx = camera.position.x + Math.sin(yaw) * dist, bz = camera.position.z + Math.cos(yaw) * dist;
     const by = this.groundAt(bx, bz), top = by + 320 + this.rng() * 120;
     const N = this.bolt.userData.N, pos = this.bolt.geometry.attributes.position;
@@ -433,6 +435,8 @@ export class WeatherManager {
       pos.setXYZ(i * 2 + 1, x + px * half, y, z + pz * half);
     }
     pos.needsUpdate = true;
+    this.boltPos = { x: bx, z: bz };
+    return off; // ângulo do raio em relação à frente da câmera
   }
 }
 

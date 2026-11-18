@@ -74,6 +74,7 @@ export const GAMEPLAY = {
   /** Nado e afogamento. */
   swimming: {
     speedMultiplier: 0.5, // velocidade na água = andar × isto
+    sprintMultiplier: 1.6, // Shift nadando (braçada forte); gasta stamina como a corrida
     verticalSpeed: 1.8, // m/s subindo (Espaço) ou descendo (Ctrl)
     buoyancy: 0.7, // m/s que o corpo sobe sozinho até a superfície
     surfaceDepth: 1.25, // m: pés abaixo da linha d'água quando boiando na superfície

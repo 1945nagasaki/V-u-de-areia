@@ -29,6 +29,11 @@ export class Thunder {
     const AC = window.AudioContext ?? window.webkitAudioContext;
     if (!AC || this.ctx) return;
     this.ctx = new AC();
+    // Saída comum: um passa-baixa que normalmente deixa tudo passar (debaixo d'água, abafa).
+    this.out = this.ctx.createBiquadFilter();
+    this.out.type = 'lowpass';
+    this.out.frequency.value = 20000;
+    this.out.connect(this.ctx.destination);
     const len = this.ctx.sampleRate * 4;
     this.buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const d = this.buffer.getChannelData(0);
@@ -40,11 +45,21 @@ export class Thunder {
   }
 
   /**
+   * Abafa os trovões (câmera debaixo d'água).
+   * @param {number|null} cutoff Hz do passa-baixa; null = som normal
+   */
+  setMuffled(cutoff) {
+    if (!this.out) return;
+    this.out.frequency.setTargetAtTime(cutoff ?? 20000, this.ctx.currentTime, 0.15);
+  }
+
+  /**
    * Toca um trovão.
    * @param {number} delay segundos até o som (luz chega antes do som)
    * @param {number} strength 0..1 (longe = fraco)
+   * @param {number} [pan] -1 (esquerda) .. 1 (direita): de que lado caiu o raio
    */
-  thunder(delay, strength) {
+  thunder(delay, strength, pan = 0) {
     const ctx = this.ctx;
     if (!ctx || !this.buffer || strength <= 0.02) return;
     const t0 = ctx.currentTime + delay;
@@ -61,7 +76,15 @@ export class Thunder {
     gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.06);
     gain.gain.exponentialRampToValueAtTime(peak * 0.5, t0 + 0.6);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 3.8);
-    src.connect(filter).connect(gain).connect(ctx.destination);
+    // Espacial: o som vem do lado do raio (o ronco longo se espalha um pouco).
+    const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    let node = src.connect(filter).connect(gain);
+    if (panner) {
+      panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), t0);
+      panner.pan.linearRampToValueAtTime(Math.max(-1, Math.min(1, pan)) * 0.4, t0 + 3);
+      node = node.connect(panner);
+    }
+    node.connect(this.out ?? ctx.destination);
     src.start(t0);
     src.stop(t0 + 4);
   }
