@@ -371,19 +371,20 @@ export class SurvivalDirector {
       position: fire.position,
       radius: 2.6,
       onInteract: () => {
-        if (!fire.lit) { this.lightFire(fire); entry.label = 'Cozinhar Carne Crua'; return; }
+        if (!fire.lit) { this.lightFire(fire); return; }
         if (!this.bag.remove('carne_crua')) { g.ui.toast('Sem carne crua para cozinhar. Cace animais para conseguir carne.'); return; }
         this.bag.add('carne_assada');
         g.ui.toast('Carne assada! (+40 Fome ao comer)');
       },
     });
-    const entry = g.interactions.items.at(-1); // cópia guardada pelo sistema
-    if (lit) entry.label = 'Cozinhar Carne Crua';
+    fire.prompt = g.interactions.items.at(-1); // cópia guardada pelo sistema (o rótulo muda ao acender)
+    if (lit) fire.prompt.label = 'Cozinhar Carne Crua';
     return fire;
   }
 
   lightFire(fire, silent = false) {
     fire.ignite();
+    if (fire.prompt) fire.prompt.label = 'Cozinhar Carne Crua';
     this.audio.unlock();
     this.audio.addFire(fire.position.x, fire.position.y + 0.5, fire.position.z);
     if (silent) return;

@@ -80,10 +80,10 @@ export class Campfire {
       const u = sp.userData;
       u.t += dt * 0.18;
       if (u.t > 1) u.t -= 1;
-      const s = 0.4 + u.t * 2.4;
+      const s = 0.3 + u.t * 1.6;
       sp.scale.set(s, s, s);
       sp.position.set(Math.sin(u.t * 5 + this._t * 0.3) * 0.4 * u.t, 1.4 + u.t * 5, u.t * 0.6);
-      sp.material.opacity = Math.sin(u.t * Math.PI) * 0.28;
+      sp.material.opacity = Math.sin(u.t * Math.PI) * 0.16;
     }
   }
 }
