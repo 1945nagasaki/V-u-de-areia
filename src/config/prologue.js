@@ -12,6 +12,10 @@ export const PROLOGUE = {
     // MP4 (H.264/AAC) e WebM (VP9/Opus): o navegador fica com o que souber tocar.
     url: `${(import.meta.env?.BASE_URL ?? '/')}assets/video/abertura.mp4`,
     urlWebm: `${(import.meta.env?.BASE_URL ?? '/')}assets/video/abertura.webm`,
+    // Cópias no armazenamento da página publicada (claude.ai), usadas se os arquivos acima não
+    // forem servidos lá. Fora da página publicada falham e o jogo fica com os locais.
+    hostedUrl: '/_blob/c63c27963d7179b7edd23e8e39eae706',
+    hostedUrlWebm: '/_blob/0c0445d2508177ba7c47ba00aec83475',
     skipHold: 0.8, // s segurando Espaço para pular
     fadeIn: 0.9, // s do preto para o jogo depois do vídeo
   },
@@ -19,7 +23,7 @@ export const PROLOGUE = {
   /** Onde o jogador cai no mar: ao largo da costa oeste, em frente à vila Copa Alta. */
   spawn: {
     village: 'copaAlta', // a vila em frente (luzes na costa ajudam a se orientar)
-    distance: 600, // m da praia mais próxima, mar adentro (para oeste)
+    distance: 250, // m da praia mais próxima, mar adentro (para oeste)
     facingAway: true, // nasce de costas para a ilha: precisa olhar em volta para achá-la
     hour: 20.5, // noite: a ilha aparece nos relâmpagos e pelas luzes da vila
   },
@@ -29,7 +33,7 @@ export const PROLOGUE = {
     biomes: ['tropical', 'equatorial', 'savana'],
     hours: 2,
     // Neblina: no máximo isto (a tempestade tropical normal esconde tudo a 300 m; aqui a ilha
-    // ainda aparece como silhueta a 600 m quando o relâmpago clareia).
+    // ainda aparece como silhueta a 250 m quando o relâmpago clareia).
     fogDensityMax: 0.0036,
     windSpeed: 15, // m/s do vento do oceano (padrão 7): ondas bem maiores; volta ao normal na praia
     // Escuridão da tempestade noturna (a névoa da chuva tropical é cinza-claro e clareava a noite):

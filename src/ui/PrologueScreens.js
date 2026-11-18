@@ -30,6 +30,8 @@ const CSS = `
 .pl-video.paused .cs-paused{display:flex}
 .pl-video .cs-click{display:none}
 .pl-video.blocked .cs-click{display:block}
+.pl-video .cs-fail{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:80%;text-align:center;color:#e8dcc4;font:16px/1.5 system-ui,sans-serif;background:rgba(0,0,0,.6);padding:14px 20px;border-radius:8px}
+.pl-video.failed .cs-fail{display:block}
 .pl-fade{position:fixed;inset:0;background:#000;z-index:8900;pointer-events:none;opacity:0}
 .pl-hud{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9500;pointer-events:none;text-align:center;font-family:system-ui,sans-serif;color:#f1ece2;text-shadow:0 1px 6px #000;background:rgba(8,10,14,.72);border:1px solid rgba(241,236,226,.18);border-radius:8px;padding:6px 16px 7px}
 .pl-hud .t{font-size:30px;font-variant-numeric:tabular-nums;letter-spacing:.06em}
@@ -105,10 +107,12 @@ export class StartScreen {
  * quando o jogador pula (segurando Espaço) ou se o vídeo não carregar.
  */
 export class Cutscene {
-  constructor(root, { url, urlWebm = null, skipHold = 0.8 }) {
+  constructor(root, { url, urlWebm = null, hostedUrl = null, hostedUrlWebm = null, skipHold = 0.8 }) {
     css();
     this.url = url;
     this.urlWebm = urlWebm;
+    this.hostedUrl = hostedUrl;
+    this.hostedUrlWebm = hostedUrlWebm;
     this.skipHold = skipHold;
     this.root = el('div', 'pl-screen pl-video', root);
     this.video = el('video', '', this.root);
@@ -119,7 +123,21 @@ export class Cutscene {
     this.skipFill = el('i', '', this.skipBar);
     el('div', 'cs-paused', this.root, 'PAUSADO');
     this.clickBtn = el('button', 'pl-btn cs-click', this.root, 'Clique para assistir');
+    this.failMsg = el('div', 'cs-fail', this.root, 'Não foi possível carregar o vídeo de abertura. Indo direto para o mar…');
     this.root.style.display = 'none';
+  }
+
+  /**
+   * Fontes em ordem de tentativa: o formato que o navegador toca primeiro (MP4 com H.264/AAC;
+   * senão WebM), primeiro o arquivo do jogo e depois a cópia hospedada (página publicada).
+   * @param {(type: string) => string} canPlay  ex.: `video.canPlayType`
+   * @returns {string[]}
+   */
+  sources(canPlay) {
+    const mp4 = !!canPlay('video/mp4; codecs="avc1.640028, mp4a.40.2"');
+    const local = mp4 ? [this.url, this.urlWebm] : [this.urlWebm, this.url];
+    const hosted = mp4 ? [this.hostedUrl, this.hostedUrlWebm] : [this.hostedUrlWebm, this.hostedUrl];
+    return [...local, ...hosted].filter((u, i, a) => u && a.indexOf(u) === i);
   }
 
   play() {
@@ -154,22 +172,32 @@ export class Cutscene {
         raf = requestAnimationFrame(tick);
       };
       v.onended = finish; // no exato fim do vídeo
-      v.onerror = () => { console.warn('[abertura] vídeo não carregou; indo direto para o jogo'); finish(); };
+      // Cada fonte que falha passa para a próxima; se nenhuma carregar, avisa na tela e segue.
+      const list = this.sources((t) => v.canPlayType(t));
+      let idx = 0;
+      const start = () => {
+        v.src = list[idx];
+        v.currentTime = 0;
+        v.play().then(showHint).catch((err) => {
+          if (err?.name !== 'NotAllowedError') return; // erro de carga: o onerror cuida
+          // Navegador recusou tocar com som sem um gesto: um clique resolve.
+          root.classList.add('blocked');
+          this.clickBtn.onclick = () => { root.classList.remove('blocked'); v.play().then(showHint).catch(finish); };
+        });
+      };
+      v.onerror = () => {
+        console.warn(`[abertura] não carregou: ${list[idx]}`);
+        if (++idx < list.length) { start(); return; }
+        root.classList.add('failed');
+        setTimeout(finish, 2600);
+      };
       window.addEventListener('keydown', down, true);
       window.addEventListener('keyup', up, true);
-      root.classList.remove('paused', 'blocked');
+      root.classList.remove('paused', 'blocked', 'failed');
       root.style.display = 'flex';
       this.spaceDown = false;
-      // MP4 onde houver H.264/AAC; senão WebM (alguns Chromium abertos não têm H.264).
-      const mp4 = v.canPlayType('video/mp4; codecs="avc1.640028, mp4a.40.2"');
-      v.src = mp4 || !this.urlWebm ? this.url : this.urlWebm;
-      v.currentTime = 0;
       v.muted = false;
-      v.play().then(showHint).catch(() => {
-        // Navegador recusou tocar com som sem um gesto: um clique resolve.
-        root.classList.add('blocked');
-        this.clickBtn.onclick = () => { root.classList.remove('blocked'); v.play().then(showHint).catch(finish); };
-      });
+      if (!list.length) { root.classList.add('failed'); setTimeout(finish, 2600); } else start();
       raf = requestAnimationFrame(tick);
     });
   }
