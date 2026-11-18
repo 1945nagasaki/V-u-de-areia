@@ -962,3 +962,8 @@ svg.i.lg { width: 1.6em; height: 1.6em; }
 }
 .bp-gold { margin-left: auto; margin-right: 12px; font-size: 12px; color: var(--gold); white-space: nowrap; }
 .bp-gold + .bp-cap { margin-left: 0; }
+
+/* ===== Dica de arma (lâmina que luta com o combo) ===== */
+.weapon-card { margin: 6px 0 4px; padding: 7px 10px; background: rgba(0,0,0,.35); border-left: 2px solid #9aa0a8; font-size: 12px; line-height: 1.45; color: #cfc6b4; }
+.weapon-card b { color: #eee6d6; letter-spacing: .04em; } .weapon-card em { font-style: normal; color: #f2d58a; font-weight: 600; }
+.weapon-card small { display: block; color: #8a8272; margin-top: 3px; }

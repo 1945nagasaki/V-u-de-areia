@@ -1,5 +1,6 @@
 import { ITEMS } from '../systems/PlayerState.js';
 import { foodCardHTML } from './FoodCard.js';
+import { weaponCardHTML } from './WeaponCard.js';
 import { RecipeIndex } from '../systems/RecipeIndex.js';
 import { Input } from '../core/Input.js';
 import { icon } from './Icons.js';
@@ -238,7 +239,7 @@ export class BackpackUI {
     if (d.hotbar) acts.push(`<button data-act="equip" data-id="${id}">Pôr na hotbar</button>`);
     if (this.mode === 'full' && this.table.length < 4) acts.push(`<button data-act="table" data-id="${id}">Pôr na mesa</button>`);
     const stats = d.gear ? `<ul class="bp-stats">${gearStats(d).map((s) => `<li>${s}</li>`).join('')}</ul>` : '';
-    this.detail.innerHTML = `<div class="bp-detail-head"><span class="ic">${itemIcon(d)}</span><b>${d.name}</b> <span class="ct">×${n}</span></div>${d.forage ? foodCardHTML(d) : `<p>${d.description ?? ''}</p>`}${stats}<div class="bp-actions">${acts.join('')}</div>`;
+    this.detail.innerHTML = `<div class="bp-detail-head"><span class="ic">${itemIcon(d)}</span><b>${d.name}</b> <span class="ct">×${n}</span></div>${d.forage ? foodCardHTML(d) : `<p>${d.description ?? ''}</p>`}${weaponCardHTML(d)}${stats}<div class="bp-actions">${acts.join('')}</div>`;
   }
 
   /** Detalhe de um equipamento (instância): material, dano, durabilidade, carregador. */
@@ -247,7 +248,7 @@ export class BackpackUI {
     const act = slot >= 0
       ? `<button data-act="unequip" data-uid="${inst.uid}" data-id="${inst.id}">Guardar na mochila</button>`
       : `<button data-act="equipUid" data-uid="${inst.uid}" data-id="${inst.id}">Pôr na hotbar</button>`;
-    this.detail.innerHTML = `<div class="bp-detail-head"><span class="ic">${itemIcon(d)}</span><b>${d.name}</b>${slot >= 0 ? ` <span class="ct">slot ${slot + 1}</span>` : ''}</div><p>${d.description}</p><ul class="bp-stats">${gearStats(d, inst).map((s) => `<li>${s}</li>`).join('')}</ul><div class="bp-actions">${act}</div>`;
+    this.detail.innerHTML = `<div class="bp-detail-head"><span class="ic">${itemIcon(d)}</span><b>${d.name}</b>${slot >= 0 ? ` <span class="ct">slot ${slot + 1}</span>` : ''}</div><p>${d.description}</p>${weaponCardHTML(d)}<ul class="bp-stats">${gearStats(d, inst).map((s) => `<li>${s}</li>`).join('')}</ul><div class="bp-actions">${act}</div>`;
   }
 
   /** Ações dos botões (pedidos ao jogo; a UI não muda estado sozinha). */

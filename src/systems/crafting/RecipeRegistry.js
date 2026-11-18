@@ -54,6 +54,7 @@ const HAND_RECIPES = [
   { id: 'corda', output: { item: 'corda', amount: 1 }, station: 'HANDS', craftTime: 1.5, ingredients: [ing('cipo', 2)], category: 'MATERIALS' },
   { id: 'fragmento_osso', output: { item: 'fragmento_osso', amount: 3 }, station: 'HANDS', craftTime: 2, ingredients: [ing('osso'), ing('pedra')], category: 'MATERIALS', hint: 'Quebre o osso com a pedra.' },
   // ---- armas
+  { id: 'adaga_pedra', output: { item: 'adaga_pedra', amount: 1 }, station: 'HANDS', craftTime: 2.5, ingredients: [ing('pedra', 2), ing('graveto')], category: 'WEAPONS', hint: 'Lasque uma pedra na outra e amarre no cabo de graveto.' },
   { id: 'lanca_simples', output: { item: 'lanca_simples', amount: 1 }, station: 'HANDS', craftTime: 2, ingredients: [ing('graveto_longo')], category: 'WEAPONS', hint: 'Aponte a vara com uma pedra.' },
   { id: 'lanca_pedra', output: { item: 'lanca_pedra', amount: 1 }, station: 'HANDS', craftTime: 3, ingredients: [ing('graveto_longo'), ing('lamina_pedra'), ing('corda')], category: 'WEAPONS' },
   { id: 'arco', output: { item: 'arco', amount: 1 }, station: 'HANDS', craftTime: 4, ingredients: [ing('graveto_longo'), ing('corda')], category: 'WEAPONS' },

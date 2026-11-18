@@ -2,6 +2,7 @@ import { ITEMS } from '../../systems/PlayerState.js';
 import { icon } from '../Icons.js';
 import { itemIcon } from '../gear/ItemIcon.js';
 import { foodCardHTML } from '../FoodCard.js';
+import { weaponCardHTML } from '../WeaponCard.js';
 
 export const KIND_LABEL = { medicine: 'Remédio', weapon: 'Arma', tool: 'Ferramenta', material: 'Material', food: 'Comida', key: 'Missão' };
 
@@ -63,7 +64,7 @@ export class ItemTooltip {
     const tags = ix.tagsOf(id).slice(0, 6).map((t) => `<span>#${t}</span>`).join('');
     this.el.innerHTML = `
       <div class="jei-tip-head"><span class="ic">${itemIcon(d)}</span><div><b>${d.name}</b><small>${KIND_LABEL[d.kind] ?? ''}${have ? ` · você tem ${have}` : ''}</small></div></div>
-      ${d.forage ? foodCardHTML(d) : d.description ? `<p>${d.description}</p>` : ''}
+      ${d.forage ? foodCardHTML(d) : d.description ? `<p>${d.description}</p>` : ''}${weaponCardHTML(d)}
       ${tags ? `<div class="jei-tip-tags">${tags}</div>` : ''}
       <div class="jei-tip-keys"><span><kbd>R</kbd> Ver receita${make ? ` (${make})` : ''}</span><span><kbd>U</kbd> Ver usos${uses ? ` (${uses})` : ''}</span></div>`;
     this.el.hidden = false;

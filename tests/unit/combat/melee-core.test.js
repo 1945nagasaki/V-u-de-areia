@@ -307,3 +307,14 @@ test('Skill.setDamageScale: todas as habilidades do jogador aceitam o multiplica
     assert.ok(Math.abs(s.damage - base * 1.5) < 1e-9, s.id);
   }
 });
+
+test('lâmina na mão: (dano do golpe + dano base da arma) × Força, em todo passo do combo', async () => {
+  const { createSkills } = await import('../../../src/combat/Skill.js');
+  const { MELEE } = await import('../../../src/config/meleeCombat.js');
+  const combo = createSkills(MELEE.skills).find((s) => s.id === 'combo');
+  const base = combo.damage;
+  combo.setDamageScale(1.25, 6);
+  assert.ok(Math.abs(combo.damage - (base + 6) * 1.25) < 1e-9);
+  combo.setDamageScale(1, 0);
+  assert.equal(combo.damage, base);
+});

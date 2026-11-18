@@ -1,5 +1,5 @@
 import { ITEMS } from '../PlayerState.js';
-import { MISSION_SAVE_KEY, MISSION_TEXT, OBJECTIVE_TYPES, POST_TUTORIAL_MISSION, fillText } from '../../config/missions.js';
+import { MISSIONS, MISSION_SAVE_KEY, MISSION_TEXT, OBJECTIVE_TYPES, POST_TUTORIAL_MISSION, fillText } from '../../config/missions.js';
 import { MissionManager, isForagedFood } from './MissionManager.js';
 import { floatText } from '../../ui/FloatText.js';
 import { QuestTracker } from '../../ui/QuestTracker.js';
@@ -31,6 +31,14 @@ export class MissionDirector {
     this.tracker = 'tracker' in deps ? deps.tracker : new QuestTracker(game.ui.root);
     this.sounds = 'sounds' in deps ? deps.sounds : new MissionSounds();
     this.manager.onChange((e) => this.onMission(e));
+    // Crafting: o que entra na mochila DURANTE a fabricação na mesa conta como "craftado".
+    const craft = typeof game.craftFromTable === 'function' ? game.craftFromTable : null;
+    if (craft) {
+      game.craftFromTable = (...args) => { this.crafting = true; try { return craft.apply(game, args); } finally { this.crafting = false; } };
+    }
+    game.state.on('item-added', ({ id, n } = {}) => {
+      if (this.crafting) this.manager.progress(OBJECTIVE_TYPES.craft_item, n ?? 1, id);
+    });
     game.state.on('item-added', ({ id, n } = {}) => {
       // Só fruta colhida ou carne coletada; o cru devolvido pela fila da fogueira não conta.
       if (isForagedFood(this.items[id]) && !game.cooking?.returning) this.manager.progress(OBJECTIVE_TYPES.collect_food, n ?? 1);
@@ -51,7 +59,12 @@ export class MissionDirector {
   onMission(e) {
     const g = this.game;
     if (e.type === 'start') g.ui?.toast?.(fillText(MISSION_TEXT.started, { title: e.mission.title }));
-    if (e.type === 'complete') this.reward(e.mission);
+    if (e.type === 'complete') {
+      this.reward(e.mission);
+      // Corrente: a próxima missão começa logo depois das recompensas.
+      const next = MISSIONS[e.mission.id]?.next;
+      if (next) queueMicrotask(() => this.start(next));
+    }
     if (e.type !== 'load' && e.type !== 'reset') this.save();
     this.tracker?.render(this.manager.list());
     if (e.type === 'reset') this.tracker?.hideBanner?.();

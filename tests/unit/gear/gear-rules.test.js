@@ -53,7 +53,7 @@ test('catalogo_camposCentralizados_presentesEmTodoItem', () => {
 test('receitas_soArcoFlechaDePedraEFlechaDeMadeiraSaoFabricaveis', () => {
   const made = new Set(ALL_RECIPES.flatMap((r) => Object.keys(r.out)));
   const used = new Set(ALL_RECIPES.flatMap((r) => [...Object.keys(r.in), ...r.tools]));
-  assert.deepEqual(CRAFTABLE_IDS, ['arco', 'flecha', 'flecha_madeira']);
+  assert.deepEqual(CRAFTABLE_IDS, ['arco', 'flecha', 'flecha_madeira', 'adaga_pedra']);
   for (const id of CRAFTABLE_IDS) assert.ok(made.has(id), `${id} deveria ter receita`);
   assert.deepEqual(ALL_RECIPES.filter((r) => r.out.flecha).map((r) => r.out.flecha), [3], 'a receita rende 3 flechas de pedra');
   for (const [id, d] of Object.entries(GEAR_CATALOG)) {

@@ -64,6 +64,7 @@ export class MissionManager {
       difficulty: def.difficulty,
       difficultyLabel: MISSION_DIFFICULTY[def.difficulty]?.label ?? def.difficulty,
       objectiveType: def.objectiveType,
+      objectiveItem: def.objectiveItem ?? null, // ex.: 'adaga_pedra' (craft_item)
       objectiveText: def.objectiveText,
       targetCount: def.targetCount,
       currentCount: 0,
@@ -90,11 +91,12 @@ export class MissionManager {
    * Soma `n` às missões ativas com esse tipo de objetivo; conclui as que chegam ao alvo.
    * @returns {object[]} missões concluídas nesta chamada
    */
-  progress(type, n = 1) {
+  progress(type, n = 1, item = null) {
     if (!Number.isFinite(n) || n <= 0) return [];
     const done = [];
     for (const m of [...this.active.values()]) {
       if (m.objectiveType !== type) continue;
+      if (m.objectiveItem && m.objectiveItem !== item) continue; // missão de um item específico
       m.currentCount = Math.min(m.targetCount, m.currentCount + n);
       this.emit({ type: 'progress', mission: m });
       if (m.currentCount >= m.targetCount && this.complete(m.id)) done.push(m);

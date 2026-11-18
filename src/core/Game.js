@@ -596,6 +596,8 @@ export class Game {
    */
   tryAttack() {
     if (this.dead) return;
+    // Lâmina na mão (Adaga de Pedra…): luta com o combo, somando o dano dela.
+    if (!this.inventory.maosLivres && this.melee?.armedBlade() && this.melee.canFight()) { this.melee.combo(); return; }
     if (!this.inventory.maosLivres) {
       this.useEquipped(this.inventory.equipado);
       return;

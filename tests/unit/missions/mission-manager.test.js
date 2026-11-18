@@ -149,3 +149,32 @@ test('isForagedFood: só fruta fresca e carne crua da coleta/caça contam para "
   assert.equal(isForagedFood(ITEMS.banana), false, 'banana de loja/kit não conta');
   assert.equal(isForagedFood(ITEMS.pedra), false);
 });
+
+test('corrente: Buscar Comida concluída começa "Craftar uma Adaga de Pedra"; só a adaga feita na mesa conta (+60 XP, +40 ouro)', async () => {
+  const { game, calls, deps } = fakeGame();
+  deps.items.adaga_pedra = { kind: 'weapon' };
+  let crafted = null;
+  game.craftFromTable = (ids) => { crafted = ids; game.state.addItem('adaga_pedra', 1); return { ok: true }; };
+  const d = new MissionDirector(game, deps);
+  d.onTutorialDone();
+  game.state.addItem('fruta', 5);
+  await Promise.resolve(); // a próxima missão entra num microtask, depois das recompensas
+  const m = d.manager.list()[0];
+  assert.equal(m?.id, 'craftar_adaga');
+  assert.equal(m.difficulty, 'facil');
+  game.state.addItem('adaga_pedra', 1); // comprada/achada: não é craft
+  assert.equal(d.manager.list()[0].currentCount, 0);
+  const r = game.craftFromTable(['pedra', 'pedra', 'graveto']);
+  assert.ok(r.ok);
+  assert.deepEqual(crafted, ['pedra', 'pedra', 'graveto']);
+  assert.ok(d.manager.isCompleted('craftar_adaga'));
+  assert.deepEqual(calls.xp, [50, 60]);
+  assert.equal(game.state.coins, 10 + 35 + 40);
+  assert.deepEqual(calls.banner, ['buscar_comida', 'craftar_adaga']);
+});
+
+test('receita: Adaga de Pedra = 2 Pedras + 1 Graveto na mesa da mochila', async () => {
+  const { Crafting } = await import('../../../src/systems/Crafting.js');
+  const r = new Crafting().match(['pedra', 'graveto', 'pedra']);
+  assert.equal(Object.keys(r.out)[0], 'adaga_pedra');
+});

@@ -10,6 +10,11 @@
  * `DEBUG_HITBOX` ligado (ou a tecla `debugKey` no jogo) a área aparece em wireframe.
  */
 export const MELEE = {
+  /**
+   * Armas do pacote de itens (config/gear.js, campo `base`) que lutam com o combo
+   * em vez do golpe simples: o dano base da arma soma em cada golpe, e a Força multiplica tudo.
+   */
+  bladeBases: ['adaga'],
   /** Desenha a área de cada golpe (cone/anel/esfera) só enquanto ela existe (ACTIVE). */
   DEBUG_HITBOX: false,
   /** Tecla que liga/desliga o desenho das hitboxes durante o jogo. */

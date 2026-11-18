@@ -91,7 +91,7 @@ export const WOOD_ARROW = {
   damage: 4, price: 1,
 };
 
-export const CRAFTABLE_IDS = ['arco', 'flecha', WOOD_ARROW.id];
+export const CRAFTABLE_IDS = ['arco', 'flecha', WOOD_ARROW.id, 'adaga_pedra'];
 
 /** Arco de madeira: dano próprio 0, usa só o dano da flecha. */
 export const BOW = {

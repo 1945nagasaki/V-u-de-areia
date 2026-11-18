@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { MELEE } from '../config/meleeCombat.js';
+import { ITEMS } from './PlayerState.js';
+import { hitDamage } from './gear/Equipment.js';
 import { MOVE_SUBSTEP } from '../config/physics.js';
 import { CombatWorld } from '../combat/CombatWorld.js';
 import { CombatEntity } from '../combat/CombatEntity.js';
@@ -71,7 +73,10 @@ export class MeleeController {
     };
     this.world.add(this.player);
     /** Multiplicador de dano dos golpes do jogador (Força da Árvore de Skills). */
-    this.setPlayerDamageScale = (m) => { for (const s of this.player.skills.values()) s.setDamageScale(m); };
+    this.damageScale = 1;
+    this.setPlayerDamageScale = (m) => { this.damageScale = m; this.applyWeaponDamage(); };
+    /** Lâmina na mão (adaga…) que luta com o combo: { uid, def } ou null. */
+    this.blade = null;
     this.playerAnim = new HumanoidCombatAnimator(player.model);
 
     // ---- efeitos
@@ -80,6 +85,7 @@ export class MeleeController {
     this.feel.setArmed(this.player, false);
 
     this.world.on('hit', (a, t, info) => {
+      if (a === this.player && this.blade) this.wearBlade();
       if (a === this.player) game.ui.showHit(`${info.skill === 'combo' ? 'Golpe' : this.player.skills.get(info.skill)?.name ?? 'Golpe'}: ${t.name ?? 'alvo'}${t.maxHealth ? ` · ${Math.max(0, Math.round(t.health))}/${t.maxHealth}` : ''}`, true);
     });
     this.world.on('death', (e) => { if (e.team === 'enemy') game.ui.toast(`${e.name} caiu. Volta em ${MELEE.duelist.respawn} s.`); });
@@ -169,10 +175,34 @@ export class MeleeController {
   }
 
   // ------------------------------------------------------------ jogador
-  /** Pode lutar agora (Mãos Livres, no chão, sem barco/voo/água)? */
+  /** Pode lutar agora (Mãos Livres ou lâmina inteira na mão, no chão, sem barco/voo/água)? */
   canFight() {
     const g = this.game, pl = g.player;
-    return !g.dead && g.inventory.maosLivres && !pl.flying && !pl.swimming && !pl.climbing && !g.boat?.busy;
+    return !g.dead && (g.inventory.maosLivres || this.armedBlade()) && !pl.flying && !pl.swimming && !pl.climbing && !g.boat?.busy;
+  }
+
+  /**
+   * A arma da mão é uma lâmina que luta com o combo (MELEE.bladeBases) e não está quebrada?
+   * @returns {boolean}
+   */
+  armedBlade() {
+    const g = this.game, it = g.inventory.equipado, d = it && ITEMS[it.id];
+    if (!d || !MELEE.bladeBases.includes(d.base) || !it.uid) return false;
+    const inst = g.gear?.store.get(it.uid);
+    return !!inst && !g.gear.store.isBroken(inst);
+  }
+
+  /** Atualiza o dano do combo: (golpe + dano base da lâmina) × Força. */
+  applyWeaponDamage() {
+    const bonus = this.blade ? hitDamage(this.blade.def) : 0;
+    for (const s of this.player.skills.values()) s.setDamageScale(this.damageScale, bonus);
+    this.feel.setArmed(this.player, !!this.blade);
+  }
+
+  /** Cada acerto do combo gasta a lâmina (como o golpe do pacote de itens). */
+  wearBlade() {
+    const g = this.game, inst = g.gear?.store.get(this.blade.uid);
+    if (inst) g.gear.wear(inst, this.blade.def);
   }
 
   /**
@@ -228,6 +258,9 @@ export class MeleeController {
   // ------------------------------------------------------------ quadro
   /** Combate + IA + poses + efeitos. Chamar DEPOIS do player.update. */
   update(dt) {
+    // Trocou de item na mão: o combo ganha (ou perde) o dano da lâmina.
+    const eq = this.game.inventory.equipado, uid = this.armedBlade() ? eq.uid : null;
+    if ((this.blade?.uid ?? null) !== uid) { this.blade = uid ? { uid, def: ITEMS[eq.id] } : null; this.applyWeaponDamage(); }
     const g = this.game, e = this.player;
     const here = g.areaId === 'overworld';
     // Vida da entidade espelha a do PlayerState (poção, comida, respawn…).

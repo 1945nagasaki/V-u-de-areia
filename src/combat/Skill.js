@@ -46,10 +46,14 @@ export class Skill {
     this.hits = new HitOnce();
   }
 
-  /** Multiplicador de dano (ex.: Força da Árvore de Skills). Vale a partir do próximo uso. */
-  setDamageScale(m) {
+  /**
+   * Dano do próximo uso: (dano da habilidade + `bonus`) × `m`.
+   * `m` = Força da Árvore de Skills; `bonus` = dano base da arma na mão (ex.: Adaga de Pedra).
+   */
+  setDamageScale(m, bonus = 0) {
     this.scale.damage = m;
-    this.damage = (this.cfg.damage ?? 0) * m;
+    this.bonus = bonus;
+    this.damage = ((this.cfg.damage ?? 0) + bonus) * m;
   }
 
   /** Pronta no instante `now` (relógio do CombatWorld)? */
@@ -125,16 +129,17 @@ export class ComboSkill extends MeleeSkill {
     this.applyStep();
   }
 
-  /** Multiplicador de dano (ex.: Força da Árvore de Skills). Vale a partir do próximo golpe. */
-  setDamageScale(m) {
+  /** (dano do golpe + `bonus` da arma) × `m` (Força). Vale a partir do próximo golpe. */
+  setDamageScale(m, bonus = 0) {
     this.scale.damage = m;
+    this.bonus = bonus;
     this.applyStep();
   }
 
   applyStep() {
     const s = this.step();
     this.shape.range = s.range; this.shape.angle = s.angle;
-    this.damage = s.damage * this.scale.damage; this.knockback = s.knockback;
+    this.damage = (s.damage + (this.bonus ?? 0)) * this.scale.damage; this.knockback = s.knockback;
   }
 
   /**

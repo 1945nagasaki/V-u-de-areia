@@ -19,7 +19,8 @@ export const MISSION_DIFFICULTY = {
 
 /** Tipos de objetivo que o jogo sabe contar. */
 export const OBJECTIVE_TYPES = {
-  collect_food: 'collect_food', // item com `food: true` ou `kind: 'food'` entrou na mochila
+  collect_food: 'collect_food', // fruta colhida ou carne coletada entrou na mochila
+  craft_item: 'craft_item', // `objectiveItem` saiu da mesa de crafting da mochila
 };
 
 /**
@@ -36,6 +37,19 @@ export const MISSIONS = {
     targetCount: 5,
     xpReward: 50,
     goldReward: 35,
+    next: 'craftar_adaga', // começa assim que esta termina (recompensas já dadas)
+  },
+  craftar_adaga: {
+    id: 'craftar_adaga',
+    title: 'Craftar uma Adaga de Pedra',
+    description: 'Comida não basta. Lasque duas pedras e amarre num graveto: uma lâmina para caçar e se defender.',
+    difficulty: 'facil',
+    objectiveType: OBJECTIVE_TYPES.craft_item,
+    objectiveItem: 'adaga_pedra',
+    objectiveText: 'Crafte uma Adaga de Pedra no menu de Craft',
+    targetCount: 1,
+    xpReward: 60,
+    goldReward: 40,
   },
 };
 
