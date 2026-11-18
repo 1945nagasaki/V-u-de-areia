@@ -1222,6 +1222,7 @@ export class Game {
   assaultAgent(a) {
     if (a.life === 'DEAD') return;
     a.knockOut(LAW.knockoutSeconds);
+    this.melee?.tribes?.onAssault(a); // morador de capital apanhou: a tribo pode reagir (config/tribeBehavior.js)
     this.npcManager.remember(a, 'agredido');
     this.reportCrime('agressao', a.village, a.pos, a);
     this.ui.showHit(`${a.name} desmaiou`, true);

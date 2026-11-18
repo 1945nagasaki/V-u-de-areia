@@ -8,6 +8,7 @@ import { STATE } from '../combat/CombatStates.js';
 import { Duelist } from '../combat/Duelist.js';
 import { HumanoidCombatAnimator } from '../combat/anim/HumanoidCombatAnimator.js';
 import { CombatFeel } from '../combat/render/CombatFeel.js';
+import { TribeController } from './TribeController.js';
 
 /**
  * Liga o combate corpo a corpo (src/combat) ao jogo:
@@ -81,6 +82,8 @@ export class MeleeController {
     });
     this.world.on('death', (e) => { if (e.team === 'enemy') game.ui.toast(`${e.name} caiu. Volta em ${MELEE.duelist.respawn} s.`); });
     this.setupArena();
+    // Bandos das sete capitais: cada tribo com sua regra para forasteiros (config/tribeBehavior.js).
+    this.tribes = new TribeController(this);
   }
 
   // ------------------------------------------------------------ arena
@@ -238,13 +241,10 @@ export class MeleeController {
       d.root.visible = near;
       if (near) d.update(dt, this.world, e);
     }
-    if (near) this.world.update(dt);
-    else {
-      // Longe da arena o mundo de combate só roda para o jogador (e projéteis).
-      this.world.time += dt;
-      e.update(dt, this.world);
-      this.world.updateProjectiles(dt);
-    }
+    // Bandos das capitais (IA e postura de cada tribo) antes das fases dos golpes.
+    this.tribes.update(dt);
+    // Fases dos golpes, hitboxes e projéteis de todos (entidades longe ficam paradas: sem IA, sem golpe).
+    this.world.update(dt);
 
     // Pose de golpe do jogador por cima da animação base (andar/parado) do Player.update.
     const armed = this.canFight() && this.world.time - e.lastCombatAt < MELEE.player.holsterAfter;

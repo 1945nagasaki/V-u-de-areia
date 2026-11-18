@@ -15,13 +15,19 @@ import { MOVE_SUBSTEP } from '../config/physics.js';
  *   // por quadro: d.update(dt, world, playerEntity)
  */
 export class Duelist {
-  constructor({ cfg, x, z, groundAt, collisions, random = Math.random }) {
-    const D = cfg.duelist;
+  /**
+   * @param {object} [o.profile] sobrepõe MELEE.duelist (nome, time, aparência, vida…) — guerreiros das tribos
+   * @param {object} [o.ai] sobrepõe MELEE.ai (raio de visão, coleira)
+   * @param {object} [o.aiHooks] { hostile, alert, patrol } para a EnemyAI (postura da tribo)
+   */
+  constructor({ cfg, x, z, groundAt, collisions, random = Math.random, profile = null, ai = null, aiHooks = {} }) {
+    const D = profile ? { ...cfg.duelist, ...profile } : cfg.duelist;
+    this.profile = D;
     this.cfg = cfg;
     this.groundAt = groundAt;
     this.collisions = collisions;
     this.home = { x, z };
-    this.model = new Humanoid({ height: D.height, ...D.look, rng: random });
+    this.model = new Humanoid({ height: D.height, build: D.build ?? 1, ...D.look, rng: random });
     this.model.root.name = 'duelista';
     this.root = this.model.root;
     this.root.position.set(x, groundAt(x, z), z);
@@ -46,7 +52,7 @@ export class Duelist {
     });
     for (const s of createSkills(cfg.skills, D.skillScale)) this.entity.addSkill(s);
     this.entity.skills.get('combo').cooldown = D.comboCooldown;
-    this.ai = new EnemyAI(this.entity, cfg.ai, { home: this.home, random, walk: D.walkSpeed, run: D.runSpeed });
+    this.ai = new EnemyAI(this.entity, ai ? { ...cfg.ai, ...ai } : cfg.ai, { home: this.home, random, walk: D.walkSpeed, run: D.runSpeed, ...aiHooks });
     this.animator = new HumanoidCombatAnimator(this.model);
     this.deadFor = 0;
     this._ground = (gx, gz) => groundAt(gx, gz, pos.y + 0.3);
@@ -62,7 +68,7 @@ export class Duelist {
     const e = this.entity;
     if (!e.alive) {
       this.deadFor += dt;
-      if (this.deadFor >= this.cfg.duelist.respawn) this.respawn();
+      if (this.deadFor >= this.profile.respawn) this.respawn();
       else { this.model.update(dt, 0, {}); this.animator.apply(e, dt); }
       return;
     }

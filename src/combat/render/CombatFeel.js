@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { STATE } from '../CombatStates.js';
+import { makeWeapon } from './TribeGear.js';
 
 const S = STATE;
 
@@ -45,10 +46,10 @@ export class CombatFeel {
   /**
    * Acompanha uma entidade com corpo Humanoid: põe a arma na mão direita e
    * prepara o rastro.
-   * @param {{ telegraph?: boolean, object?: THREE.Object3D }} o telegraph: brilho de aviso no STARTUP (IA)
+   * @param {{ telegraph?: boolean, weapon?: 'machete'|'spear'|'club'|'bronze'|'bone' }} o telegraph: brilho de aviso no STARTUP (IA)
    */
-  track(entity, humanoid, { telegraph = false } = {}) {
-    const blade = makeMachete();
+  track(entity, humanoid, { telegraph = false, weapon = 'machete' } = {}) {
+    const blade = makeWeapon(weapon);
     humanoid.hands[0].add(blade.root);
     this.ensureOwnMaterials(humanoid.root);
     const trail = new SlashTrail(this.cfg.vfx.slash);
@@ -285,23 +286,6 @@ function coneMesh(shape, color, opacity) {
 function capsuleMesh(width, height, color, opacity) {
   const g = new THREE.BoxGeometry(width * 2, height[1] - height[0], 1).translate(0, (height[0] + height[1]) / 2, -0.5);
   return new THREE.Mesh(g, debugMat(color, opacity));
-}
-
-/** Facão de lâmina larga (cabo + lâmina), segurado na mão: lâmina ao longo do +Z da mão. */
-function makeMachete() {
-  const root = new THREE.Group();
-  root.name = 'faca-combate';
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.02, 0.13, 8).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x3a2414, roughness: 0.9 }));
-  const mat = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, metalness: 0.85, roughness: 0.32, emissive: 0x000000 });
-  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.055, 0.62).translate(0, 0.01, 0.38), mat);
-  const tipM = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.09, 4).rotateX(Math.PI / 2).scale(0.4, 1, 1).translate(0, 0.012, 0.73), mat);
-  root.add(handle, blade, tipM);
-  root.position.set(0, -0.075, 0.02);
-  root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.userData.noFlash = true; } });
-  const tip = new THREE.Object3D(); tip.position.set(0, 0, 0.74);
-  const mid = new THREE.Object3D(); mid.position.set(0, 0, 0.2);
-  root.add(tip, mid);
-  return { root, tip, mid, mat };
 }
 
 /** Anel de aviso no chão (STARTUP da IA). */

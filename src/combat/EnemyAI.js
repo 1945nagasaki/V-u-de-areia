@@ -25,7 +25,17 @@ import { STATE } from './CombatStates.js';
  *   body.walk(intent.mx, intent.mz, intent.speed, dt);
  */
 export class EnemyAI {
-  constructor(entity, cfg, { home, random = Math.random, walk = 1.6, run = 3.6 }) {
+  /**
+   * @param {object} [o.hostile] () => boolean — pode atacar agora? (postura da tribo; padrão: sempre)
+   * @param {object} [o.alert]   () => boolean — converge para o alvo em qualquer distância dentro da coleira
+   * @param {{ radius: number, every: [number, number] }} [o.patrol] ronda em volta do posto quando em paz
+   */
+  constructor(entity, cfg, { home, random = Math.random, walk = 1.6, run = 3.6, hostile = null, alert = null, patrol = null }) {
+    this.hostile = hostile;
+    this.alert = alert;
+    this.patrol = patrol;
+    this.patrolT = 0;
+    this.patrolTo = null;
     this.e = entity;
     this.cfg = cfg;
     this.home = home;
@@ -89,7 +99,10 @@ export class EnemyAI {
     const dist = Math.hypot(dx, dz) || 1e-6;
     const ux = dx / dist, uz = dz / dist;
     const homeD = Math.hypot(e.pos.x - this.home.x, e.pos.z - this.home.z);
-    const engaged = target.alive && dist <= c.aggroRadius && homeD <= c.leashRadius;
+    const allowed = this.hostile ? this.hostile() : true;
+    const near = dist <= c.aggroRadius || (this.alert ? this.alert() : false);
+    const engaged = allowed && target.alive && near && homeD <= c.leashRadius;
+    this.engaged = engaged;
     it.faceX = e.facing.x; it.faceZ = e.facing.z;
 
     // Mira acompanha o alvo (o STARTUP gira até ela; ACTIVE trava).
@@ -102,6 +115,23 @@ export class EnemyAI {
     if (!e.canMove) { this.mode = e.fsm.attacking ? 'attack' : this.mode; return it; }
 
     if (!engaged) {
+      // Em paz: ronda em volta do posto (ou volta para ele).
+      if (this.patrol && homeD <= this.patrol.radius + 2) {
+        this.patrolT -= dt;
+        if (!this.patrolTo || this.patrolT <= 0) {
+          const a = this.random() * Math.PI * 2, r = this.random() * this.patrol.radius;
+          this.patrolTo = { x: this.home.x + Math.sin(a) * r, z: this.home.z + Math.cos(a) * r };
+          const [lo, hi] = this.patrol.every;
+          this.patrolT = lo + this.random() * (hi - lo);
+        }
+        const px = this.patrolTo.x - e.pos.x, pz = this.patrolTo.z - e.pos.z, pd = Math.hypot(px, pz);
+        if (pd > 0.6) {
+          this.mode = 'patrol';
+          it.mx = px / pd; it.mz = pz / pd; it.speed = this.walkSpeed * 0.7;
+          it.faceX = it.mx; it.faceZ = it.mz;
+        } else this.mode = 'idle';
+        return it;
+      }
       if (homeD > 1.5) {
         this.mode = 'return';
         it.mx = (this.home.x - e.pos.x) / homeD; it.mz = (this.home.z - e.pos.z) / homeD; it.speed = this.walkSpeed;
