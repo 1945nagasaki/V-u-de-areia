@@ -125,3 +125,17 @@ test('ia_alerta_convergeDeLonge', () => {
   assert.equal(ai.mode, 'approach');
   assert.ok(it.mz > 0.9 && it.speed > 2, 'corre até o jogador');
 });
+
+test('emboscada_cadaGuerreiroDeTocaiaPertoDeUmLaco', async () => {
+  // Regressão (visto no jogo): o laço disparava a emboscada, mas todos os guerreiros estavam a mais de 35 m.
+  const { TribeController } = await import('../../../src/systems/TribeController.js');
+  const fake = { game: { villages: { espelhoTurvo: { x: 0, z: 0, radius: 150, npcSpots: [] } } }, world: { on() {}, time: 0 }, player: {} };
+  const tc = new TribeController(fake);
+  const t = tc.byId.get('espelhoTurvo');
+  const traps = tc.trapSpots(t), posts = tc.posts(t), R = T.espelhoTurvo.revealRadius;
+  assert.equal(posts.length, TRIBE_BEHAVIOR.warriors);
+  for (const p of posts) {
+    const d = Math.min(...traps.map((tr) => Math.hypot(p.x - tr.x, p.z - tr.z)));
+    assert.ok(d < R * 0.6, `guerreiro a ${d.toFixed(1)} m do laço mais perto`);
+  }
+});

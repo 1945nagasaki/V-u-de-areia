@@ -58,9 +58,16 @@ export class TribeController {
   posts(t) {
     const v = t.village, n = TRIBE_BEHAVIOR.warriors, out = [];
     if (t.cfg.rule === 'ambush') {
+      // De tocaia junto aos laços: cada guerreiro fica para dentro da mata, de um lado da trilha.
+      const traps = this.trapSpots(t);
       for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2 + 0.4, r = v.radius * (0.78 + 0.1 * (i % 2));
-        out.push({ x: v.x + Math.sin(a) * r, z: v.z + Math.cos(a) * r });
+        const tr = traps[i % traps.length];
+        const a = Math.atan2(tr.x - v.x, tr.z - v.z), side = i % 2 ? 1 : -1;
+        const inward = t.cfg.ambushDepth ?? 9, flank = t.cfg.ambushFlank ?? 6;
+        out.push({
+          x: tr.x - Math.sin(a) * inward + Math.cos(a) * flank * side,
+          z: tr.z - Math.cos(a) * inward - Math.sin(a) * flank * side,
+        });
       }
       return out;
     }
@@ -107,13 +114,21 @@ export class TribeController {
     if (cfg.traps) this.buildTraps(t);
   }
 
+  /** Onde ficam os laços: na borda da cidade, espalhados em volta (mesmas posições a cada partida). */
+  trapSpots(t) {
+    const v = t.village, n = t.cfg.traps ?? 0, out = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + 1.1, r = v.radius * (0.9 + 0.08 * Math.sin(i * 3.1));
+      out.push({ x: v.x + Math.sin(a) * r, z: v.z + Math.cos(a) * r });
+    }
+    return out;
+  }
+
   /** Laços no chão nas trilhas de chegada (Espelho-Turvo): quase invisíveis até alguém pisar. */
   buildTraps(t) {
     const v = t.village, g = this.game;
     const geo = new THREE.TorusGeometry(0.32, 0.018, 6, 18).rotateX(Math.PI / 2);
-    for (let i = 0; i < t.cfg.traps; i++) {
-      const a = (i / t.cfg.traps) * Math.PI * 2 + 1.1, r = v.radius * (0.9 + 0.08 * Math.sin(i * 3.1));
-      const x = v.x + Math.sin(a) * r, z = v.z + Math.cos(a) * r;
+    for (const { x, z } of this.trapSpots(t)) {
       const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x4a3a24, roughness: 1, transparent: true, opacity: 0.35 }));
       m.position.set(x, g.groundHeight(x, z) + 0.03, z);
       m.name = 'laco-armadilha';

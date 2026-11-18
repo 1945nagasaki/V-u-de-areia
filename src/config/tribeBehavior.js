@@ -51,6 +51,7 @@ export const TRIBE_BEHAVIOR = {
       look: { skin: 0x6e4529, shirt: 0x4a5a2a, pants: 0x8a7a30, straps: 0x6a6a30, hair: 0x111111 },
       mask: null, weapon: 'machete',
       traps: 5, trapPin: 1.6, // laços no caminho: prendem o jogador por N s e disparam a emboscada
+      ambushDepth: 9, ambushFlank: 6, // m: tocaia para dentro da mata e para o lado da trilha, junto a cada laço
       spotted: 'Emboscada do Espelho-Turvo!',
       trapped: 'Um laço escondido prendeu sua perna!',
     },
