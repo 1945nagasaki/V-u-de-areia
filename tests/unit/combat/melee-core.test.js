@@ -297,3 +297,13 @@ test('combo_contraAlvoQueRecua_osTresGolpesConectam', () => {
   }
   assert.equal(hits, 3, `acertos: ${hits}`);
 });
+
+test('Skill.setDamageScale: todas as habilidades do jogador aceitam o multiplicador da Força', async () => {
+  const { createSkills } = await import('../../../src/combat/Skill.js');
+  const { MELEE } = await import('../../../src/config/meleeCombat.js');
+  for (const s of createSkills(MELEE.skills)) {
+    const base = s.damage;
+    s.setDamageScale(1.5);
+    assert.ok(Math.abs(s.damage - base * 1.5) < 1e-9, s.id);
+  }
+});

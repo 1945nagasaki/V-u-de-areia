@@ -46,6 +46,12 @@ export class Skill {
     this.hits = new HitOnce();
   }
 
+  /** Multiplicador de dano (ex.: Força da Árvore de Skills). Vale a partir do próximo uso. */
+  setDamageScale(m) {
+    this.scale.damage = m;
+    this.damage = (this.cfg.damage ?? 0) * m;
+  }
+
   /** Pronta no instante `now` (relógio do CombatWorld)? */
   ready(now) { return now >= this.readyAt; }
   /** s até ficar pronta. */
