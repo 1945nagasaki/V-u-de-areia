@@ -209,9 +209,19 @@ export class OceanPrologue {
     this.hud.setFade(0); // sem resto do escurecimento do começo
     this.sea.stop();
     if (this.windSaved) { g.water.setWind?.(this.windSaved); this.windSaved = null; }
-    const ok = this.checkpoint.save({ x: p.position.x, y: p.position.y, z: p.position.z, yaw: Math.atan2(p.facing.x, p.facing.z), hour: g.gameClock.hour, phase: 'ilha' });
+    const ok = this.saveCheckpoint();
     g.ui.toast(`Você chegou à ilha, exausto, mas vivo.${ok ? ' Progresso salvo.' : ''}`);
     g.progress?.onLanded(); // XP da chegada e começo do tutorial
+  }
+
+  /**
+   * Checkpoint na posição atual (chegada à ilha, missão concluída…). Só em terra
+   * firme, fora do prólogo no mar. @returns {boolean}
+   */
+  saveCheckpoint() {
+    const g = this.game, p = g.player;
+    if (this.state !== 'done' || g.areaId !== 'overworld' || p.swimming || p.flying) return false;
+    return this.checkpoint.save({ x: p.position.x, y: p.position.y, z: p.position.z, yaw: Math.atan2(p.facing.x, p.facing.z), hour: g.gameClock.hour, phase: 'ilha' });
   }
 
   // ------------------------------------------------------------ afogamento

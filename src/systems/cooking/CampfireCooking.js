@@ -72,7 +72,7 @@ export class CampfireCooking {
   remove(index) {
     const c = this.fire?.cooker;
     const raw = c?.remove(index);
-    if (raw) this.game.state.addItem(raw);
+    if (raw) { this.returning = true; this.game.state.addItem(raw); this.returning = false; } // devolução: não é coleta
     this.ui?.refresh();
   }
 
