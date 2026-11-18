@@ -112,7 +112,7 @@ export class CombatWorld {
     h.heavy = !!spec.heavy; h.attacker = att; h.skill = spec.skill ?? '';
     const landed = t.takeHit(h, this);
     if (!landed) return false;
-    const stop = this.feel.hitstop * (spec.heavy ? 1.6 : 1);
+    const stop = this.feel.hitstop * (spec.heavy ? this.feel.heavyHitstop ?? 1.6 : 1);
     if (att.hitstop !== undefined && !spec.projectile) att.hitstop = Math.max(att.hitstop, stop);
     if (t.hitstop !== undefined) t.hitstop = Math.max(t.hitstop, stop);
     const i = this._info;

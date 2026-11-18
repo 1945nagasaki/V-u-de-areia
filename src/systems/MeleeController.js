@@ -55,7 +55,7 @@ export class MeleeController {
     };
     this.player = new CombatEntity({
       name: 'Você', team: P.team, body, health: game.state.maxHealth, radius: P.radius, height: P.height,
-      hitstun: P.hitstun, dodge: P.dodge, knockbackDamp: MELEE.feel.knockbackDamp,
+      hitstun: P.hitstun, dodge: P.dodge, knockbackDamp: MELEE.feel.knockbackDamp, heavyHitstun: MELEE.feel.heavyHitstun, turnRate: P.turnRate,
       hooks: {
         // A vida é a do PlayerState: o dano passa pelo caminho normal (morte, mensagens, ferimentos).
         damage: (amount, hit) => { game.damagePlayer(amount, hit.attacker?.name ?? 'golpe'); return game.dead ? 0 : game.state.health; },
@@ -127,7 +127,7 @@ export class MeleeController {
     for (const t of this.game.combat.targets.values()) {
       if (!t.enabled() || !t.object.visible) continue;
       t.object.getWorldPosition(this._wp);
-      if ((this._wp.x - p.x) ** 2 + (this._wp.z - p.z) ** 2 > 18 * 18) continue;
+      if ((this._wp.x - p.x) ** 2 + (this._wp.z - p.z) ** 2 > MELEE.feel.passiveRadius ** 2) continue;
       let a = this._adapters.get(t);
       if (!a) {
         const dir = new THREE.Vector3(), point = new THREE.Vector3();
@@ -151,11 +151,11 @@ export class MeleeController {
     }
   }
 
-  /** Parede entre dois pontos (amostra o CollisionWorld a cada 0,25 m). @returns fração 0..1 ou -1 */
+  /** Parede entre dois pontos (amostra o CollisionWorld a cada `feel.wallStep` m). @returns fração 0..1 ou -1 */
   blocked(ax, az, bx, bz) {
     const c = this.game.collisions;
     const L = Math.hypot(bx - ax, bz - az);
-    const n = Math.max(1, Math.ceil(L / 0.25));
+    const n = Math.max(1, Math.ceil(L / MELEE.feel.wallStep));
     for (let i = 1; i <= n; i++) {
       const u = i / n;
       if (c.overlaps(ax + (bx - ax) * u, az + (bz - az) * u, 0)) return u;

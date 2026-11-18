@@ -36,6 +36,7 @@ export const MELEE = {
     radius: 0.4,
     height: 1.8,
     hitstun: 0.28, // s em STUNNED ao levar um golpe
+    turnRate: 10, // rad/s — no STARTUP o corpo gira até a mira
     /** Esquiva: o único cancelamento permitido (de IDLE/MOVING/RECOVERY). */
     dodge: { distance: 3.2, duration: 0.28, iframes: 0.24, cooldown: 0.55 },
     /** Arma que aparece na mão ao entrar em combate e some depois de `holsterAfter` s sem lutar. */
@@ -50,6 +51,10 @@ export const MELEE = {
     flashColorHurt: 0xff4030, // quando quem leva o golpe é o jogador
     shake: { hit: 0.06, heavy: 0.11, taken: 0.09, decay: 9 }, // m de tremor da câmera e queda por segundo
     knockbackDamp: 9, // 1/s — o empurrão desacelera suave
+    heavyHitstop: 1.6, // × hitstop nos golpes pesados (3º do combo, investida)
+    heavyHitstun: 1.5, // × tempo atordoado nos golpes pesados
+    passiveRadius: 18, // m — NPCs/animais/boneco a esta distância do jogador entram como alvo
+    wallStep: 0.25, // m — passo da amostragem de parede entre atacante e alvo (golpe e projétil)
   },
 
   /** Golpes. `angle`: abertura TOTAL do cone (360 = em volta). `height`: faixa vertical acertável acima dos pés do atacante. */
@@ -59,8 +64,9 @@ export const MELEE = {
       cooldown: 0,
       // Um passo por golpe; o input do próximo vale durante a janela (fim do ACTIVE + RECOVERY).
       steps: [
-        { startup: 0.12, active: 0.08, recovery: 0.26, range: 2.1, angle: 100, damage: 8, knockback: 1.2, animation: 'slashRight', lunge: 0.35 },
-        { startup: 0.10, active: 0.08, recovery: 0.26, range: 2.1, angle: 100, damage: 10, knockback: 1.6, animation: 'slashLeft', lunge: 0.35 },
+        // Golpes 1 e 2: empurrão curto (o alvo continua no alcance e o combo conecta); o avanço acompanha.
+        { startup: 0.12, active: 0.08, recovery: 0.26, range: 2.1, angle: 100, damage: 8, knockback: 0.35, animation: 'slashRight', lunge: 0.45 },
+        { startup: 0.10, active: 0.08, recovery: 0.26, range: 2.1, angle: 100, damage: 10, knockback: 0.45, animation: 'slashLeft', lunge: 0.45 },
         { startup: 0.18, active: 0.10, recovery: 0.42, range: 2.4, angle: 70, damage: 18, knockback: 4.5, animation: 'overhead', lunge: 0.6, heavy: true },
       ],
       inputWindow: 0.3, // s depois do fim do ACTIVE em que o próximo clique continua o combo
@@ -105,6 +111,7 @@ export const MELEE = {
     walkSpeed: 1.6,
     runSpeed: 3.6,
     hitstun: 0.32,
+    turnRate: 6, // rad/s — gira mais devagar que o jogador no STARTUP: dá para sair do cone
     respawn: 25, // s depois de cair
     // Mais lento que o jogador: o brilho do STARTUP dá tempo de reagir.
     skillScale: { startup: 1.6, damage: 0.6, cooldown: 1.3 },

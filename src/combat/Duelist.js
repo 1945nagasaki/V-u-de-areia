@@ -42,11 +42,10 @@ export class Duelist {
     };
     this.entity = new CombatEntity({
       name: D.name, team: D.team, body, health: D.health, radius: D.radius, height: D.height,
-      hitstun: D.hitstun, knockbackDamp: cfg.feel.knockbackDamp,
+      hitstun: D.hitstun, knockbackDamp: cfg.feel.knockbackDamp, heavyHitstun: cfg.feel.heavyHitstun, turnRate: D.turnRate,
     });
     for (const s of createSkills(cfg.skills, D.skillScale)) this.entity.addSkill(s);
     this.entity.skills.get('combo').cooldown = D.comboCooldown;
-    this.entity.turnRate = 6; // gira mais devagar que o jogador no STARTUP: dá para sair do cone
     this.ai = new EnemyAI(this.entity, cfg.ai, { home: this.home, random, walk: D.walkSpeed, run: D.runSpeed });
     this.animator = new HumanoidCombatAnimator(this.model);
     this.deadFor = 0;

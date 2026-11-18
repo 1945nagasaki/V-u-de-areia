@@ -283,3 +283,17 @@ test('ia_tudoEmRecarga_circulaDeLado', () => {
   assert.ok(Math.abs(it.mz) < 0.3 && Math.abs(it.mx) > 0.9, `intent ${it.mx.toFixed(2)},${it.mz.toFixed(2)}`);
   assert.ok(it.speed > 0);
 });
+
+test('combo_contraAlvoQueRecua_osTresGolpesConectam', () => {
+  // Regressão (visto no jogo): o empurrão do 1º golpe tirava o alvo do alcance do 2º.
+  const p = fighter('player'), e = fighter('enemy', 0, 1.6, 0, -1, 1000);
+  const w = setup(p, e);
+  let hits = 0;
+  w.on('hit', () => hits++);
+  p.useSkill('combo', w);
+  for (let f = 0; f < 600 && p.skill; f++) {
+    if (p.state === S.ACTIVE) p.useSkill('combo', w); // jogador clicando na janela
+    w.update(DT);
+  }
+  assert.equal(hits, 3, `acertos: ${hits}`);
+});

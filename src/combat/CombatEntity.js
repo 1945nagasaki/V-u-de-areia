@@ -31,7 +31,7 @@ export class CombatEntity {
    *   hitstun?: number, dodge?: { distance: number, duration: number, iframes: number, cooldown: number },
    *   hooks?: { damage?: (amount: number, hit: object) => number, onDeath?: () => void } }} o
    */
-  constructor({ name, team, body, health = 100, radius = 0.4, height = 1.8, hitstun = 0.3, dodge = null, hooks = {}, knockbackDamp = 9 }) {
+  constructor({ name, team, body, health = 100, radius = 0.4, height = 1.8, hitstun = 0.3, dodge = null, hooks = {}, knockbackDamp = 9, heavyHitstun = 1.5, turnRate = 10 }) {
     this.name = name;
     this.team = team;
     this.body = body;
@@ -58,7 +58,8 @@ export class CombatEntity {
     this.kvx = 0; this.kvz = 0; // empurrão (m/s), amortecido
     this.ivx = 0; this.ivz = 0; this.iLeft = 0; // avanço do próprio golpe
     this.aim = { x: body.facing.x, z: body.facing.z };
-    this.turnRate = 10; // rad/s no STARTUP (mira acompanha o alvo até o golpe sair)
+    this.turnRate = turnRate; // rad/s no STARTUP (mira acompanha o alvo até o golpe sair)
+    this.heavyHitstun = heavyHitstun;
     this.dodgeDir = { x: 0, z: 0 };
     this.dodgeReadyAt = 0;
     this.lastCombatAt = -Infinity;
@@ -159,7 +160,7 @@ export class CombatEntity {
       world?.emit('death', this);
       return true;
     }
-    this.stunFor = this.hitstunTime * (hit.heavy ? 1.5 : 1);
+    this.stunFor = this.hitstunTime * (hit.heavy ? this.heavyHitstun : 1);
     this.fsm.enter(S.STUNNED);
     return true;
   }
