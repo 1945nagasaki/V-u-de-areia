@@ -193,6 +193,8 @@ export class TribeController {
       if (s.revealed && w.hidden && w.alive) {
         // A tribo seguia o forasteiro pela mata: todos saem EM VOLTA dele, de lados diferentes.
         this.placeAround(w, p, (k++ / Math.max(1, hiddenNow)) * Math.PI * 2 + 0.7, c.surroundRadius ?? 11);
+        // O novo posto é onde saiu da mata (a coleira da IA conta daqui; volta a se esconder aqui).
+        w.ai.home = { x: w.root.position.x, z: w.root.position.z };
         w.hidden = false;
         this.world.add(w.entity);
         this.melee.feel.burst(w.entity.pos.x, w.entity.pos.y + 1, w.entity.pos.z, 0x4a6a2a, 16); // folhas
