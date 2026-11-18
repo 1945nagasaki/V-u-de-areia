@@ -907,3 +907,38 @@ svg.i.lg { width: 1.6em; height: 1.6em; }
 .tiers { display: flex; gap: 4px; } .tiers i { flex: 1; height: 6px; background: rgba(255,255,255,0.1); } .tiers i.on { background: #e8c27a; }
 @media (max-width: 700px) { .branches { grid-template-columns: 1fr; } .sv-tut { width: 260px; } }
 @media (prefers-reduced-motion: reduce) { .sv-tut.enter, .sv-level.can kbd { animation: none; } }
+
+/* ===== Comida: dica do item, painel da fogueira, "+X Fome" ===== */
+.food-card { margin: 6px 0 2px; padding: 8px 10px; background: rgba(0,0,0,.35); border-left: 2px solid #8a6a3a; font-size: 12px; line-height: 1.4; color: #cfc6b4; }
+.food-card .fc-badge { display: inline-block; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; padding: 2px 6px; border: 1px solid currentColor; border-radius: 2px; margin-bottom: 6px; }
+.food-card.fruta_fresca .fc-badge { color: #9fd08a; } .food-card.fruta_assada .fc-badge { color: #e8b04a; }
+.food-card.carne_crua .fc-badge { color: #e0706a; } .food-card.carne_assada .fc-badge { color: #d88a3a; }
+.food-card .fc-hunger { font-size: 15px; font-weight: 600; color: #f2d58a; margin-bottom: 4px; }
+.food-card .fc-how { margin: 0 0 4px; } .food-card .fc-time { color: #eee6d6; }
+.cf-modal { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); z-index: 45; pointer-events: auto; }
+.cf-modal.hidden { display: none; }
+.cf-card { width: min(900px, 96vw); max-height: 88vh; overflow: auto; padding: 16px 18px; background: rgba(12,10,9,.95); border: 1px solid rgba(230,160,90,.25); color: #eee6d6; font-family: 'Segoe UI', system-ui, sans-serif; }
+.cf-title { font: 300 22px Georgia, serif; letter-spacing: .05em; margin-bottom: 12px; color: #f0c890; }
+.cf-title small { font: 11px system-ui; letter-spacing: .15em; color: #9a917f; margin-left: 10px; text-transform: uppercase; }
+.cf-cols { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 16px; }
+.cf-cols h4 { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #cfc6b4; margin: 0 0 8px; font-weight: 500; }
+.cf-cols h4 small { color: #9a917f; letter-spacing: 0; margin-left: 6px; }
+.cf-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.cf-chip { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; text-align: left; padding: 5px 8px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); color: inherit; font: 13px system-ui; cursor: pointer; border-radius: 2px; }
+.cf-chip:hover { border-color: #e8a85a; background: rgba(232,168,90,.12); }
+.cf-chip .ic svg { width: 18px; height: 18px; } .cf-chip .ct { color: #9a917f; font-size: 12px; }
+.cf-cur { padding: 8px; border: 1px solid rgba(232,140,60,.4); background: rgba(232,120,40,.08); margin-bottom: 8px; }
+.cf-cur-h { display: flex; gap: 6px; align-items: center; font-size: 13px; } .cf-cur-h .ic svg { width: 18px; height: 18px; }
+.cf-bar { height: 6px; background: rgba(255,255,255,.08); margin: 8px 0 4px; } .cf-bar i { display: block; height: 100%; background: linear-gradient(90deg, #c8501a, #f0a040); transition: width .1s linear; }
+.cf-cur em { font-style: normal; font-size: 12px; color: #f0c890; }
+.cf-queue { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; } .cf-queue small { color: #9a917f; }
+.cf-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.cf-btn { cursor: pointer; border: 1px solid rgba(230,210,170,.28); background: rgba(255,255,255,.04); color: #eee6d6; font: 500 11px system-ui; letter-spacing: .08em; text-transform: uppercase; padding: 6px 10px; }
+.cf-btn:hover:not(:disabled) { border-color: #e8a85a; } .cf-btn:disabled { opacity: .35; cursor: default; }
+.cf-tip { padding-left: 12px; border-left: 1px solid rgba(255,255,255,.08); font-size: 13px; }
+.cf-tip-h { display: flex; gap: 6px; align-items: center; } .cf-tip-h .ic svg { width: 20px; height: 20px; }
+.cf-dim { color: #8a8272; font-size: 12px; margin: 4px 0 8px; }
+.float-gain { position: absolute; left: 50%; top: 46%; transform: translateX(-50%); font: 600 26px Georgia, serif; color: #f2d58a; text-shadow: 0 2px 10px #000; pointer-events: none; z-index: 60; animation: floatUp 1.6s ease-out forwards; }
+@keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 10px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60px); } }
+@media (max-width: 760px) { .cf-cols { grid-template-columns: 1fr; } .cf-tip { border: 0; padding: 0; } }
+@media (prefers-reduced-motion: reduce) { .float-gain { animation: none; opacity: 1; } .cf-bar i { transition: none; } }

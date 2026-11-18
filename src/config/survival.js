@@ -1,3 +1,4 @@
+import { FOOD_ITEMS, nutritionFor } from './foods.js';
 /**
  * Sobrevivência avançada (data-driven): nutrição por macronutrientes,
  * stamina, sanidade, sujeira, ferimentos por membro e doenças.
@@ -219,6 +220,10 @@ export const FOODS = {
   soro_antirrabico: { name: 'Soro Antirrábico', icon: 'syringe' },
   cataplasma_antibiotico: { name: 'Cataplasma Antibiótico', icon: 'bandage' },
   refeicao_vila: { name: 'Refeição da Vila', icon: 'bowl', proteins: 30, carbs: 30, fats: 22, water: 10 },
+  // ---- coleta e caça por espécie (config/foods.js): a Fome do item vira nutrição
+  ...Object.fromEntries(Object.entries(FOOD_ITEMS).map(([id, f]) => [id, {
+    name: f.name, icon: f.category === 'carne' ? 'meat' : 'fruit', sweet: f.category === 'fruta', ...nutritionFor(f),
+  }])),
 };
 
 /**

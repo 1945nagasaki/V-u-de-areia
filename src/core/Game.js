@@ -32,6 +32,12 @@ import { setHumanClipLibrary } from '../entities/Humanoid.js';
 import { HUMAN_ANIMATION } from '../config/humanAnimation.js';
 import { MeleeController } from '../systems/MeleeController.js';
 import { ProgressionDirector } from '../systems/ProgressionDirector.js';
+import { CampfireCooking } from '../systems/cooking/CampfireCooking.js';
+import { MeatLoot } from '../systems/cooking/MeatLoot.js';
+import { CampfireUI } from '../ui/CampfireUI.js';
+import { FoodSounds } from '../audio/FoodSounds.js';
+import { floatText } from '../ui/FloatText.js';
+import { SPECIES_LOOT } from '../config/foods.js';
 import { OceanPrologue } from '../systems/prologue/OceanPrologue.js';
 import { ANIMAL_MODELS, ANIMAL_LOADER } from '../config/animalModels.js';
 import { Oxygen } from '../systems/Oxygen.js';
@@ -496,6 +502,12 @@ export class Game {
     ui.hideLoading();
     // Tela inicial: Novo Jogo (abertura + naufrágio) · Continuar (checkpoint) · Modo livre (Vila Renascimento).
     this.progress = new ProgressionDirector(this);
+    // Comida: carne por espécie no chão, assar SÓ na fogueira (painel com cronômetro), sons.
+    this.foodSounds = new FoodSounds();
+    this.campfireUI = new CampfireUI(this.ui.root, () => this.cooking);
+    this.cooking = new CampfireCooking(this, { ui: this.campfireUI, sounds: this.foodSounds });
+    this.meatLoot = new MeatLoot(this, { sounds: this.foodSounds });
+    this.onAnimalDied = (a) => this.meatLoot.drop(a);
     this.prologue = new OceanPrologue(this);
     this.prologue.showMenu();
   }
@@ -1666,7 +1678,7 @@ export class Game {
     let loot = null, ld = 2.4;
     for (const list of Object.values(this.lootPool)) for (const p of list) { if (!p.active) continue; const d = Math.hypot(p.pos.x - pos.x, p.pos.z - pos.z); if (d < ld) { ld = d; loot = p; } }
     H.loot.enabled = !!loot; H.loot.pos = loot?.pos ?? null; this._loot = loot;
-    if (loot) H.loot.label = `Pegar ${ITEMS[PROP_TYPES[loot.type].item].name}`;
+    if (loot) H.loot.label = `Pegar ${ITEMS[loot.itemOverride ?? PROP_TYPES[loot.type].item].name}`;
     const pj = this.projectiles.nearestLanded(pos);
     H.projectile.enabled = !!pj; H.projectile.pos = pj?.pos ?? null; this._projectile = pj;
     if (pj) H.projectile.label = `Pegar ${ITEMS[pj.item].name}`;
@@ -1783,27 +1795,34 @@ export class Game {
     });
   }
 
+  /** E perto de uma fogueira acesa: abre o painel "Fogueira — Assar Alimentos" (único lugar onde se cozinha). */
   useFire() {
     const fire = this._fire;
     if (!fire) return;
-    const opts = [];
-    for (const [raw, cooked] of Object.entries(COOKING.recipes)) {
-      if (!this.state.hasItem(raw) || raw === cooked) continue;
-      opts.push({
-        label: `${raw.startsWith('agua') ? 'Ferver' : 'Assar'} ${ITEMS[raw].name} → ${ITEMS[cooked].name}`,
-        onSelect: () => { this.state.removeItem(raw); this.state.addItem(cooked); this.ui.toast(`${ITEMS[cooked].name}: pronto.`); this.useFire(); },
-      });
-    }
-    const cool = this.time - (fire.ashAt ?? -Infinity) < COOKING.ashCooldown;
-    opts.push({ label: cool ? 'Recolher cinza (ainda quente…)' : 'Recolher cinza', disabled: cool, onSelect: () => { fire.ashAt = this.time; this.state.addItem('cinza'); this.ui.toast('Cinza de Fogueira na mochila.'); } });
-    opts.push({ label: 'Sair' });
-    this.ui.dialogue.open({ speaker: 'Fogueira', text: opts.length > 2 ? 'O fogo crepita. O que você quer preparar?' : 'O fogo crepita. Nada para assar ou ferver na mochila.', options: opts });
+    this.cooking.open(fire);
+  }
+
+  /**
+   * Come 1 unidade de uma comida da coleta/caça: mata a Fome mostrada no item
+   * (as barras de nutrição param no máximo), mastiga e mostra "+X Fome".
+   * @param {string} id
+   * @returns {boolean}
+   */
+  eatFood(id) {
+    const f = ITEMS[id]?.forage;
+    if (!f || !this.state.removeItem(id)) return false;
+    const msg = this.survival.consume(id);
+    this.foodSounds?.chew();
+    floatText(this.ui.root, `+${f.hunger} Fome`, 'hunger');
+    const extra = String(msg ?? '').split(', ').slice(1).join(', '); // efeitos além do nome (cura, calma…)
+    this.ui.toast(`Você comeu ${ITEMS[id].name}: +${f.hunger} de Fome.${extra ? ` (${extra})` : ''}`);
+    return true;
   }
 
   pickLoot() {
     const p = this._loot;
     if (!p || !p.active) return; // já guardada neste quadro
-    const item = PROP_TYPES[p.type].item;
+    const item = p.itemOverride ?? PROP_TYPES[p.type].item;
     this.physics.storeProp(p);
     this.state.addItem(item);
     this.ui.toast(`${ITEMS[item].name} na mochila.`);
@@ -1827,7 +1846,9 @@ export class Game {
         const ang = this.random() * Math.PI * 2, r = 0.4 + this.random() * 0.8;
         this.physics.placeProp(p, { x: q.x + Math.cos(ang) * r, y: q.y + 0.6 + this.random() * 0.4, z: q.z + Math.sin(ang) * r },
           { x: Math.cos(ang) * SKINNING.tossSpeed, y: 1.5, z: Math.sin(ang) * SKINNING.tossSpeed });
-        const item = PROP_TYPES[type].item;
+        // A carne da esfola é a da espécie (config/foods.js SPECIES_LOOT), não a genérica.
+        p.itemOverride = type === 'carne' ? SPECIES_LOOT[a.speciesId]?.meat ?? null : null;
+        const item = p.itemOverride ?? PROP_TYPES[type].item;
         count[item] = (count[item] ?? 0) + 1;
       }
     }
@@ -1880,7 +1901,7 @@ export class Game {
     }
     // Esc abre/fecha o menu quando nenhum outro painel está aberto (os outros fecham com Esc antes)
     const ui0 = this.ui, othersOpen = ui0.graphicsOpen || ui0.dialogue.isOpen || !ui0.worldMap.classList.contains('hidden')
-      || this.inspection.active || this.backpack.open || this.notebookUI.open || this.progress?.panelOpen;
+      || this.inspection.active || this.backpack.open || this.notebookUI.open || this.progress?.panelOpen || this.cooking?.isOpen;
     if (this.input.pressed('Escape') && (this.pauseMenu.open || !othersOpen)) { this.pauseMenu.toggle(); this.input.consume?.('Escape'); }
     // menu aberto = jogo pausado (dt 0: nada anda, a cena continua desenhada)
     // timeScale: câmera lenta de depuração (F7, para ajustar o tempo das hitboxes); 0 congela.
@@ -1902,7 +1923,7 @@ export class Game {
       if (input.pressed('ArrowRight')) this.setGraphics(stepPreset(this.graphics.id, 1).id);
       if (input.pressed('Escape')) ui.toggleGraphics(false);
     }
-    const panels = this.inspection.active || this.backpack.open || this.notebookUI.open || this.progress?.panelOpen;
+    const panels = this.inspection.active || this.backpack.open || this.notebookUI.open || this.progress?.panelOpen || this.cooking?.isOpen;
     const busy = this.dead || this.survival.fainted || panels || ui.dialogue.isOpen || ui.graphicsOpen || this.pauseMenu.open || !ui.worldMap.classList.contains('hidden');
     // Painéis de sobrevivência: C inspeção, I mochila, N caderneta, Esc fecha.
     if (!this.dead && !ui.dialogue.isOpen && !ui.graphicsOpen) {
@@ -1911,6 +1932,8 @@ export class Game {
       if ((input.pressed('KeyI') || input.pressed('Tab')) && !this.inspection.active && !this.notebookUI.open) this.backpack.toggle();
       if (input.pressed('KeyJ') && !this.inspection.active) { this.notebookUI.toggle(false); this.backpack.openSearch(); }
       if (input.pressed('KeyN') && !this.inspection.active) { this.backpack.hide(); this.progress?.toggleSkills(false); this.notebookUI.toggle(); }
+      // Painel da fogueira: E ou Esc fecha.
+      if (this.cooking?.isOpen && (input.pressed('KeyE') || input.pressed('Escape'))) this.cooking.close();
       // Árvore de Skills (XP): K.
       if (input.pressed('KeyK') && !this.inspection.active && this.progress) { this.backpack.hide(); this.notebookUI.toggle(false); this.progress.toggleSkills(); }
       // Esc fecha primeiro a janela de receita; de novo, o resto.
@@ -2037,6 +2060,8 @@ export class Game {
     }
     this.applyWeatherDebuffs(dt);
     this.progress?.update(dt, input, busy); // XP, tutorial, zoom (Z), fogueiras
+    this.cooking?.update(dt); // assar nas fogueiras (cronômetro, chiado)
+    this.meatLoot?.update(dt); // carne no chão (realce, coleta)
     this.prologue?.update(dt); // naufrágio: cronômetro, neblina, áudio do mar, chegada/afogamento
     this.updateSurvival(dt);
     this.updateSanity(dt);

@@ -2,6 +2,7 @@ import { ITEM_CATALOG, SHOP_MATERIALS, STARTER_KIT } from '../config/items.js';
 import { BIOMES } from '../config/biomes.js';
 import { RESOURCES } from '../config/resources.js';
 import { SKINNING, COOKING } from '../config/hunting.js';
+import { FRUITS, SPECIES_LOOT } from '../config/foods.js';
 import { PROP_TYPES } from '../config/physics.js';
 import { SHOP_FOOD, WOUNDS, FOODS, CONDITIONS } from '../config/survival.js';
 import { Crafting } from './Crafting.js';
@@ -158,6 +159,11 @@ export class RecipeIndex {
     }
     for (const [item, sizes] of loot) add(item, 'caça', `Esfolar ${sizes.join(', ')} (faca equipada, segure E)`);
     for (const [raw, cooked] of Object.entries(COOKING.recipes)) if (raw !== cooked) add(cooked, 'fogueira', `${raw.startsWith('agua') ? 'Ferver' : 'Assar'} ${this.items[raw]?.name ?? raw} na fogueira`);
+    // Coleta de frutas (árvores, arbustos e chão) e carne por espécie (cai ao abater).
+    for (const [id, f] of Object.entries(FRUITS)) add(id, 'coleta', `${f.name} — nas árvores, arbustos ou no chão (E para colher)`);
+    const bySpecies = new Map();
+    for (const [sp, l] of Object.entries(SPECIES_LOOT)) { if (!bySpecies.has(l.meat)) bySpecies.set(l.meat, []); bySpecies.get(l.meat).push(sp); }
+    for (const [meat, list] of bySpecies) add(meat, 'caça', `Cai no chão ao abater: ${list.join(', ')} (E para coletar)`);
     add('cinza', 'fogueira', 'Recolher da fogueira (a cada 90 s)');
     add('agua_rio', 'água', 'Encher o cantil no rio ou lago (E na margem)');
     for (const { id, price } of [...SHOP_FOOD, ...SHOP_MATERIALS]) add(id, 'loja', `Lojas das vilas — ${price} moedas`);

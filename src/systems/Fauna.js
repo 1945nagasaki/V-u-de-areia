@@ -174,6 +174,8 @@ export class Fauna {
       if (a.spec.behavior === 'pack' && (state === 'chase' || state === 'attack')) {
         for (const b of this.animals) if (b !== a && b.group === a.group && b.brain.state !== 'chase' && b.brain.state !== 'attack') b.brain.alert();
       }
+      // Morreu agora (golpe, flecha, sangramento, veneno ou predador): carne da espécie no chão.
+      if (!a.alive && !a.deathReported) { a.deathReported = true; this.game.onAnimalDied?.(a); }
       const far = Math.hypot(a.position.x - playerPos.x, a.position.z - playerPos.z) > this.config.despawn;
       if (far || a.brain.gone || (!a.alive && !a.carcass && a.deadTime > this.config.corpseSeconds)) this.remove(a);
     }

@@ -79,8 +79,8 @@ const HAND_RECIPES = [
 ];
 
 /**
- * Receitas da fogueira, geradas de COOKING.recipes (a fonte de verdade do
- * diálogo da fogueira). O diálogo cozinha na hora, então craftTime = 0.
+ * Receitas da fogueira, geradas de COOKING.recipes (a fonte de verdade da
+ * fogueira). craftTime = segundos no fogo (COOKING.times).
  */
 const FIRE_RECIPES = Object.entries(COOKING.recipes)
   .filter(([raw, cooked]) => raw !== cooked)
@@ -88,7 +88,7 @@ const FIRE_RECIPES = Object.entries(COOKING.recipes)
     id: `fogo_${raw}`,
     output: { item: cooked, amount: 1 },
     station: 'CAMPFIRE',
-    craftTime: 0,
+    craftTime: COOKING.times[raw] ?? COOKING.defaultTime,
     ingredients: [ing(raw)],
     category: 'FOOD',
     hint: raw.startsWith('agua') ? 'Ferva na fogueira.' : 'Asse na fogueira.',

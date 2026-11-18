@@ -1,3 +1,4 @@
+import { FOOD_ITEMS } from './foods.js';
 import { FIREARMS, FX } from './gear.js';
 
 /**
@@ -72,7 +73,19 @@ export const SKINNING = {
 /** Fogueira: assar/ferver e recolher cinza. */
 export const COOKING = {
   radius: 3.2,
-  recipes: { carne_crua: 'carne_assada', agua_rio: 'agua_fervida', agua_poco: 'agua_fervida', larvas_carne: 'larva_assada', cogumelo: 'cogumelo' },
+  // Tudo que se assa/ferve, e SÓ na fogueira (a mesa da mochila não cozinha).
+  recipes: {
+    carne_crua: 'carne_assada', agua_rio: 'agua_fervida', agua_poco: 'agua_fervida', larvas_carne: 'larva_assada', cogumelo: 'cogumelo',
+    ...Object.fromEntries(Object.entries(FOOD_ITEMS).filter(([, f]) => f.roastsTo).map(([id, f]) => [id, f.roastsTo])),
+  },
+  // Segundos no fogo (os da coleta/caça vêm de config/foods.js).
+  times: {
+    carne_crua: 10, agua_rio: 6, agua_poco: 6, larvas_carne: 5,
+    ...Object.fromEntries(Object.entries(FOOD_ITEMS).filter(([, f]) => f.roastsTo).map(([id, f]) => [id, f.cookTime])),
+  },
+  defaultTime: 6,
+  slots: 4, // fila por fogueira (um assa de cada vez)
+  sizzleRange: 14, // m: até onde se ouve o chiado
   ashCooldown: 90, // s entre cinzas da mesma fogueira
 };
 

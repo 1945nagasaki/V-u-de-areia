@@ -1,4 +1,5 @@
 import { ITEMS } from '../systems/PlayerState.js';
+import { foodCardHTML } from './FoodCard.js';
 import { RecipeIndex } from '../systems/RecipeIndex.js';
 import { Input } from '../core/Input.js';
 import { icon } from './Icons.js';
@@ -105,7 +106,10 @@ export class BackpackUI {
     });
     this.items.addEventListener('contextmenu', (e) => {
       const chip = e.target.closest('[data-id]');
-      if (!chip || this.mode !== 'full') return;
+      if (!chip) return;
+      // Botão direito numa comida da coleta/caça: consome 1 na hora.
+      if (ITEMS[chip.dataset.id]?.forage) { e.preventDefault(); this.action('eat', chip.dataset.id); return; }
+      if (this.mode !== 'full') return;
       e.preventDefault();
       this.viewer.show(chip.dataset.id, 'uses');
     });
@@ -224,7 +228,7 @@ export class BackpackUI {
     const id = this.selected, d = id && ITEMS[id], n = id ? this.game.state.inventory.get(id) ?? 0 : 0;
     if (!d || !n) { this.detail.innerHTML = '<i>Selecione um item.</i>'; return; }
     const acts = [];
-    if (d.food) acts.push(`<button data-act="eat" data-id="${id}">Comer / beber</button>`);
+    if (d.food) acts.push(`<button data-act="eat" data-id="${id}">${d.forage ? 'Consumir' : 'Comer / beber'}</button>`);
     if (d.consumable) acts.push(`<button data-act="consume" data-id="${id}">${d.drink ? 'Beber' : 'Comer'}</button>`);
     if (d.comfort) acts.push(`<button data-act="use" data-id="${id}">Usar</button>`);
     if (this.mode === 'full') acts.push(`<button data-act="book" data-id="${id}">${icon('book')} Usos <kbd>U</kbd></button>`);
@@ -232,7 +236,7 @@ export class BackpackUI {
     if (d.hotbar) acts.push(`<button data-act="equip" data-id="${id}">Pôr na hotbar</button>`);
     if (this.mode === 'full' && this.table.length < 4) acts.push(`<button data-act="table" data-id="${id}">Pôr na mesa</button>`);
     const stats = d.gear ? `<ul class="bp-stats">${gearStats(d).map((s) => `<li>${s}</li>`).join('')}</ul>` : '';
-    this.detail.innerHTML = `<div class="bp-detail-head"><span class="ic">${itemIcon(d)}</span><b>${d.name}</b> <span class="ct">×${n}</span></div><p>${d.description ?? ''}</p>${stats}<div class="bp-actions">${acts.join('')}</div>`;
+    this.detail.innerHTML = `<div class="bp-detail-head"><span class="ic">${itemIcon(d)}</span><b>${d.name}</b> <span class="ct">×${n}</span></div>${d.forage ? foodCardHTML(d) : `<p>${d.description ?? ''}</p>`}${stats}<div class="bp-actions">${acts.join('')}</div>`;
   }
 
   /** Detalhe de um equipamento (instância): material, dano, durabilidade, carregador. */
@@ -256,7 +260,8 @@ export class BackpackUI {
     } else if (act === 'use') {
       g.useComfortItem(id);
     } else if (act === 'eat') {
-      if (g.state.removeItem(id)) g.ui.toast(`Você consumiu: ${g.survival.consume(id)}`);
+      if (ITEMS[id]?.forage && g.eatFood) g.eatFood(id);
+      else if (g.state.removeItem(id)) g.ui.toast(`Você consumiu: ${g.survival.consume(id)}`);
     } else if (act === 'place') {
       g.progress?.placeCampfire(id);
     } else if (act === 'equip') {

@@ -1,4 +1,5 @@
 import { FOODS } from './survival.js';
+import { FOOD_ITEMS } from './foods.js';
 import { GEAR_CATALOG } from './gear.js';
 
 /**
@@ -50,6 +51,11 @@ const LEGACY_CATALOG = {
   flecha: { name: 'Flecha', icon: 'arrow', kind: 'material', description: 'Munição do arco.' },
   // ---- comida (macros em FOODS) ----
   ...Object.fromEntries(Object.entries(FOODS).map(([id, f]) => [id, { name: f.name, icon: f.icon, kind: 'food', food: true, description: foodDescription(f) }])),
+  // ---- coleta e caça (config/foods.js): Fome, estado e tempo de fogueira para a dica do item
+  ...Object.fromEntries(Object.entries(FOOD_ITEMS).map(([id, f]) => [id, {
+    name: f.name, icon: f.category === 'carne' ? 'meat' : 'fruit', kind: 'food', food: true, forage: f,
+    description: f.roastsTo ? 'Só assa na fogueira.' : 'Assado na fogueira.',
+  }])),
   // ---- remédios de doenças (consumíveis: entradas em FOODS; curam via DiseaseManager.cure) ----
   cha_ervas: { name: 'Chá de Ervas Medicinais', icon: 'bowl', kind: 'medicine', food: true, description: 'Antibiótico de mato. Cura Febre Maculosa e Leptospirose.' },
   soro_antirrabico: { name: 'Soro Antirrábico', icon: 'syringe', kind: 'medicine', food: true, description: 'Injetado com a agulha de osso. Única cura da Raiva.' },
