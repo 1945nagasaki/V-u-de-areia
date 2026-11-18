@@ -46,6 +46,7 @@ export const TRIBE_BEHAVIOR = {
     },
     espelhoTurvo: {
       name: 'Estrategista do Espelho-Turvo', rule: 'ambush', ambushRadius: 10, revealRadius: 35, grudge: 90,
+      surroundRadius: 11, // m: na emboscada, todos os escondidos saem em volta do jogador a esta distância
       // Magros e calculistas: golpe sai mais rápido, aguentam menos. Sem máscara.
       health: 0.9, damage: 1.0, startup: 1.2, build: 0.9, height: 1.8,
       look: { skin: 0x6e4529, shirt: 0x4a5a2a, pants: 0x8a7a30, straps: 0x6a6a30, hair: 0x111111 },

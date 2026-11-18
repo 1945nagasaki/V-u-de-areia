@@ -187,9 +187,12 @@ export class TribeController {
     if (!s.revealed) {
       for (const w of t.warriors) if (w.hidden && Math.hypot(p.x - w.entity.pos.x, p.z - w.entity.pos.z) <= c.ambushRadius) { s.reveal(now); break; }
     }
+    let k = 0;
+    const hiddenNow = t.warriors.filter((w) => w.hidden && w.alive).length;
     for (const w of t.warriors) {
-      const dist = Math.hypot(p.x - w.entity.pos.x, p.z - w.entity.pos.z);
-      if (s.revealed && w.hidden && w.alive && dist <= c.revealRadius) {
+      if (s.revealed && w.hidden && w.alive) {
+        // A tribo seguia o forasteiro pela mata: todos saem EM VOLTA dele, de lados diferentes.
+        this.placeAround(w, p, (k++ / Math.max(1, hiddenNow)) * Math.PI * 2 + 0.7, c.surroundRadius ?? 11);
         w.hidden = false;
         this.world.add(w.entity);
         this.melee.feel.burst(w.entity.pos.x, w.entity.pos.y + 1, w.entity.pos.z, 0x4a6a2a, 16); // folhas
@@ -200,6 +203,19 @@ export class TribeController {
       }
     }
     if (!s.revealed) for (const tr of t.traps) if (tr.sprung) { tr.sprung = false; tr.mesh.material.opacity = 0.35; tr.mesh.scale.setScalar(1); }
+  }
+
+  /** Põe o guerreiro a `r` m do jogador no ângulo `a` (desvia de paredes testando ângulos vizinhos). */
+  placeAround(w, p, a, r) {
+    const g = this.game;
+    for (let i = 0; i < 8; i++) {
+      const aa = a + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.35;
+      const x = p.x + Math.sin(aa) * r, z = p.z + Math.cos(aa) * r;
+      if (g.collisions.overlaps(x, z, 0.5)) continue;
+      w.root.position.set(x, g.groundHeight(x, z), z);
+      w.entity.body.face(p.x - x, p.z - z);
+      return;
+    }
   }
 
   /** Começou a luta: moradores da capital perto do jogador correm para longe. */
