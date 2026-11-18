@@ -39,6 +39,7 @@ export const PROLOGUE = {
     darkMix: 0.82,
     hemiMul: 0.45,
     exposureMul: 0.62,
+    moonMul: 0.25, // lua escondida pelas nuvens: luz direcional e reflexo dela na água (fora do clarão)
   },
 
   /** Cronômetro de exaustão/afogamento. */

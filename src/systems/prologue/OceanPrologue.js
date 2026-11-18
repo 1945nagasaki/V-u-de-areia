@@ -159,6 +159,12 @@ export class OceanPrologue {
     if (sky) { sky.uTop.value.lerp(this._dark, C.darkMix); sky.uHorizon.value.lerp(this._dark, C.darkMix * 0.9); }
     if (g.environment?.hemi) g.environment.hemi.intensity *= C.hemiMul;
     g.renderer.toneMappingExposure *= C.exposureMul;
+    // Lua atrás das nuvens: a luz direcional e o brilho dela nas ondas caem — menos no clarão do raio.
+    const lit = (g.weather?.flash ?? 0) > 0.05;
+    if (!lit) {
+      if (g.environment?.sun) g.environment.sun.intensity *= C.moonMul;
+      g.water?.uniforms?.uSunColor?.value.multiplyScalar(C.moonMul);
+    }
   }
 
   updateSwim(dt, paused) {
