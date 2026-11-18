@@ -314,16 +314,36 @@ function createPhotoGroundMaterial(photos) {
   const mean = PHOTO_TEXTURES.ground.mean;
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uGroundMean = { value: new THREE.Vector3(...mean) };
+    shader.uniforms.uTile = { value: GROUND_PHOTO.tileMeters };
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float detail;\nvarying float vDetail;\nvarying vec3 vWorldXZ;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvDetail = detail;\nvWorldXZ = position;');
+      .replace('#include <common>', '#include <common>\nattribute float detail;\nvarying float vDetail;\nvarying vec3 vWorldXZ;\nvarying vec3 vTerrainN;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvDetail = detail;\nvWorldXZ = position;\nvTerrainN = normal;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uGroundMean;\nvarying float vDetail;\nvarying vec3 vWorldXZ;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uGroundMean;\nuniform float uTile;\nvarying float vDetail;\nvarying vec3 vWorldXZ;\nvarying vec3 vTerrainN;')
+      // Paredes: o mapa normal projetado de cima estica em listras verticais — some nas encostas íngremes
+      // (o detalhe da rocha vem da cor triplanar abaixo).
+      .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace(
+        'mapN.xy *= normalScale;',
+        'mapN.xy *= normalScale * (1.0 - smoothstep(0.75, 0.45, normalize(vTerrainN).y));',
+      ))
       .replace('#include <map_fragment>', /* glsl */ `
         vec2 uvA = vMapUv;
         vec2 uvB = mat2(0.81, -0.59, 0.59, 0.81) * uvA * 0.43 + vec2(0.37, 0.71);
         float blendAB = smoothstep(0.25, 0.75, 0.5 + 0.5 * sin(vWorldXZ.x * 0.031 + sin(vWorldXZ.z * 0.027) * 2.3));
         vec3 photo = mix(texture2D(map, uvA).rgb, texture2D(map, uvB).rgb, blendAB);
+        // Triplanar nas encostas íngremes (falésias, paredões): a UV vista de cima estica a foto em
+        // listras verticais; ali a foto também é projetada nos planos verticais (ZY e XY) e
+        // misturada pela normal. Chão plano: igual a antes (o ramo nem roda).
+        vec3 tn = normalize(vTerrainN);
+        float steep = smoothstep(0.82, 0.55, tn.y);
+        if (steep > 0.0) {
+          vec3 w = pow(abs(tn), vec3(4.0));
+          w /= (w.x + w.y + w.z);
+          vec3 sideX = texture2D(map, vWorldXZ.zy / uTile).rgb;
+          vec3 sideZ = texture2D(map, vWorldXZ.xy / uTile + vec2(0.5, 0.0)).rgb;
+          vec3 tri = photo * w.y + sideX * w.x + sideZ * w.z;
+          photo = mix(photo, tri, steep);
+        }
         vec3 detailCol = photo / uGroundMean;
         // Longe, a foto vira só uma leve variação (sem padrão repetido).
         float far = smoothstep(60.0, 260.0, length(vViewPosition));
