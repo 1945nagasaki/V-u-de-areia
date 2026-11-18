@@ -39,7 +39,7 @@ export class MeleeController {
     this.game = game;
     this.cfg = MELEE;
     this.world = new CombatWorld({ feel: MELEE.feel });
-    this.world.blocked = (ax, ay, az, bx, by, bz) => this.blocked(ax, az, bx, bz);
+    this.world.blocked = (ax, ay, az, bx, by, bz, stopShort = 0) => this.blocked(ax, az, bx, bz, stopShort);
     this._passive = [];
     this._adapters = new Map();
     this._dir = new THREE.Vector3();
@@ -163,12 +163,15 @@ export class MeleeController {
   }
 
   /** Parede entre dois pontos (amostra o CollisionWorld a cada `feel.wallStep` m). @returns fração 0..1 ou -1 */
-  blocked(ax, az, bx, bz) {
+  blocked(ax, az, bx, bz, stopShort = 0) {
     const c = this.game.collisions;
     const L = Math.hypot(bx - ax, bz - az);
-    const n = Math.max(1, Math.ceil(L / MELEE.feel.wallStep));
+    // Para antes do corpo do alvo (o colisor do próprio boneco/poste não bloqueia o golpe nele).
+    const reach = L > 1e-6 ? Math.max(0, (L - stopShort - MELEE.feel.wallStep * 0.5) / L) : 0;
+    if (reach <= 0) return -1;
+    const n = Math.max(1, Math.ceil((L * reach) / MELEE.feel.wallStep));
     for (let i = 1; i <= n; i++) {
-      const u = i / n;
+      const u = (i / n) * reach;
       if (c.overlaps(ax + (bx - ax) * u, az + (bz - az) * u, 0)) return u;
     }
     return -1;

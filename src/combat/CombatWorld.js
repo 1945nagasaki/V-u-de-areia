@@ -19,7 +19,7 @@ import { inCone, capsuleHitsCylinder, segmentHitsCylinder } from './Hitbox.js';
  *   const world = new CombatWorld({ feel: MELEE.feel });
  *   world.add(player); world.add(enemy);
  *   world.passiveTargets = () => npcsPerto;          // opcional
- *   world.blocked = (ax,ay,az,bx,by,bz) => -1;       // opcional: parede entre dois pontos (0..1 ou -1)
+ *   world.blocked = (ax,ay,az,bx,by,bz,stopShort) => -1; // opcional: parede entre dois pontos (0..1 ou -1); ignora os últimos `stopShort` m
  *   world.on('hit', (a, t, info) => fx.flash(t));
  *   world.update(dt);
  */
@@ -86,7 +86,8 @@ export class CombatWorld {
     this.lastShape = shape; // para o desenho de debug
     this.forTargets(att, (t, c) => {
       if (hits.has(t) || !inCone(att.pos, att.facing, c, shape)) return;
-      if (this.blocked && this.blocked(att.pos.x, att.pos.y + 1.2, att.pos.z, c.x, c.y + c.height * 0.6, c.z) >= 0) return; // parede no meio
+      // Parede no meio? Só até a SUPERFÍCIE do alvo: o próprio corpo dele (boneco, poste) não é parede.
+      if (this.blocked && this.blocked(att.pos.x, att.pos.y + 1.2, att.pos.z, c.x, c.y + c.height * 0.6, c.z, c.radius) >= 0) return;
       hits.claim(t);
       this.resolve(att, t, c, spec, c.x - att.pos.x, c.z - att.pos.z);
     });
