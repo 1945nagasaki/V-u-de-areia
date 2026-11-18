@@ -2065,8 +2065,9 @@ export class Game {
     this.probe.update(dt, this.player.position, { active: this.areaId === 'overworld', hide: [this.player.root ?? this.player.mesh].filter(Boolean) });
     // pós-processamento (L3): raios de sol/SSR só na superfície; bloom do clima soma ao base
     this.pipeline.update(this.environment, this.areaId === 'overworld' ? this._w : null, this.materialFactory.uniforms.uWet.value, this.weather.bloomStrength);
-    this.pipeline.render();
-    if (this.areaId === 'overworld') this.minimap.render(this.player.position, ui.minimapRect(), { viewMeters: this.minimapViewMeters() });
+    // skipRender: depuração/testes automáticos sem placa de vídeo (a simulação roda sem desenhar a tela).
+    if (!this.skipRender) this.pipeline.render();
+    if (this.areaId === 'overworld' && !this.skipRender) this.minimap.render(this.player.position, ui.minimapRect(), { viewMeters: this.minimapViewMeters() });
     input.endFrame();
   }
 }
