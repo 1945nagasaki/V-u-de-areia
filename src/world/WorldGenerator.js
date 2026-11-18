@@ -247,7 +247,27 @@ export class WorldGenerator {
     const d = Math.min(x + W2, W2 - x, z + D2 + northPush, D2 - z);
     const coast = 60 + 150 * (n.fbm(x / 500 + 40, z / 500 - 20, 3) * 0.5 + 0.5);
     h = lerp(1.4, h, smoothstep(coast, coast + 260, d)); // praias suaves
-    return lerp(-24 + 6 * n.fbm(x / 300, z / 300, 2), h, smoothstep(coast - 60, coast + 70, d));
+    h = lerp(-24 + 6 * n.fbm(x / 300, z / 300, 2), h, smoothstep(coast - 60, coast + 70, d));
+    // Centro-norte: a ilha fecha com falésias (só onde as montanhas iam até a borda; o resto fica igual).
+    const C = WORLD.northCliffs;
+    // Peso cheio logo que há empurrão: a falésia só altera os primeiros ~80 m, então não precisa de degradê
+    // (um degradê deixava terra alta + mar = borda ainda em terra na transição).
+    const wN = smoothstep(0, 0.12, northPush / 500);
+    if (C && wN > 0) h = lerp(h, this.northCliff(x, z + D2, h, C), wN);
+    return h;
+  }
+
+  /**
+   * Falésia rochosa com faixa de seixos no pé (litoral frio da taiga). Recebe a
+   * distância `d` até a borda norte; a terra fica intacta a partir de
+   * coast + coastVar + jag + face m.
+   */
+  northCliff(x, d, h, C) {
+    const n = this.noise;
+    const line = C.coast + C.coastVar * (n.fbm(x / 160 + 7, 3.3, 2) * 0.5 + 0.5) + C.jag * (n.fbm(x / 28 - 11, 9.1, 2) * 0.5 + 0.5);
+    const shelf = C.shelf + 0.6 * n.fbm(x / 12, d / 12, 1); // seixos irregulares
+    const top = lerp(shelf, h, smoothstep(line + 2, line + C.face, d)); // face da falésia
+    return lerp(C.seaFloor + 4 * n.fbm(x / 90, d / 90, 2), top, smoothstep(line - C.shore, line, d)); // mar raso → fundo
   }
 
   applyRivers(x, z, h) {
