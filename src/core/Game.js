@@ -32,6 +32,7 @@ import { setHumanClipLibrary } from '../entities/Humanoid.js';
 import { HUMAN_ANIMATION } from '../config/humanAnimation.js';
 import { MeleeController } from '../systems/MeleeController.js';
 import { ProgressionDirector } from '../systems/ProgressionDirector.js';
+import { FruitNodes } from '../systems/forage/FruitNodes.js';
 import { CampfireCooking } from '../systems/cooking/CampfireCooking.js';
 import { MeatLoot } from '../systems/cooking/MeatLoot.js';
 import { CampfireUI } from '../ui/CampfireUI.js';
@@ -341,6 +342,7 @@ export class Game {
     await this.vegetation.build((p) => ui.setLoading(0.72 + p * 0.22, `Plantando a vegetação de cada bioma… ${Math.round(p * 100)}%`));
     this.vegetation.plant([...this.landmarks.plants, ...Object.values(this.villages).flatMap((v) => v.plants)]);
     this.scene.add(this.vegetation.group);
+    this.fruitNodes = new FruitNodes(this); // frutas nas árvores, arbustos e chão (E colhe)
 
     this.grass = new Grass({
       terrain: this.terrain, timeUniform: this.timeUniform, photos: this.photos,
@@ -1998,6 +2000,7 @@ export class Game {
       this.player.root.visible = this.camera.position.distanceTo(this.cameraRig.focus) > CAMERA.third.interior.hidePlayerDistance;
     }
     this.state.update(dt);
+    this.fruitNodes?.update(dt); // antes do alvo do E
 
     // Fôlego: só aparece na água; zerou → afogou.
     const prologueSwim = this.prologue?.swimming || this.prologue?.state === 'drown';
