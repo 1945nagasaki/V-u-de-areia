@@ -206,6 +206,7 @@ export class OceanPrologue {
     this.state = 'done';
     p.swimSprint = null;
     this.hud.setVisible(false);
+    this.hud.setFade(0); // sem resto do escurecimento do começo
     this.sea.stop();
     if (this.windSaved) { g.water.setWind?.(this.windSaved); this.windSaved = null; }
     const ok = this.checkpoint.save({ x: p.position.x, y: p.position.y, z: p.position.z, yaw: Math.atan2(p.facing.x, p.facing.z), hour: g.gameClock.hour, phase: 'ilha' });

@@ -95,13 +95,13 @@ export class ProgressionDirector {
     if (busy || g.dead) { z.held = false; z.latched = false; }
     else {
       if (input.pressed(ZOOM.key)) {
-        z.downAt = g.time; z.held = true;
+        z.downAt = performance.now() / 1000; z.held = true; // tempo real: o toque não depende do FPS
         if (z.latched) { z.latched = false; z.held = false; z.cancel = true; } else z.cancel = false;
         this.tutorial.notify('zoom');
       }
       if (z.held && !input.isDown(ZOOM.key)) {
         z.held = false;
-        if (!z.cancel && g.time - z.downAt < ZOOM.tapSeconds) z.latched = true;
+        if (!z.cancel && performance.now() / 1000 - z.downAt < ZOOM.tapSeconds) z.latched = true;
       }
     }
 

@@ -883,12 +883,12 @@ svg.i.lg { width: 1.6em; height: 1.6em; }
   color: #eee6d6; font: 500 11px system-ui; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 9px; border-radius: 2px; }
 .sv-act:hover:not(:disabled) { background: rgba(232, 194, 122, 0.18); border-color: #e8c27a; }
 .sv-act:disabled { opacity: 0.35; cursor: default; }
-.sv-tut { position: absolute; right: 22px; top: 38%; width: 330px; padding: 14px 16px 12px; color: #eee6d6;
-  background: linear-gradient(90deg, rgba(5, 5, 6, 0.0), rgba(5, 5, 6, 0.78) 18%); border-right: 2px solid #e8c27a; text-align: right; }
+.sv-tut { position: absolute; left: 16px; top: 200px; width: 330px; padding: 14px 16px 12px; color: #eee6d6;
+  background: linear-gradient(270deg, rgba(5, 5, 6, 0.0), rgba(5, 5, 6, 0.78) 18%); border-left: 2px solid #e8c27a; text-align: left; }
 .sv-tut.hidden, .sv-modal.hidden { display: none; }
 .sv-tut.enter { animation: tutIn 0.5s ease; }
-@keyframes tutIn { from { opacity: 0; transform: translateX(20px); } }
-.sv-tut .t-head { display: flex; justify-content: flex-end; gap: 10px; font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase; }
+@keyframes tutIn { from { opacity: 0; transform: translateX(-20px); } }
+.sv-tut .t-head { display: flex; justify-content: flex-start; gap: 10px; font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase; }
 .sv-tut .t-num { color: #e8c27a; } .sv-tut .t-title { color: #cfc6b4; }
 .sv-tut .t-text { margin: 8px 0 10px; font-size: 15px; line-height: 1.45; }
 .sv-tut kbd { color: #fff; }
