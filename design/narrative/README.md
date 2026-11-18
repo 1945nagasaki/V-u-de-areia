@@ -118,6 +118,11 @@ relíquias. O pecado molda o líder e os conflitos, não todos os habitantes.
 - O paranormal é do universo ficcional, não uma afirmação sobre crenças reais.
 - Não inventar destruição, perda ou transferência definitiva de relíquia sem
   pedido.
+- **Canibalismo é cânone** (decisão do autor, 2026-11-18): as sete tribos o
+  praticam. Mostrar sempre **implícito** (ossos, totens de crânios, ganchos e
+  sangue antigo), sem corpos nem gore, conforme a regra de tom acima. Ainda
+  falta incorporar nos sete documentos. Prompts de arte em
+  `design/art/prompts-tribos-ia.md`.
 - Punições não gráficas.
 
 ## Formato de cada documento (16 partes)
