@@ -179,6 +179,7 @@ export class ProgressionDirector {
     else if (e.type === 'done') {
       this.ui.tutorialDone();
       this.completeMission('Tutorial de Sobrevivência');
+      this.game.missions?.onTutorialDone(); // próxima missão: Buscar Comida
       this.save();
     }
   }
@@ -261,6 +262,7 @@ export class ProgressionDirector {
   /** "Novo Jogo": zera XP, skills, tutorial e fogueiras. */
   reset() {
     try { this.storage?.removeItem(PROGRESSION.saveKey); } catch { /* sem armazenamento */ }
+    this.game.missions?.reset(); // missões (save próprio) também do zero
     this.progression.load({ xp: 0, totalXp: 0, tiers: {} });
     this.tutorial.index = -1;
     this.ui.hideTutorial();

@@ -942,3 +942,23 @@ svg.i.lg { width: 1.6em; height: 1.6em; }
 @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 10px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60px); } }
 @media (max-width: 760px) { .cf-cols { grid-template-columns: 1fr; } .cf-tip { border: 0; padding: 0; } }
 @media (prefers-reduced-motion: reduce) { .float-gain { animation: none; opacity: 1; } .cf-bar i { transition: none; } }
+
+/* ===== Missões: rastreador (abaixo do minimapa), banner de conclusão, ouro na mochila ===== */
+.quest-tracker {
+  margin-top: 8px; padding: 9px 11px; border-radius: 8px; text-align: left;
+  background: rgba(12, 9, 6, 0.72); border: 1px solid rgba(255, 233, 168, 0.22);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); font-size: 12px; line-height: 1.4; color: var(--ink);
+}
+.quest-tracker .qt-head { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; color: var(--gold); }
+.quest-tracker .qt-title { margin-top: 2px; font: 600 15px Georgia, serif; color: #fff3d6; }
+.quest-tracker .qt-obj { margin-top: 4px; }
+.quest-tracker .qt-count { color: var(--gold); white-space: nowrap; }
+.quest-tracker .qt-reward { margin-top: 4px; font-size: 11.5px; color: var(--ink-dim); }
+.quest-banner {
+  position: absolute; left: 50%; top: 26%; transform: translateX(-50%); max-width: min(720px, 92vw);
+  padding: 14px 26px; border-radius: 10px; text-align: center; pointer-events: none;
+  background: rgba(10, 8, 5, 0.86); border: 1px solid rgba(255, 233, 168, 0.4);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6); font: 700 18px Georgia, serif; letter-spacing: 0.03em; color: var(--gold);
+}
+.bp-gold { margin-left: auto; margin-right: 12px; font-size: 12px; color: var(--gold); white-space: nowrap; }
+.bp-gold + .bp-cap { margin-left: 0; }

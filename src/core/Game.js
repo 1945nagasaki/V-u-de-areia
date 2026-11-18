@@ -32,6 +32,7 @@ import { setHumanClipLibrary } from '../entities/Humanoid.js';
 import { HUMAN_ANIMATION } from '../config/humanAnimation.js';
 import { MeleeController } from '../systems/MeleeController.js';
 import { ProgressionDirector } from '../systems/ProgressionDirector.js';
+import { MissionDirector } from '../systems/missions/MissionDirector.js';
 import { FruitNodes } from '../systems/forage/FruitNodes.js';
 import { CampfireCooking } from '../systems/cooking/CampfireCooking.js';
 import { MeatLoot } from '../systems/cooking/MeatLoot.js';
@@ -504,6 +505,7 @@ export class Game {
     ui.hideLoading();
     // Tela inicial: Novo Jogo (abertura + naufrágio) · Continuar (checkpoint) · Modo livre (Vila Renascimento).
     this.progress = new ProgressionDirector(this);
+    this.missions = new MissionDirector(this); // missões com recompensa (Buscar Comida após o tutorial)
     // Comida: carne por espécie no chão, assar SÓ na fogueira (painel com cronômetro), sons.
     this.foodSounds = new FoodSounds();
     this.campfireUI = new CampfireUI(this.ui.root, () => this.cooking);

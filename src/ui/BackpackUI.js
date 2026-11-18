@@ -8,6 +8,7 @@ import { CatalogPanel } from './jei/CatalogPanel.js';
 import { RecipeViewer } from './jei/RecipeViewer.js';
 import { CharacterSheet } from './CharacterSheet.js';
 import { itemIcon, gearStats } from './gear/ItemIcon.js';
+import { MISSION_TEXT, fillText } from '../config/missions.js';
 
 const el = (tag, cls, parent, html) => {
   const e = document.createElement(tag);
@@ -45,7 +46,7 @@ export class BackpackUI {
     const hub = el('div', 'bp-hub', this.root);
     const card = el('div', 'bp-card', hub);
     card.innerHTML = `
-        <div class="bp-head"><div class="bp-tabs" role="tablist"><button data-tab="bag" class="on" role="tab">${icon('backpack')} Mochila</button><button data-tab="sheet" role="tab">${icon('mind')} Ficha <em class="bp-sheet-n"></em></button></div><span class="bp-cap" title="Espaços ocupados da mochila"></span><span class="bp-hint">clique num item · arraste para a mesa · <kbd>I</kbd>/<kbd>Tab</kbd>/<kbd>Esc</kbd> fecha</span></div>
+        <div class="bp-head"><div class="bp-tabs" role="tablist"><button data-tab="bag" class="on" role="tab">${icon('backpack')} Mochila</button><button data-tab="sheet" role="tab">${icon('mind')} Ficha <em class="bp-sheet-n"></em></button></div><span class="bp-gold" title="Moedas de Ouro"></span><span class="bp-cap" title="Espaços ocupados da mochila"></span><span class="bp-hint">clique num item · arraste para a mesa · <kbd>I</kbd>/<kbd>Tab</kbd>/<kbd>Esc</kbd> fecha</span></div>
         <div class="bp-body">
           <div class="bp-items"></div>
           <div class="bp-side">
@@ -214,6 +215,7 @@ export class BackpackUI {
     }).join('')}</div></div>` : '';
     this.items.innerHTML = (equipHtml + groups) || '<i class="bp-empty">Mochila vazia.</i>';
     if (gear) { const c = gear.capacity(); this.root.querySelector('.bp-cap').textContent = `${c.used}/${c.total} espaços`; }
+    this.root.querySelector('.bp-gold').textContent = fillText(MISSION_TEXT.backpackGold, { gold: this.game.state.coins });
     this.renderDetail();
     this.tableEl.innerHTML = [0, 1, 2, 3].map((i) => {
       const id = this.table[i], d = id && ITEMS[id];
