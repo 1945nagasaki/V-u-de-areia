@@ -8,6 +8,16 @@
  *  - 'neutral'  ignora o jogador; só ataca depois de apanhar (gorila)
  *  - 'burrow'   foge e se enterra (some no chão) (suricato)
  *  - 'fly'      levanta voo ao se aproximar (corvo)
+ *  - 'passive'  anda pelo mapa e ignora o jogador; foge se apanhar (camelo, girafa)
+ *  - 'ambush'   fica escondido e parado; dá o bote se o jogador chegar a `strikeRange` (víbora, jacaré)
+ *  - 'territorial' encara e avisa dentro de `sense`; ataca se chegar a `territory` (urso)
+ *  - 'guardian' protege um lugar (`home`): ataca dentro de `guardRadius` e volta para casa (cérbero)
+ *  - 'soar'     ave que voa em círculos (`soarHeight`) e pousa; foge voando mais alto (arara)
+ *
+ * Extras: `threat` (s batendo no peito antes de atacar — gorila), `leap` (salta
+ * no jogador no fim da tocaia — leopardo), `laughs` (risada do bando — hiena),
+ * `aquatic` (nasce na água — jacaré). Com `landSpeed` ele sobe na margem, andando a
+ * essa fração da velocidade, mas só até `shoreRange` m da água (rios e beiras).
  *
  * `swims`: pode entrar na água (capivara). Os outros evitam rios e lagos.
  * `model`: forma do placeholder procedural (sem modelo 3D em `src/config/animalModels.js`).
@@ -28,30 +38,76 @@ export const SPECIES = {
     walk: 1.2, run: 10, stalk: 1.6, pounceRange: 7, health: 50, damage: 20, attackRange: 1.8, attackCooldown: 1.3, sense: 22, giveUp: 40, group: [1, 1] },
   capivara: { nome: 'Capivara', behavior: 'flee', model: 'rodent', size: 0.55, color: 0x7a5a3a, swims: true,
     walk: 0.9, run: 5.5, health: 20, sense: 9, group: [2, 5] },
-  hiena: { nome: 'Hiena', behavior: 'pack', model: 'dog', size: 0.8, color: 0x9a8058, spots: 0x3a2a1a,
+  hiena: { nome: 'Hiena', behavior: 'pack', model: 'dog', size: 0.8, color: 0x9a8058, spots: 0x3a2a1a, laughs: true,
     walk: 1.4, run: 8.5, health: 30, damage: 8, attackRange: 1.5, attackCooldown: 1.0, sense: 18, giveUp: 45, group: [3, 5] },
   suricato: { nome: 'Suricato', behavior: 'burrow', model: 'meerkat', size: 0.3, color: 0xb89a6a,
     walk: 0.8, run: 4.5, health: 6, sense: 10, burrowAfter: 1.5, group: [3, 6] },
-  gorila: { nome: 'Gorila', behavior: 'neutral', model: 'ape', size: 1.6, color: 0x24221f,
+  gorila: { nome: 'Gorila', behavior: 'neutral', model: 'ape', size: 1.6, color: 0x24221f, threat: 1.4,
     walk: 0.9, run: 7, health: 90, damage: 22, attackRange: 2.0, attackCooldown: 1.6, sense: 8, giveUp: 30, group: [1, 3] },
-  leopardo: { nome: 'Leopardo', behavior: 'stalker', model: 'cat', size: 0.9, color: 0xd8b060, spots: 0x1a120a,
+  leopardo: { nome: 'Leopardo', behavior: 'stalker', model: 'cat', size: 0.9, color: 0xd8b060, spots: 0x1a120a, leap: true,
     walk: 1.2, run: 10.5, stalk: 1.7, pounceRange: 6.5, health: 45, damage: 16, attackRange: 1.7, attackCooldown: 1.2, sense: 20, giveUp: 40, group: [1, 1] },
   javali: { nome: 'Javali Corrompido', behavior: 'aggressive', model: 'boar', size: 0.9, color: 0x2a1f1c, glow: 0x9a1aff,
     walk: 1.1, run: 8, health: 45, damage: 12, attackRange: 1.5, attackCooldown: 1.2, sense: 14, giveUp: 35, group: [1, 3] },
   corvo: { nome: 'Corvo', behavior: 'fly', model: 'bird', size: 0.35, color: 0x0e0e12,
     walk: 0.6, run: 9, health: 4, sense: 9, group: [3, 7] },
+  // ---- Novas espécies (3 por bioma) ----
+  camelo: { nome: 'Camelo', behavior: 'passive', model: 'camel', size: 1.9, color: 0xc8a068, hump: true,
+    walk: 1.1, run: 7, health: 70, sense: 10, group: [2, 4] },
+  vibora: { nome: 'Víbora do Deserto', behavior: 'ambush', model: 'snake', size: 0.22, length: 1.5, color: 0xb89a68, pattern: 0x5a4228,
+    walk: 0.5, run: 3.5, health: 12, damage: 16, attackRange: 1.3, strikeRange: 2.4, attackCooldown: 1.8, sense: 6, giveUp: 7, group: [1, 1] },
+  girafa: { nome: 'Girafa', behavior: 'passive', model: 'giraffe', size: 2.6, color: 0xd8a858, spots: 0x7a4a22,
+    walk: 1.0, run: 9, health: 80, sense: 12, group: [3, 6] },
+  urso: { nome: 'Urso Pardo', behavior: 'territorial', model: 'bear', size: 1.25, color: 0x4a3222,
+    walk: 1.0, run: 8.5, health: 110, damage: 26, attackRange: 2.1, attackCooldown: 1.5, sense: 18, territory: 9, giveUp: 22, group: [1, 1] },
+  arara: { nome: 'Arara-Vermelha', behavior: 'soar', model: 'bird', size: 0.42, color: 0xc8202a, wing: 0x2a5ad8, tailColor: 0xe8c02a,
+    walk: 0.5, run: 8, health: 4, sense: 7, soarRadius: 11, soarHeight: [9, 16], group: [2, 5] },
+  avestruz: { nome: 'Avestruz', behavior: 'flee', model: 'ostrich', size: 1.3, color: 0x1e1a18,
+    walk: 1.4, run: 15, health: 30, sense: 16, group: [2, 4] },
+  // swim: quanto do corpo fica debaixo d'água (m, medidos da barriga): nadando só o dorso, os olhos e o
+  // focinho ficam de fora; à espreita (lurk) afunda mais e sobra a linha dos olhos; `hysteresis` evita
+  // que ele fique trocando andar/nadar na beira; `rate` = suavidade de afundar/emergir (1/s) [jogo].
+  jacare: { nome: 'Jacaré do Rio', behavior: 'ambush', model: 'croc', size: 0.45, color: 0x3a4228, swims: true, aquatic: true, landSpeed: 0.3, shoreRange: 9,
+    swim: { depth: 0.36, lurk: 0.47, lurkRange: 22, hysteresis: 0.06, rate: 1.6 },
+    walk: 0.7, run: 6, health: 70, damage: 24, attackRange: 1.9, strikeRange: 5, attackCooldown: 1.6, sense: 9, giveUp: 12, group: [1, 2] },
+  // Guardiões dos biomas (modelos enviados pelo dono do jogo): soltos pela região da capital da tribo.
+  mamute: { nome: 'Mamute das Cinzas', behavior: 'territorial', model: 'bear', size: 2.6, color: 0x2a2826,
+    walk: 1.1, run: 7.5, health: 420, damage: 42, attackRange: 3.4, attackCooldown: 2.2, sense: 26, territory: 14, giveUp: 40, group: [1, 1] },
+  rinoceronte: { nome: 'Rinoceronte de Guerra', behavior: 'territorial', model: 'bear', size: 1.9, color: 0xc8c4bc,
+    walk: 1.2, run: 10.5, health: 320, damage: 46, attackRange: 2.8, attackCooldown: 1.8, sense: 24, territory: 18, giveUp: 45, group: [1, 1] },
+  hipoEsfolado: { nome: 'Hipopótamo Esfolado', behavior: 'territorial', model: 'bear', size: 1.7, color: 0x8a3a3a, swims: true,
+    walk: 1.0, run: 8, health: 360, damage: 50, attackRange: 2.6, attackCooldown: 1.6, sense: 20, territory: 12, giveUp: 35, group: [1, 1] },
+  serpente: { nome: 'Serpente-Centopeia', behavior: 'territorial', model: 'croc', size: 1.1, color: 0x6a5030,
+    walk: 1.4, run: 7, health: 260, damage: 36, attackRange: 3, attackCooldown: 1.4, sense: 22, territory: 12, giveUp: 40, group: [1, 1] },
+  cerbero: { nome: 'Cérbero', behavior: 'guardian', model: 'cerberus', size: 1.25, color: 0x18141a, glow: 0xff3a2a,
+    walk: 1.4, run: 10, health: 160, damage: 28, attackRange: 2.2, attackCooldown: 1.2, sense: 26, guardRadius: 70, giveUp: 90, group: [1, 1] },
 };
 
 /** Espécies por bioma (id de `BIOMES`) com peso relativo de sorteio. */
 export const BIOME_FAUNA = {
-  savana: { zebra: 3, leao: 1 },
-  taiga: { lobo: 2, alce: 2 },
-  deserto: { escorpiao: 1 },
-  tropical: { onca: 1, capivara: 3 },
-  kalahari: { hiena: 2, suricato: 3 },
-  equatorial: { gorila: 2, leopardo: 1 },
-  preta: { javali: 2, corvo: 3 },
+  savana: { zebra: 3, leao: 1, girafa: 2, mamute: 0.2 },
+  taiga: { lobo: 2, alce: 2, urso: 1 },
+  deserto: { escorpiao: 2, camelo: 2, vibora: 2, rinoceronte: 0.2 },
+  tropical: { onca: 1, capivara: 3, arara: 3, serpente: 0.2 },
+  kalahari: { hiena: 2, suricato: 3, avestruz: 2 },
+  equatorial: { gorila: 2, leopardo: 1, jacare: 2, hipoEsfolado: 0.2 },
+  preta: { javali: 2, corvo: 3 }, // + cérbero, guardião das Ruínas de Kaelen (GUARDIANS)
 };
+
+/**
+ * Guardiões: espécies que não nascem por sorteio, e sim presas a um lugar.
+ * Quando o jogador chega a `trigger` m da vila e o guardião não existe, ele
+ * nasce a até `spread` m do centro; morto, volta depois de `respawn` s.
+ */
+export const GUARDIANS = [
+  { species: 'cerbero', village: 'ruinasKaelen', trigger: 220, spread: 30, respawn: 120 },
+  // Crocodilos sagrados do Olho Lento (As Covas): nascem dentro do poço.
+  // Guardiões dos biomas: nascem na região em volta da capital (fora da cidade) e andam soltos.
+  { species: 'mamute', village: 'mesaFarta', trigger: 450, ring: 190, spread: 320, respawn: 600 },
+  { species: 'rinoceronte', village: 'maoCerrada', trigger: 450, ring: 200, spread: 330, respawn: 600 },
+  { species: 'hipoEsfolado', village: 'brasaViva', trigger: 450, ring: 190, spread: 300, respawn: 600 },
+  { species: 'serpente', village: 'espelhoTurvo', trigger: 450, ring: 160, spread: 300, respawn: 600 },
+  { species: 'jacare', village: 'pousoLento', trigger: 160, spread: 4, respawn: 300 },
+];
 
 /** Spawner: mantém alguns grupos vivos perto do jogador. */
 export const FAUNA = {
@@ -65,7 +121,7 @@ export const FAUNA = {
   wanderTime: [3, 7], // s passeando
   wanderRadius: 14, // m em volta do ponto onde nasceu
   fleeTime: 6, // s fugindo antes de se acalmar
-  corpseSeconds: 8,
+  corpseSeconds: 120, // tempo para chegar e esfolar
   burrowSeconds: 1.2, // s afundando no chão
 };
 

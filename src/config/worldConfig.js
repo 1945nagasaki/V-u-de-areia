@@ -19,6 +19,21 @@ export const WORLD = {
   seed: 20240611,
   // Lago central + ilha da Vila Renascimento (medidos na imagem).
   lake: { u: 0.5, v: 0.486, radius: 640, islandRadius: 235 },
+  /**
+   * Litoral norte do centro (onde as montanhas da taiga iam até a borda do mapa):
+   * falésias rochosas e uma faixa de seixos no pé, fechando a ilha. Estreito de
+   * propósito: a Vila Presa de Gelo fica a 82 m da borda — a terra fica intacta
+   * a partir de `coast + jag + face` m (≤ 80). null = sem falésias (mapa antigo).
+   */
+  northCliffs: {
+    coast: 22, // m da borda até a linha d'água (mínimo)
+    coastVar: 14, // + variação suave ao longo da costa
+    jag: 6, // + recortes curtos (falésia irregular)
+    face: 38, // m de face de rocha até o topo
+    shore: 20, // m de faixa de seixos/mar raso antes da água funda
+    shelf: 1.0, // altura (m) da faixa de seixos no pé da falésia
+    seaFloor: -18, // fundo do mar junto à costa
+  },
 };
 
 /**
@@ -34,7 +49,7 @@ export const WORLD = {
  *   mantendo os detalhes finos de cada bioma.
  */
 export const REFERENCE_MAP = {
-  imageUrl: `${import.meta.env.BASE_URL}assets/maps/continente-referencia.png`,
+  imageUrl: `${(import.meta.env?.BASE_URL ?? "/")}assets/maps/continente-referencia.png`,
   useAsBiomeMask: false,
   heightmapUrl: null, // ex.: '/assets/maps/heightmap.png'
   heightmapScale: 260, // altura (m) do branco puro

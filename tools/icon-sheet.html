@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Folha de ícones dos itens</title>
+    <style>
+      body { margin: 0; font: 11px/1.2 system-ui, sans-serif; display: grid; grid-template-columns: 1fr 1fr; }
+      section { padding: 10px; }
+      .dark { background: #17120d; color: #e8dcc0; }
+      .light { background: #f2ede2; color: #2a2118; }
+      h2 { margin: 0 0 6px; font-size: 12px; font-weight: 600; }
+      .row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; align-items: flex-end; }
+      .big { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+      .big figure { margin: 0; text-align: center; }
+      .big img { width: 96px; height: 96px; }
+      .big figcaption { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.75; max-width: 96px; margin: 0 auto; }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      // Conferência dos ícones (fundo claro e escuro; 32, 48 e 64 px). Não entra no build do jogo.
+      import { GEAR_ICONS } from '../src/config/gearIcons.js';
+      import { GEAR_CATALOG } from '../src/config/gear.js';
+      const ids = [...GEAR_ICONS];
+      for (const theme of ['dark', 'light']) {
+        const s = document.createElement('section');
+        s.className = theme;
+        const row = (px) => `<h2>${px} px</h2><div class="row">${ids.map((id) => `<img src="../public/assets/icons/items/${id}.png" width="${px}" height="${px}" title="${id}">`).join('')}</div>`;
+        s.innerHTML = row(32) + row(48) + row(64) + `<h2>96 px</h2><div class="big">${ids.map((id) => `<figure><img src="../public/assets/icons/items/${id}.png"><figcaption>${GEAR_CATALOG[id].name}</figcaption></figure>`).join('')}</div>`;
+        document.body.appendChild(s);
+      }
+      window.sheetReady = Promise.all([...document.images].map((i) => i.decode().catch(() => {}))).then(() => true);
+    </script>
+  </body>
+</html>

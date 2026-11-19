@@ -4,6 +4,7 @@ import { WORLD, RENDER } from '../config/worldConfig.js';
 import { BIOMES } from '../config/biomes.js';
 import { mulberry32 } from './Noise.js';
 import { createTreeGeometries, createVegetationMaterials } from './TreeFactory.js';
+import { TREE_COLLIDERS } from '../config/physics.js';
 
 const CANDIDATE_SPACING = 10; // 1 candidato a cada 100 m² → densidades até 100/ha
 const SNOW_LINE = 150;
@@ -22,16 +23,42 @@ const ROCK_TINT = {
  * draw calls.
  */
 export class Vegetation {
-  constructor({ terrain, generator, isBlocked, timeUniform, photos, oaks = null }) {
+  constructor({ terrain, generator, isBlocked, timeUniform, photos, oaks = null, collisions = null }) {
     this.terrain = terrain;
+    /** Troncos e rochas grandes viram colisão sólida (o jogador não atravessa). */
+    this.collisions = collisions;
+    this.colliders = 0;
     this.gen = generator;
     this.isBlocked = isBlocked;
     this.group = new THREE.Group();
     this.group.name = 'vegetation';
     this.material = createVegetationMaterials(timeUniform, photos, oaks);
+    // O LOD distante não recebe sombra. Com o MESMO material nas duas malhas, o three.js
+    // reavaliava o programa a cada troca perto/longe (receiveShadow faz parte da chave):
+    // cópias idênticas (mesmas texturas, mesmo vento) acabam com esse vai-e-vem sem mudar a imagem.
+    this.materialLo = this.material.map((m) => {
+      const c = m.clone();
+      c.defines = { ...m.defines };
+      c.onBeforeCompile = m.onBeforeCompile;
+      c.customProgramCacheKey = m.customProgramCacheKey;
+      return c;
+    });
     this.geos = createTreeGeometries(oaks);
     this.chunks = [];
     this.count = 0;
+    this.viewDistance = RENDER.treeViewDistance;
+    this.highDetailDistance = RENDER.treeHighDetailDistance;
+  }
+
+  /**
+   * Alcance das árvores (nível gráfico, tecla G).
+   * @param {number} view até onde aparecem (m)
+   * @param {number} highDetail até onde usam o modelo detalhado (m)
+   * @example vegetation.setDistances(820, 110)
+   */
+  setDistances(view, highDetail) {
+    this.viewDistance = view;
+    this.highDetailDistance = highDetail;
   }
 
   async build(onProgress) {
@@ -101,6 +128,7 @@ export class Vegetation {
               col.setRGB(v * (0.95 + rnd() * 0.1), v, v * (0.9 + rnd() * 0.12));
             }
             // Espécies com modelos 3D têm várias variantes: sorteia uma.
+            this.addCollider(spec.type, x, z, s);
             const variants = this.geos[spec.type];
             const key = Array.isArray(variants) ? `${spec.type}#${Math.floor(rnd() * variants.length)}` : spec.type;
             if (!byType.has(key)) byType.set(key, { matrices: [], colors: [] });
@@ -124,12 +152,28 @@ export class Vegetation {
    */
   plant(list) {
     if (!list?.length) return;
+    // Um bloco por célula da grade: cada bloco liga/desliga pela distância
+    // do SEU centro (uma lista com plantas do mapa todo num bloco só ficava
+    // com o centro no meio do continente e sumia/ficava em baixo detalhe).
+    const cs = RENDER.treeChunkSize;
+    const cells = new Map();
+    for (const p of list) {
+      const key = `${Math.floor(p.x / cs)},${Math.floor(p.z / cs)}`;
+      if (!cells.has(key)) cells.set(key, []);
+      cells.get(key).push(p);
+    }
+    for (const cell of cells.values()) this.plantChunk(cell);
+  }
+
+  /** Um bloco com as plantas de uma célula. */
+  plantChunk(list) {
     const byType = new Map();
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-    let sx = 0, sz = 0;
+    let sx = 0, sz = 0, n = 0;
     for (const p of list) {
       if (!this.geos[p.type]) continue;
       const s = p.s ?? 1;
+      this.addCollider(p.type, p.x, p.z, s);
       e.set(0, p.ry ?? 0, 0, 'YXZ');
       q.setFromEuler(e);
       m.compose(new THREE.Vector3(p.x, this.terrain.heightAt(p.x, p.z) - 0.15, p.z), q, new THREE.Vector3(s, s, s));
@@ -138,9 +182,28 @@ export class Vegetation {
       if (!byType.has(key)) byType.set(key, { matrices: [], colors: [] });
       byType.get(key).matrices.push(m.clone());
       byType.get(key).colors.push(new THREE.Color(1, 1, 1));
-      sx += p.x; sz += p.z;
+      sx += p.x; sz += p.z; n++;
     }
-    if (byType.size) this.chunks.push(this.createChunk(sx / list.length, sz / list.length, byType));
+    if (byType.size) this.chunks.push(this.createChunk(sx / n, sz / n, byType));
+  }
+
+  /**
+   * Colisão do tronco (ou da rocha) de uma árvore plantada.
+   * @param {string} type espécie
+   * @param {number} s escala da instância
+   */
+  addCollider(type, x, z, s) {
+    if (!this.collisions) return;
+    const C = TREE_COLLIDERS;
+    if (type === 'rock') {
+      if (s < C.rockMin) return;
+      this.collisions.addCircle(x, z, C.rock * s, 'boulder');
+    } else {
+      const r = (C[type] ?? 0) * s;
+      if (r <= 0.05) return;
+      this.collisions.addCircle(x, z, r, 'trunk');
+    }
+    this.colliders++;
   }
 
   createChunk(cx, cz, byType) {
@@ -150,7 +213,8 @@ export class Vegetation {
       const [type, variant] = key.split('#');
       const geo = variant === undefined ? this.geos[type] : this.geos[type][+variant];
       for (const [group, geometry, detailed] of [[hi, geo.hi, true], [lo, geo.lo, false]]) {
-        const mesh = new THREE.InstancedMesh(geometry, this.material, matrices.length);
+        const mesh = new THREE.InstancedMesh(geometry, detailed ? this.material : this.materialLo, matrices.length);
+        mesh.matrixAutoUpdate = false; // árvores não saem do lugar: nada a recalcular por quadro
         matrices.forEach((mat, i) => { mesh.setMatrixAt(i, mat); mesh.setColorAt(i, colors[i]); });
         mesh.instanceMatrix.needsUpdate = true;
         mesh.instanceColor.needsUpdate = true;
@@ -162,6 +226,7 @@ export class Vegetation {
       this.count += matrices.length;
     }
     hi.visible = lo.visible = false;
+    hi.matrixAutoUpdate = lo.matrixAutoUpdate = false;
     this.group.add(hi, lo);
     return { x: cx, z: cz, hi, lo };
   }
@@ -171,8 +236,8 @@ export class Vegetation {
     const half = RENDER.treeChunkSize * 0.7;
     for (const c of this.chunks) {
       const d = Math.hypot(c.x - viewPos.x, c.z - viewPos.z) - half;
-      const visible = enabled && d < RENDER.treeViewDistance;
-      const near = d < RENDER.treeHighDetailDistance;
+      const visible = enabled && d < this.viewDistance;
+      const near = d < this.highDetailDistance;
       c.hi.visible = visible && near;
       c.lo.visible = visible && !near;
     }

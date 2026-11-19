@@ -64,10 +64,13 @@ export class Input {
     this.wheel = 0;
     this.enabled = true;
     this.attackClick = false;
+    this.secondaryClick = false;
     this.alt = new AltLockToggle();
     this.lockListeners = [];
 
     window.addEventListener('keydown', (e) => {
+      // Digitando num campo de texto (busca do livro de receitas): o jogo não vê a tecla, só o Esc.
+      if (Input.isTyping(e.target) && e.code !== 'Escape') return;
       if (AltLockToggle.isAlt(e.code)) e.preventDefault(); // ALT não abre o menu do navegador
       if (this.alt.keyDown(e.code, e.repeat) && this.enabled) this.toggleLock();
       if (!this.keys.has(e.code)) this.justPressed.add(e.code);
@@ -96,6 +99,10 @@ export class Input {
         this.attackClick = true;
         return;
       }
+      if (e.button === 2 && this.locked) {
+        this.secondaryClick = true;
+        return;
+      }
       this._down = { t: performance.now(), x: e.clientX, y: e.clientY, button: e.button };
       this.dragging = true;
     });
@@ -107,6 +114,11 @@ export class Input {
       if (d && d.button === 0 && e.button === 0 && this.enabled && !this.locked
         && performance.now() - d.t < Input.CLICK_MS && Math.hypot(e.clientX - d.x, e.clientY - d.y) < Input.CLICK_PX) {
         this.attackClick = true;
+      }
+      // Igual para o botão direito (clique curto = ação secundária; arrastar continua girando a câmera).
+      if (d && d.button === 2 && e.button === 2 && this.enabled && !this.locked
+        && performance.now() - d.t < Input.CLICK_MS && Math.hypot(e.clientX - d.x, e.clientY - d.y) < Input.CLICK_PX) {
+        this.secondaryClick = true;
       }
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -121,11 +133,18 @@ export class Input {
     }, { passive: false });
   }
 
+  /** O alvo do evento é um campo de texto (input, textarea, contenteditable)? */
+  static isTyping(target) {
+    const tag = target?.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!target?.isContentEditable;
+  }
+
   get locked() {
     return document.pointerLockElement === this.canvas;
   }
 
   unlock() {
+    this.unlockedByGame = performance.now(); // diferencia do Esc do navegador (que solta sozinho)
     if (this.locked) document.exitPointerLock();
   }
 
@@ -175,10 +194,16 @@ export class Input {
     return this.enabled && this.attackClick;
   }
 
+  /** Clique direito neste quadro (travado: qualquer clique; solto: clique curto sem arrastar). */
+  secondaryPressed() {
+    return this.enabled && this.secondaryClick;
+  }
+
   /** Chamar no fim de cada quadro. */
   endFrame() {
     this.justPressed.clear();
     this.attackClick = false;
+    this.secondaryClick = false;
     this.mouseDX = 0;
     this.mouseDY = 0;
     this.wheel = 0;

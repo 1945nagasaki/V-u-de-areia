@@ -25,7 +25,8 @@ import { approach } from '../entities/Locomotion.js';
 export class CameraRig {
   /**
    * @param {THREE.PerspectiveCamera} camera
-   * @param {{ groundAt?: (x: number, z: number) => number, config?: typeof CAMERA }} [deps]
+   * @param {{ groundAt?: (x: number, z: number, feetY?: number) => number, config?: typeof CAMERA }} [deps]
+   *   `groundAt` recebe a altura do pé do jogador (piso do andar dele).
    */
   constructor(camera, { groundAt = null, config = CAMERA } = {}) {
     this.camera = camera;
@@ -43,6 +44,9 @@ export class CameraRig {
     this.keyTurnSpeed = config.keyTurnSpeed;
     this.focus = new THREE.Vector3();
     this.kickAmount = 0; // rad, decai sozinho (tranco do soco)
+    this.shakeAmount = 0; // m, tremor de impacto (decai sozinho)
+    this.shakeDecay = 9;
+    this._shakeT = 0;
     this._desired = new THREE.Vector3();
     this._look = new THREE.Vector3();
     this.first = true;
@@ -54,6 +58,14 @@ export class CameraRig {
     this.bobStrength = 0; // 0 parado → 1 andando (suavizado)
     this.bobOffset = new THREE.Vector3(); // deslocamento do balanço neste quadro
     this._right = new THREE.Vector3();
+    /**
+     * Recuo permitido (opcional): `(focus, cam) => fração 0..1` do caminho
+     * foco → câmera livre de paredes. Ex.: `InteriorManager.cameraReach`.
+     * @type {((focus: THREE.Vector3, cam: THREE.Vector3) => number) | null}
+     */
+    this.reach = null;
+    this.clipDistance = this.distance; // distância real (após o recuo)
+    this.clipped = false;
   }
 
   get isFirstPerson() {
@@ -85,6 +97,16 @@ export class CameraRig {
     this.kickAmount = Math.max(this.kickAmount, amount);
   }
 
+  /**
+   * Tremor de câmera (impacto de golpe): deslocamento pequeno e rápido que decai sozinho.
+   * @param {number} amount metros de amplitude (ex.: 0,06)
+   * @param {number} [decay] 1/s
+   */
+  shake(amount, decay = this.shakeDecay) {
+    this.shakeAmount = Math.max(this.shakeAmount, amount);
+    this.shakeDecay = decay;
+  }
+
   /** Direção "para frente" no chão (para o movimento do jogador). */
   forward(out = new THREE.Vector3()) {
     return out.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
@@ -96,7 +118,7 @@ export class CameraRig {
     this.yaw -= input.mouseDX * this.sensitivity;
     let turn = 0;
     if (input.isDown('ArrowLeft') || input.isDown('KeyQ')) turn += 1;
-    if (input.isDown('ArrowRight') || input.isDown('KeyR')) turn -= 1;
+    if (input.isDown('ArrowRight') || (input.isDown('KeyR') && !this.reloadKeyBusy)) turn -= 1;
     this.yaw += turn * this.keyTurnSpeed * dt;
     const tilt = (input.isDown('PageUp') ? dt : 0) - (input.isDown('PageDown') ? dt : 0);
     if (this.isFirstPerson) {
@@ -113,12 +135,12 @@ export class CameraRig {
    * @param {number} dt
    * @param {THREE.Vector3} target pés do personagem
    * @param {object|null} input `Input` (null = não lê controles, ex.: diálogo aberto)
-   * @param {{ flying?: boolean, underground?: boolean, sprinting?: boolean, speed?: number, grounded?: boolean }} [state]
+   * @param {{ flying?: boolean, underground?: boolean, sprinting?: boolean, speed?: number, grounded?: boolean, zoom?: boolean }} [state]
    *   `speed` (m/s) e `sprinting` alimentam o balanço e o FOV.
    */
-  update(dt, target, input, { flying = false, underground = false, sprinting = false, speed = 0, grounded = true } = {}) {
+  update(dt, target, input, { flying = false, underground = false, sprinting = false, speed = 0, grounded = true, zoom = false } = {}) {
     if (input) this.applyInput(dt, input);
-    this.updateFov(dt, sprinting && !flying);
+    this.updateFov(dt, sprinting && !flying, zoom);
     this.updateBob(dt, speed, sprinting, grounded && !flying);
     if (this.isFirstPerson) this.updateFirst(target);
     else this.updateThird(dt, target, flying, underground);
@@ -126,12 +148,22 @@ export class CameraRig {
       this.camera.rotateX(-this.kickAmount);
       this.kickAmount = Math.max(0, this.kickAmount - dt * 0.9);
     }
+    if (this.shakeAmount > 1e-4) {
+      // Ruído suave (senos de frequências diferentes), não um pulo aleatório por quadro.
+      this._shakeT += dt;
+      const a = this.shakeAmount, t = this._shakeT * 60;
+      this.camera.position.x += Math.sin(t * 1.3) * a;
+      this.camera.position.y += Math.sin(t * 1.7 + 1) * a * 0.8;
+      this.camera.position.z += Math.sin(t * 1.1 + 2) * a;
+      this.shakeAmount *= Math.exp(-this.shakeDecay * dt);
+    }
     this.first = false;
   }
 
   /** FOV abre ao correr e fecha ao parar, sempre suave (lerp por tempo). */
-  updateFov(dt, sprinting) {
-    const target = sprinting ? this.config.sprintFov : this.config.fov;
+  updateFov(dt, sprinting, zoom = false) {
+    // Zoom (tecla C) tem prioridade: fecha o FOV para observar o horizonte.
+    const target = zoom ? this.config.zoomFov : sprinting ? this.config.sprintFov : this.config.fov;
     if (Math.abs(this.fov - target) < 0.01) return;
     this.fov = approach(this.fov, target, this.config.fovLerp, dt);
     this.camera.fov = this.fov;
@@ -188,9 +220,20 @@ export class CameraRig {
       this.focus.z - Math.cos(this.yaw) * cp * this.distance,
     );
     if (this.groundAt) {
-      const g = this.groundAt(cam.x, cam.z) + 0.4;
+      // Pé do jogador como referência: só conta o piso/plataforma do andar dele
+      // (senão, no térreo de um sobrado, a câmera subia para cima da laje).
+      const g = this.groundAt(cam.x, cam.z, target.y) + 0.4;
       if (cam.y < g) cam.y = g;
     }
+    // Dentro de casa: a câmera recua até a parede/teto/divisória (sem atravessar),
+    // encurta na hora e volta a se afastar suavemente — nada de pulos na porta.
+    const reach = this.reach ? this.reach(this.focus, cam) : 1;
+    const full = Math.max(cam.distanceTo(this.focus), 1e-6);
+    const want = full * reach;
+    if (this.first || want <= this.clipDistance || !this.clipped) this.clipDistance = want;
+    else this.clipDistance = Math.min(want, approach(this.clipDistance, want, t.interior.returnSpeed, dt));
+    this.clipped = reach < 1 || this.clipDistance < want - 0.01;
+    if (this.clipDistance < full - 1e-6) cam.sub(this.focus).multiplyScalar(this.clipDistance / full).add(this.focus);
     cam.y += this.bobOffset.y;
     cam.addScaledVector(this._right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw)), this.bobOffset.x);
     this.camera.lookAt(this.focus);

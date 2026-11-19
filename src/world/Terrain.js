@@ -22,6 +22,9 @@ const SHORE_COLORS = {
  * de física, vegetação e ambientação) e constrói a malha com cores por
  * vértice + textura de detalhe em escala real.
  */
+/** Lado do bloco de terreno em células (~273 m): recorte de visão sem emendas. */
+const TERRAIN_TILE = 64;
+
 export class Terrain {
   constructor(generator) {
     this.gen = generator;
@@ -170,9 +173,41 @@ export class Terrain {
       roughness: 0.96,
       metalness: 0,
     });
-    this.mesh = new THREE.Mesh(geo, material);
-    this.mesh.receiveShadow = true;
-    this.mesh.name = 'terrain';
+    // Blocos para o recorte de visão: a malha do mapa inteiro (1 milhão de triângulos) era
+    // desenhada sempre. Os blocos compartilham os MESMOS atributos (uma cópia na GPU, normais
+    // contínuas, sem emenda); cada um tem só o próprio índice e a própria esfera envolvente.
+    const T = TERRAIN_TILE, group = new THREE.Group();
+    group.name = 'terrain';
+    const pos = geo.attributes.position.array;
+    for (let tj = 0; tj < this.nz; tj += T) {
+      for (let ti = 0; ti < this.nx; ti += T) {
+        const j1 = Math.min(this.nz, tj + T), i1 = Math.min(this.nx, ti + T);
+        const idx = new Uint32Array((j1 - tj) * (i1 - ti) * 6);
+        let q = 0, ymin = Infinity, ymax = -Infinity;
+        for (let j = tj; j < j1; j++) {
+          for (let i = ti; i < i1; i++) {
+            const a = j * cols + i, b = a + 1, d = a + cols, e = d + 1;
+            idx[q++] = a; idx[q++] = d; idx[q++] = b; idx[q++] = b; idx[q++] = d; idx[q++] = e;
+            const y = pos[a * 3 + 1]; if (y < ymin) ymin = y; if (y > ymax) ymax = y;
+          }
+        }
+        const tile = new THREE.BufferGeometry();
+        for (const name of Object.keys(geo.attributes)) tile.setAttribute(name, geo.attributes[name]);
+        tile.setIndex(new THREE.BufferAttribute(idx, 1));
+        const x0 = pos[(tj * cols + ti) * 3], z0 = pos[(tj * cols + ti) * 3 + 2];
+        const x1 = pos[(j1 * cols + i1) * 3], z1 = pos[(j1 * cols + i1) * 3 + 2];
+        tile.boundingBox = new THREE.Box3(new THREE.Vector3(Math.min(x0, x1), ymin - 1, Math.min(z0, z1)), new THREE.Vector3(Math.max(x0, x1), ymax + 1, Math.max(z0, z1)));
+        tile.boundingSphere = tile.boundingBox.getBoundingSphere(new THREE.Sphere());
+        const m = new THREE.Mesh(tile, material);
+        m.receiveShadow = true;
+        m.matrixAutoUpdate = false;
+        m.name = 'terrain-tile';
+        group.add(m);
+      }
+    }
+    this.material = material;
+    group.material = material; // compatibilidade: quem lia terrain.mesh.material
+    this.mesh = group;
     return this.mesh;
   }
 
@@ -224,7 +259,23 @@ export class Terrain {
   }
 }
 
+/** Caixa (x/z) fora da qual a forma não pinta nada — calculada uma vez. */
+function paintBounds(s) {
+  if (s.type === 'disc') return [s.x - s.r, s.z - s.r, s.x + s.r, s.z + s.r];
+  if (s.type === 'segment') {
+    const m = s.width / 2 + 1.5;
+    return [Math.min(s.ax, s.bx) - m, Math.min(s.az, s.bz) - m, Math.max(s.ax, s.bx) + m, Math.max(s.az, s.bz) + m];
+  }
+  if (s.type === 'rect') {
+    const m = Math.hypot(s.hw, s.hd) + 1.5;
+    return [s.x - m, s.z - m, s.x + m, s.z + m];
+  }
+  return [-Infinity, -Infinity, Infinity, Infinity];
+}
+
 function paintAmount(s, x, z) {
+  const b = (s.bounds ??= paintBounds(s));
+  if (x < b[0] || z < b[1] || x > b[2] || z > b[3]) return 0;
   if (s.type === 'disc') {
     const d = Math.hypot(x - s.x, z - s.z);
     return smoothstep(s.r, s.r - (s.soft ?? 3), d);
@@ -263,16 +314,36 @@ function createPhotoGroundMaterial(photos) {
   const mean = PHOTO_TEXTURES.ground.mean;
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uGroundMean = { value: new THREE.Vector3(...mean) };
+    shader.uniforms.uTile = { value: GROUND_PHOTO.tileMeters };
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float detail;\nvarying float vDetail;\nvarying vec3 vWorldXZ;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvDetail = detail;\nvWorldXZ = position;');
+      .replace('#include <common>', '#include <common>\nattribute float detail;\nvarying float vDetail;\nvarying vec3 vWorldXZ;\nvarying vec3 vTerrainN;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvDetail = detail;\nvWorldXZ = position;\nvTerrainN = normal;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uGroundMean;\nvarying float vDetail;\nvarying vec3 vWorldXZ;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uGroundMean;\nuniform float uTile;\nvarying float vDetail;\nvarying vec3 vWorldXZ;\nvarying vec3 vTerrainN;')
+      // Paredes: o mapa normal projetado de cima estica em listras verticais — some nas encostas íngremes
+      // (o detalhe da rocha vem da cor triplanar abaixo).
+      .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace(
+        'mapN.xy *= normalScale;',
+        'mapN.xy *= normalScale * (1.0 - smoothstep(0.75, 0.45, normalize(vTerrainN).y));',
+      ))
       .replace('#include <map_fragment>', /* glsl */ `
         vec2 uvA = vMapUv;
         vec2 uvB = mat2(0.81, -0.59, 0.59, 0.81) * uvA * 0.43 + vec2(0.37, 0.71);
         float blendAB = smoothstep(0.25, 0.75, 0.5 + 0.5 * sin(vWorldXZ.x * 0.031 + sin(vWorldXZ.z * 0.027) * 2.3));
         vec3 photo = mix(texture2D(map, uvA).rgb, texture2D(map, uvB).rgb, blendAB);
+        // Triplanar nas encostas íngremes (falésias, paredões): a UV vista de cima estica a foto em
+        // listras verticais; ali a foto também é projetada nos planos verticais (ZY e XY) e
+        // misturada pela normal. Chão plano: igual a antes (o ramo nem roda).
+        vec3 tn = normalize(vTerrainN);
+        float steep = smoothstep(0.82, 0.55, tn.y);
+        if (steep > 0.0) {
+          vec3 w = pow(abs(tn), vec3(4.0));
+          w /= (w.x + w.y + w.z);
+          vec3 sideX = texture2D(map, vWorldXZ.zy / uTile).rgb;
+          vec3 sideZ = texture2D(map, vWorldXZ.xy / uTile + vec2(0.5, 0.0)).rgb;
+          vec3 tri = photo * w.y + sideX * w.x + sideZ * w.z;
+          photo = mix(photo, tri, steep);
+        }
         vec3 detailCol = photo / uGroundMean;
         // Longe, a foto vira só uma leve variação (sem padrão repetido).
         float far = smoothstep(60.0, 260.0, length(vViewPosition));

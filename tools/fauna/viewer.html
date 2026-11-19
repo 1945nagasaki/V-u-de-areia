@@ -1,0 +1,138 @@
+<!doctype html>
+<!-- Área de teste da fauna: um animal por vez, com o MESMO corpo, esqueleto e controlador de animação do jogo.
+     Com o servidor de dev: http://localhost:5173/tools/fauna/viewer.html?id=leao&state=walk&skeleton=1&box=1
+     Mostra cada estado (parado, andar, correr, atacar, pastar, folhas, beber, nadar, saltar, morto), os clipes
+     originais quando o modelo tem, o esqueleto e a caixa de colisão. Arraste para girar, roda para aproximar. -->
+<html><head><meta charset="utf-8"><title>Fauna — área de teste</title>
+<style>
+  body{margin:0;background:#15181c;font:13px system-ui;color:#ddd;overflow:hidden}
+  #side{position:fixed;left:0;top:0;bottom:0;width:230px;overflow:auto;padding:10px;background:rgba(10,12,14,.88);box-sizing:border-box}
+  #side h3{margin:10px 0 6px;font:600 12px system-ui;letter-spacing:.08em;text-transform:uppercase;color:#e8b85a}
+  button{font:12px system-ui;color:#ddd;background:#262b31;border:1px solid #3a424b;border-radius:6px;padding:4px 8px;margin:2px;cursor:pointer}
+  button.on{border-color:#e8b85a;background:#4a3a18}
+  button.flag{color:#ffb070}
+  #info{position:fixed;right:10px;top:10px;width:330px;padding:10px 12px;background:rgba(10,12,14,.88);border-radius:8px;line-height:1.5}
+  #info b{color:#e8b85a} #info small{color:#9aa}
+  label{display:block;margin:3px 0}
+</style></head>
+<body><div id="side"></div><div id="info"></div>
+<script type="module">
+import * as THREE from 'three';
+import { AnimalModels } from '/src/render/AnimalModels.js';
+import { ANIMAL_MODELS, ANIMAL_LOADER } from '/src/config/animalModels.js';
+import { SPECIES, FAUNA } from '/src/config/fauna.js';
+import { ANIMATION, ATTACK_STYLE } from '/src/config/animation.js';
+import { FOOD_WEB } from '/src/config/foodWeb.js';
+import { Animal } from '/src/entities/Animal.js';
+import { jumpEnvelope } from '/src/entities/anim/AnimMath.js';
+
+const q = new URLSearchParams(location.search);
+const ui = { motion: q.get('motion') !== '0', id: q.get('id') ?? 'leao', state: q.get('state') ?? 'walk', skeleton: q.get('skeleton') === '1', box: q.get('box') === '1', speed: +(q.get('speed') ?? 1) };
+
+const r = new THREE.WebGLRenderer({ antialias: true });
+r.setPixelRatio(Math.min(devicePixelRatio, 2)); r.setSize(innerWidth, innerHeight);
+r.toneMapping = THREE.ACESFilmicToneMapping; r.outputColorSpace = THREE.SRGBColorSpace; r.shadowMap.enabled = true;
+document.body.prepend(r.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8fb3d9);
+const cam = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 200);
+const sun = new THREE.DirectionalLight(0xfff0dc, 2.8); sun.position.set(4, 7, 5); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6 }); scene.add(sun, new THREE.HemisphereLight(0xb8d0ee, 0x6a5a44, 0.9));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x9a8656, roughness: 1 }));
+const grid = new THREE.GridHelper(60, 60, 0x6a5a3a, 0x8a7646); grid.position.y = 0.002;
+ground.receiveShadow = true; scene.add(ground, grid);
+const water = new THREE.Mesh(new THREE.PlaneGeometry(60, 60).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2f6f8f, transparent: true, opacity: 0.55, roughness: 0.2 }));
+water.visible = false; scene.add(water);
+
+// câmera em órbita
+const orbit = { yaw: 0.9, pitch: 0.25, dist: 6, target: new THREE.Vector3(0, 0.8, 0) };
+let drag = null;
+addEventListener('pointerdown', (e) => { if (e.target === r.domElement) drag = [e.clientX, e.clientY]; });
+addEventListener('pointerup', () => { drag = null; });
+addEventListener('pointermove', (e) => { if (!drag) return; orbit.yaw -= (e.clientX - drag[0]) * 0.008; orbit.pitch = Math.max(-0.2, Math.min(1.4, orbit.pitch + (e.clientY - drag[1]) * 0.006)); drag = [e.clientX, e.clientY]; });
+addEventListener('wheel', (e) => { orbit.dist = Math.max(1, Math.min(40, orbit.dist * (1 + Math.sign(e.deltaY) * 0.1))); });
+addEventListener('resize', () => { r.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); });
+
+// motion=0: mostra o movimento procedural antigo (sem os clipes reais adaptados), para comparar.
+const models = new AnimalModels(ui.motion ? ANIMAL_MODELS : Object.fromEntries(Object.entries(ANIMAL_MODELS).map(([k, c]) => [k, { ...c, motion: undefined }])), { dracoPath: ANIMAL_LOADER.dracoPath });
+let cur = null, helpers = [], t = 0, attackIn = 0;
+const STATES = [['idle', 'Parado'], ['walk', 'Andar'], ['run', 'Correr'], ['attack', 'Atacar'], ['graze', 'Pastar'], ['browse', 'Folhas'], ['drink', 'Beber'], ['swim', 'Nadar'], ['jump', 'Saltar'], ['dead', 'Morto']];
+
+async function show(id) {
+  ui.id = id;
+  if (cur) { scene.remove(cur.root); for (const h of helpers) scene.remove(h); helpers = []; }
+  await models.load(id);
+  const spec = SPECIES[id];
+  cur = new Animal({ spec, speciesId: id, fauna: FAUNA, rng: () => 0.5, model: models.instance(id), x: 0, z: 0, groundAt: () => 0 });
+  cur.root.rotation.y = Math.PI / 2;
+  cur.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  scene.add(cur.root);
+  const box = new THREE.Box3().setFromObject(cur.body.pose, true), size = box.getSize(new THREE.Vector3());
+  orbit.target.set(0, size.y * 0.5, 0); orbit.dist = Math.max(2.5, size.length() * 1.6);
+  let bones = 0, tris = 0;
+  cur.root.traverse((o) => { if (o.isBone) bones++; if (o.isMesh && o.name !== 'hitbox') { const g = o.geometry; tris += (g.index ? g.index.count : g.attributes.position.count) / 3; } });
+  if (bones) { const sk = new THREE.SkeletonHelper(cur.root); sk.visible = ui.skeleton; sk.userData.kind = 'skeleton'; scene.add(sk); helpers.push(sk); }
+  if (cur.hitbox) { const bh = new THREE.BoxHelper(cur.hitbox, 0x00ffaa); bh.visible = ui.box; bh.userData.kind = 'box'; scene.add(bh); helpers.push(bh); }
+  const anim = cur.body.anim, clips = anim?.mixer ? Object.keys(anim.actions) : [];
+  const fw = FOOD_WEB.species[id];
+  const src = models.instance(id) ? (clips.length ? `clipes originais do arquivo: ${clips.join(', ')}` : `sem clipes — esqueleto gerado pelo jogo (${bones} ossos) + ciclos procedurais`) : 'sem modelo 3D — corpo procedural';
+  document.getElementById('info').innerHTML = `<b>${spec.nome}</b> <small>(${id})</small><br>
+    ${fw ? `${fw.native === false ? '<span style="color:#ffb070">não é da fauna africana</span> · ' : ''}alimentação: ${fw.feeding}${fw.forage ? ` (${fw.forage.join(', ')})` : ''}${fw.prey ? ` · presas: ${fw.prey.join(', ')}` : ''} · água: ${fw.water ?? '—'}${fw.model ? `<br><span style="color:#ffb070">modelo: ${fw.model}</span>` : ''}` : 'sem dieta própria (regra por nível)'}<br>
+    animação: ${src}<br>ataque: ${ATTACK_STYLE[id] ?? 'bite'} · ${Math.round(tris).toLocaleString('pt-BR')} triângulos<br>
+    tamanho ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)} m · caixa de colisão raio ${cur.bodyRadius?.toFixed(2)} m, altura ${cur.bodyHeight?.toFixed(2)} m<br>
+    andar ${spec.walk} m/s · correr ${spec.run} m/s <small>(valores de jogo)</small>`;
+  window.viewer = { animal: cur, anim, ui };
+  buildSide();
+}
+
+function buildSide() {
+  const s = document.getElementById('side');
+  s.innerHTML = '<h3>Espécie</h3>' + Object.keys(SPECIES).map((id) => `<button data-id="${id}" class="${id === ui.id ? 'on' : ''}${FOOD_WEB.species[id]?.native === false || FOOD_WEB.species[id]?.model ? ' flag' : ''}">${SPECIES[id].nome}</button>`).join('')
+    + '<h3>Estado</h3>' + STATES.map(([k, l]) => `<button data-state="${k}" class="${k === ui.state ? 'on' : ''}">${l}</button>`).join('')
+    + `<h3>Ver</h3><label><input type="checkbox" data-t="skeleton" ${ui.skeleton ? 'checked' : ''}> esqueleto</label><label><input type="checkbox" data-t="box" ${ui.box ? 'checked' : ''}> caixa de colisão</label>
+       <label>velocidade do tempo <input type="range" min="0" max="2" step="0.05" value="${ui.speed}" data-t="speed"></label>
+       <p><a style="color:#e8b85a" href="?id=${ui.id}&state=${ui.state}&motion=${ui.motion ? 0 : 1}">${ui.motion ? 'Ver o movimento procedural antigo' : 'Ver o movimento real (clipes adaptados)'}</a></p>
+       <p style="color:#9aa;font-size:11px">Laranja = espécie não africana ou modelo a substituir. O chão quadriculado tem 1 m por quadro: a pata apoiada deve ficar parada em relação a ele.</p>`;
+}
+document.getElementById('side').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.id) show(b.dataset.id); else if (b.dataset.state) { ui.state = b.dataset.state; t = 0; attackIn = 0; cur?.body.anim?.setHold?.(false); buildSide(); }
+});
+document.getElementById('side').addEventListener('input', (e) => {
+  const k = e.target.dataset.t; if (!k) return;
+  if (k === 'speed') ui.speed = +e.target.value; else ui[k] = e.target.checked;
+  for (const h of helpers) if (h.userData.kind === k) h.visible = ui[k];
+});
+
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.1) * ui.speed;
+  if (cur?.body.anim) {
+    const spec = cur.spec, st = ui.state, anim = cur.body.anim;
+    t += dt;
+    const ctx = { speed: 0, state: 'idle', stateTime: t, swimming: false, tilt: { pitch: 0, roll: 0 }, yawRate: 0, look: 0, feeding: false };
+    if (st === 'walk') { ctx.speed = spec.walk; ctx.state = 'wander'; }
+    else if (st === 'run') { ctx.speed = spec.run; ctx.state = 'chase'; }
+    else if (st === 'attack') { ctx.state = 'attack'; attackIn -= dt; if (attackIn <= 0) { anim.startAttack(); attackIn = 2.2; } }
+    else if (st === 'graze') { ctx.feeding = true; ctx.feedKind = 'grass'; }
+    else if (st === 'browse') { ctx.feeding = true; ctx.feedKind = 'browse'; ctx.browseHigh = !!FOOD_WEB.species[ui.id]?.browseHigh; }
+    else if (st === 'drink') { ctx.feeding = true; ctx.feedKind = 'water'; }
+    else if (st === 'swim') { ctx.swimming = true; ctx.speed = spec.walk; ctx.state = 'wander'; }
+    else if (st === 'jump') { const J = ANIMATION.jump, total = J.anticipation + J.flight + J.landing + 1; const j = jumpEnvelope(t % total, J); ctx.jump = j; ctx.state = 'chase'; cur.root.position.y = j.arc * J.height * spec.size; }
+    else if (st === 'dead') ctx.state = 'dead';
+    if (st !== 'jump') cur.root.position.y = st === 'swim' ? -spec.size * 0.6 : 0;
+    water.visible = st === 'swim' || st === 'drink'; water.position.y = st === 'swim' ? 0.001 : -0.03;
+    anim.update(dt, ctx);
+    // O chão corre para trás à velocidade do animal: a pata apoiada tem de acompanhar a grade.
+    grid.position.x = -((t * ctx.speed) % 1);
+    for (const h of helpers) h.update?.();
+  }
+  cam.position.set(orbit.target.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist, orbit.target.y + Math.sin(orbit.pitch) * orbit.dist, orbit.target.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist);
+  cam.lookAt(orbit.target);
+  r.render(scene, cam);
+  window.frames = (window.frames ?? 0) + 1;
+  requestAnimationFrame(frame);
+}
+await show(ui.id);
+frame();
+window.done = true;
+</script></body></html>

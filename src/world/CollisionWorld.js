@@ -16,7 +16,11 @@ export class CollisionWorld {
 
   insert(c, minX, minZ, maxX, maxZ) {
     c.enabled = true;
+    c.cells = [];
     this.all.push(c);
+    // Folga de 1 m na grade: um corpo com centro na célula vizinha ainda
+    // encosta neste colisor (antes, perto da borda da célula, ele sumia).
+    minX -= 1; minZ -= 1; maxX += 1; maxZ += 1;
     const i0 = Math.floor(minX / this.cell), i1 = Math.floor(maxX / this.cell);
     const j0 = Math.floor(minZ / this.cell), j1 = Math.floor(maxZ / this.cell);
     for (let i = i0; i <= i1; i++) {
@@ -24,6 +28,7 @@ export class CollisionWorld {
         const k = this.key(i, j);
         if (!this.grid.has(k)) this.grid.set(k, []);
         this.grid.get(k).push(c);
+        c.cells.push(k);
       }
     }
     return c;
@@ -49,6 +54,33 @@ export class CollisionWorld {
     return this.addBox((ax + bx) / 2, (az + bz) / 2, len / 2, thickness / 2, rot, tag);
   }
 
+  /**
+   * Tira um colisor do mundo (móveis dos interiores, que vêm e vão).
+   * @param {object} c o retorno de addCircle/addBox/addWall
+   */
+  remove(c) {
+    for (const k of c.cells ?? []) {
+      const list = this.grid.get(k);
+      const i = list?.indexOf(c) ?? -1;
+      if (i >= 0) list.splice(i, 1);
+    }
+    const j = this.all.indexOf(c);
+    if (j >= 0) this.all.splice(j, 1);
+    c.enabled = false;
+  }
+
+  /**
+   * Limita um colisor a uma faixa de altura (m). Sem faixa = parede infinita
+   * (como sempre foi). Com faixa, quem passa por baixo ou por cima não bate —
+   * ex.: a cabana numa plataforma a 12 m não bloqueia quem anda no chão.
+   * @example world.setHeightRange(world.addCircle(x, z, 3, 'hut'), 12, 15)
+   */
+  setHeightRange(c, y0, y1) {
+    c.y0 = y0;
+    c.y1 = y1;
+    return c;
+  }
+
   query(x, z) {
     return this.grid.get(this.key(Math.floor(x / this.cell), Math.floor(z / this.cell))) ?? [];
   }
@@ -67,12 +99,37 @@ export class CollisionWorld {
     return false;
   }
 
+  /**
+   * Anda (dx, dz) colidindo em sub-passos de no máximo `fraction × radius`:
+   * correndo ou em viagem rápida o corpo não "pula" um poste ou cerca fina
+   * num único quadro (tunneling).
+   * @param {{x:number, y:number, z:number}} pos pés (alterado no lugar)
+   * @param {number} dx deslocamento do quadro em X
+   * @param {number} dz deslocamento do quadro em Z
+   * @param {number} radius raio do corpo
+   * @param {{fraction:number, maxSteps:number}} cfg MOVE_SUBSTEP
+   * @returns {number} sub-passos usados
+   */
+  move(pos, dx, dz, radius, cfg) {
+    const dist = Math.hypot(dx, dz);
+    const steps = Math.min(cfg.maxSteps, Math.max(1, Math.ceil(dist / (radius * cfg.fraction))));
+    const sx = dx / steps, sz = dz / steps;
+    for (let i = 0; i < steps; i++) {
+      pos.x += sx;
+      pos.z += sz;
+      this.resolve(pos, radius);
+    }
+    return steps;
+  }
+
   /** Empurra `pos` (Vector3) para fora de qualquer colisor. */
   resolve(pos, radius) {
     for (let iter = 0; iter < 3; iter++) {
       let moved = false;
       for (const c of this.query(pos.x, pos.z)) {
         if (!c.enabled) continue;
+        // Faixa de altura: o corpo (pé até ~1,7 m) precisa cruzar a faixa.
+        if (c.y0 !== undefined && (pos.y + 1.7 < c.y0 || pos.y > c.y1 - 0.25)) continue;
         if (c.type === 'circle') {
           const dx = pos.x - c.x, dz = pos.z - c.z;
           const d = Math.hypot(dx, dz);

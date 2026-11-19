@@ -1,0 +1,297 @@
+import * as THREE from 'three';
+import { BOAT } from '../../config/boat.js';
+import { WORLD } from '../../config/worldConfig.js';
+import { BoatPhysics } from './BoatPhysics.js';
+import { buildBoatModel, loadBoatModel } from '../../render/boat/BoatModel.js';
+import { findLanding, hopPath } from './Boarding.js';
+import { WakeSim } from '../../render/ocean/WakeSim.js';
+import { BoatSpray } from '../../render/boat/BoatSpray.js';
+import { WAKE } from '../../config/ocean.js';
+
+/**
+ * Barco pilotável no jogo (Etapa A3): física + modelo + água da GPU + controles.
+ *
+ * - **Água**: cada ponto do casco (e a hélice) tem um slot no `WaterQuery`. Os resultados
+ *   chegam 1–3 quadros depois, então os pontos pedidos ficam adiantados pela velocidade
+ *   do barco × atraso, e a altura é extrapolada com dh/dt até o passo da física [Tidewater].
+ * - **Controles** (pilotando): W/S movem a alavanca (motor acompanha com atraso), A/D o leme,
+ *   E sai do barco. Perto do barco: E embarca.
+ * - **Sono**: longe do jogador (> 300 m) a física para.
+ *
+ * @example
+ *   const boat = new BoatController(game);
+ *   boat.update(dt, input);   // a cada quadro, antes do jogador
+ */
+export class BoatController {
+  /** @param {object} game Game (water, terrain, player, scene, interactions, ui) */
+  constructor(game, cfg = BOAT) {
+    this.game = game;
+    this.cfg = cfg;
+    const spot = findMooring(game, cfg);
+    this.home = spot;
+    this.physics = new BoatPhysics(cfg, spot);
+    this.model = buildBoatModel(cfg);
+    game.scene.add(this.model.group);
+    this.model.group.userData.noCollide = true;
+    // Modelo GLB (config BOAT.model): entra quando terminar de carregar; o leme e a saída passam a ser os dele.
+    loadBoatModel(this.model, cfg).then((ok) => {
+      if (!ok) return;
+      if (cfg.model.helm) this._helm.set(...cfg.model.helm);
+      if (cfg.model.exit) this._exit.set(...cfg.model.exit);
+    });
+    this.piloting = false;
+    this.throttle = 0; // posição da alavanca −1..1
+    this.steer = 0;
+    // slots de consulta da água: pontos do casco + hélice
+    const q = game.water.query;
+    this.slots = q ? this.physics.samples.map(() => q.alloc()) : [];
+    this.propSlot = q ? q.alloc() : -1;
+    this.points = [];
+    this._propLocal = new THREE.Vector3(...cfg.engine.position);
+    this._p = new THREE.Vector3();
+    this._helm = new THREE.Vector3(...cfg.helm);
+    this._exit = new THREE.Vector3(...cfg.exit);
+    this.latency = 0.05;
+    this.water = (x, z) => this.waterAt(x, z);
+    this.ground = (x, z) => game.terrain.heightAt(x, z);
+    this.board = game.interactions.register({
+      id: 'boat', label: 'Pilotar o barco', radius: cfg.controls.boardRadius,
+      position: () => this.physics.renderPosition, onInteract: (g) => g.boat.enter(),
+    });
+    this.hud = makeHud(game.ui?.root ?? document.body);
+    // Esteira (ondas em V, espuma) e spray (Etapa A4)
+    this.wake = game.water.fft ? new WakeSim(game.renderer, game.water) : null;
+    this.spray = new BoatSpray(game.scene);
+    this.sync();
+  }
+
+  /**
+   * Altura e velocidade vertical da água no ponto (o slot mais próximo, extrapolado).
+   * Sem oceano FFT: água parada no nível do mundo.
+   */
+  waterAt(x, z) {
+    const q = this.game.water.query;
+    const r = this._wq ??= { h: 0, vy: 0 }; // reutilizado: chamado ~2600×/s pela física
+    if (!q || !q.valid) { r.h = WORLD.waterLevel; r.vy = 0; return r; }
+    let best = -1, bd = Infinity;
+    for (let i = 0; i < this.points.length; i++) {
+      const p = this.points[i];
+      const d = (p.x - x) ** 2 + (p.z - z) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    }
+    if (best < 0) { r.h = WORLD.waterLevel; r.vy = 0; return r; }
+    const slot = best < this.slots.length ? this.slots[best] : this.propSlot;
+    const t = this.game.water.ocean.time;
+    r.h = q.height(slot, t); r.vy = Math.max(-4, Math.min(4, q.rates[slot]));
+    return r;
+  }
+
+  /** Pede a altura da água nos pontos onde o casco estará quando a resposta chegar. */
+  requestWater() {
+    const q = this.game.water.query;
+    if (!q) return;
+    const ph = this.physics, lead = this.latency;
+    ph.samplePoints(this.points);
+    this.points.length = this.slots.length;
+    this.points[this.slots.length] = ph.toWorld(this._propLocal, this.points[this.slots.length] ?? new THREE.Vector3());
+    for (let i = 0; i < this.points.length; i++) {
+      const p = this.points[i];
+      const slot = i < this.slots.length ? this.slots[i] : this.propSlot;
+      q.set(slot, p.x + ph.v.x * lead, p.z + ph.v.z * lead);
+    }
+  }
+
+  /** Recoloca o barco parado num ponto (ancoragem, testes, socorro). */
+  placeAt(x, z, yaw = 0) {
+    this.physics = new BoatPhysics(this.cfg, { x, z, yaw });
+    this.sync();
+  }
+
+  /** O jogador está no barco ou pulando para dentro/fora dele (sem controle a pé). */
+  get busy() {
+    return this.piloting || !!this.hop;
+  }
+
+  /** Jogador assume o leme: pula da posição atual até o leme (arco de `boarding.hop` s). */
+  enter() {
+    const pl = this.game.player;
+    this.piloting = true;
+    this.throttle = 0;
+    this.board.enabled = false;
+    // Origem do pulo em coordenadas do BARCO: o barco balança durante o pulo e o destino vai junto.
+    this.hop = { t: 0, dir: 'in', fromWorld: pl.position.clone() };
+    this.game.ui?.toast?.('Pilotando: W/S alavanca · A/D leme · E sai do barco');
+  }
+
+  /**
+   * Jogador sai: pula para a terra firme mais próxima (píer, margem) ou, sem terra ao alcance, para a
+   * água ao lado do barco (nada). Lugar inválido (parede, barranco alto, encosta) não serve; se não
+   * houver nenhum, continua no barco com um aviso.
+   * @returns {boolean} true se saiu
+   */
+  exit() {
+    const g = this.game, ph = this.physics, B = this.cfg.boarding;
+    const c = ph.renderPosition, yaw = ph.angles().yaw;
+    const deck = this._p.copy(this._helm).applyQuaternion(ph.renderQuaternion).add(c);
+    const waterExit = ph.toWorld(this._exit, new THREE.Vector3());
+    // Chão alcançável a partir do assoalho: terreno, píer, ponte ou plataforma até `maxClimb` acima (não telhados).
+    const ground = (x, z) => g.groundHeight?.(x, z, deck.y + B.maxClimb) ?? g.terrain.heightAt(x, z);
+    const isWater = (x, z) => ground(x, z) < WORLD.waterLevel - 0.05; // píer sobre a água conta como chão
+    const blocked = (x, z) => !!g.collisions?.overlaps(x, z, B.playerRadius);
+    const spot = findLanding(c, yaw, { groundAt: ground, isWater, blocked, deckY: deck.y, waterExit }, B);
+    if (!spot) { g.ui?.toast?.('Não há onde descer aqui: chegue mais perto da margem.'); return false; }
+    this.piloting = false;
+    this.throttle = 0;
+    this.steer = 0;
+    this.board.enabled = true;
+    const to = new THREE.Vector3(spot.x, spot.water ? this.waterAt(spot.x, spot.z).h - 0.9 : spot.y, spot.z);
+    this.hop = { t: 0, dir: 'out', fromWorld: deck.clone(), to, water: spot.water };
+    return true;
+  }
+
+  /** Avança o pulo de embarque/desembarque (o jogador fica sem controle durante `boarding.hop` s). */
+  updateHop(dt) {
+    const h = this.hop, pl = this.game.player, B = this.cfg.boarding;
+    h.t += dt / B.hop;
+    const helm = this._p.copy(this._helm).applyQuaternion(this.physics.renderQuaternion).add(this.physics.renderPosition);
+    const a = h.fromWorld, b = h.dir === 'in' ? helm : h.to; // entrando, o destino (leme) acompanha o balanço
+    hopPath(a, b, h.t, B.lift, pl.position);
+    pl.root?.position.copy(pl.position);
+    const dx = b.x - a.x, dz = b.z - a.z;
+    if (Math.hypot(dx, dz) > 0.05 && pl.root) pl.root.rotation.y = Math.atan2(dx, dz);
+    pl.velocity?.set(0, 0, 0);
+    pl.model?.update?.(0, 0);
+    if (h.t < 1) return;
+    this.hop = null;
+    if (h.dir === 'out') {
+      const yaw = pl.root ? pl.root.rotation.y : 0;
+      pl.teleport(h.to.x, h.to.z, yaw, h.water ? h.to.y : undefined); // em terra: o chão decide a altura
+    }
+  }
+
+  /**
+   * @param {number} dt
+   * @param {object} input Input do jogo (isDown/pressed)
+   */
+  update(dt, input) {
+    const g = this.game, ph = this.physics, c = this.cfg.controls;
+    const near = Math.hypot(g.player.position.x - ph.com.x, g.player.position.z - ph.com.z) < 300;
+    if (!near && !this.piloting) { this.hud.style.display = 'none'; if (this.game.water.uniforms.uWakeOn) this.game.water.uniforms.uWakeOn.value = 0; return; }
+    if (this.piloting && input) {
+      const up = input.isDown('KeyW') || input.isDown('ArrowUp'), down = input.isDown('KeyS') || input.isDown('ArrowDown');
+      this.throttle = Math.max(-1, Math.min(1, this.throttle + (up - down) * c.throttleRate * dt));
+      if (!up && !down && Math.abs(this.throttle) < 0.04) this.throttle = 0; // ponto morto
+      this.steer = (input.isDown('KeyA') || input.isDown('ArrowLeft') ? 1 : 0) - (input.isDown('KeyD') || input.isDown('ArrowRight') ? 1 : 0);
+      if (input.pressed('KeyE') && !this.hop) { this.exit(); input.consume?.('KeyE'); }
+    } else { this.steer = 0; this.throttle = 0; }
+    this.requestWater();
+    ph.update(dt, { throttle: this.throttle, steer: this.steer }, { water: this.water, ground: this.ground });
+    this.sync(dt);
+    this.updateWake(dt);
+    if (this.hop) this.updateHop(dt);
+    else if (this.piloting) this.placePilot();
+    this.updateHud();
+  }
+
+  /** Esteira na GPU + spray; liga a textura na água. */
+  updateWake(dt) {
+    const u = this.game.water.uniforms;
+    // Esteira dorme com o barco parado e sem piloto (as ondas já se dissiparam)
+    const still = !this.piloting && Math.abs(this.physics.speed) < 0.05 && Math.abs(this.physics.rpm) < 0.02;
+    this.idleT = still ? (this.idleT ?? 0) + dt : 0;
+    if (this.wake && this.idleT > 30) {
+      u.uWakeOn.value = 0;
+      this.wake.started = false; // acorda com a janela zerada
+      this.spray.update(dt, this.physics, this._sprayWater ??= (x, z) => this.waterAt(x, z).h);
+      return;
+    }
+    if (this.wake) {
+      const q = this.game.water.query;
+      this.wake.u.uDepth.value = Math.min(WAKE.maxDepth, Math.max(0.5, q?.valid ? q.depth(this.slots[10] ?? 1) : WAKE.maxDepth));
+      this.wake.update(dt, this.physics, true);
+      const c = WAKE.cell;
+      u.uWake.value = this.wake.display;
+      u.uWakeRect.value.set(this.wake.origin.x * c, this.wake.origin.y * c, this.wake.size, this.wake.size);
+      u.uWakeOn.value = 1;
+    }
+    this.spray.update(dt, this.physics, this._sprayWater ??= (x, z) => this.waterAt(x, z).h);
+  }
+
+  /** Copia a pose interpolada para o modelo. */
+  sync(dt = 0) {
+    const ph = this.physics, m = this.model;
+    m.group.position.copy(ph.renderPosition);
+    m.group.quaternion.copy(ph.renderQuaternion);
+    m.setRudder(ph.rudder);
+    m.spin(dt, ph.rpm, this.game.time ?? 0);
+  }
+
+  /** Jogador em pé no leme, acompanhando o balanço. */
+  placePilot() {
+    const pl = this.game.player, ph = this.physics;
+    const p = this._p.copy(this._helm).applyQuaternion(ph.renderQuaternion).add(ph.renderPosition);
+    pl.position.copy(p);
+    pl.velocity?.set(0, 0, 0);
+    const yaw = ph.angles().yaw;
+    pl.facing?.set(Math.sin(yaw), 0, Math.cos(yaw));
+    if (pl.root) { pl.root.position.copy(p); pl.root.rotation.y = yaw; }
+    pl.swimming = false;
+    pl.model?.update?.(0, 0);
+  }
+
+  updateHud() {
+    const ph = this.physics, h = this.hud;
+    h.style.display = this.piloting ? '' : 'none';
+    if (!this.piloting) return;
+    const kn = ph.speed * 1.944;
+    const lever = Math.round(this.throttle * 100);
+    h.querySelector('.bh-speed').textContent = `${Math.abs(kn).toFixed(1)} nós${ph.speed < -0.05 ? ' (ré)' : ''}`;
+    h.querySelector('.bh-lever').textContent = lever === 0 ? 'ponto morto' : `${lever > 0 ? 'frente' : 'ré'} ${Math.abs(lever)}%`;
+    h.querySelector('.bh-bar i').style.width = `${Math.abs(lever)}%`;
+    h.querySelector('.bh-bar').classList.toggle('rev', lever < 0);
+    const a = ph.angles();
+    h.querySelector('.bh-att').textContent = `proa ${(a.pitch * 57.3).toFixed(0)}° · banda ${(a.roll * 57.3).toFixed(0)}°${ph.grounded ? ' · encalhado' : ''}`;
+  }
+}
+
+/** Ponto de água funda (≥ minDepth) mais perto do centro da vila, com terra perto (margem). */
+export function findMooring(game, cfg = BOAT) {
+  const v = game.villages?.[cfg.mooring.village] ?? { x: 0, z: 0 };
+  const T = game.terrain, R = cfg.mooring.searchRadius;
+  let best = null, bd = Infinity;
+  for (let x = v.x - R; x <= v.x + R; x += 6) {
+    for (let z = v.z - R; z <= v.z + R; z += 6) {
+      const d = WORLD.waterLevel - T.heightAt(x, z);
+      if (d < cfg.mooring.minDepth) continue;
+      // folga: água funda num raio de 6 m (cabe o barco)
+      let ok = true;
+      for (const [dx, dz] of [[6, 0], [-6, 0], [0, 6], [0, -6]]) if (WORLD.waterLevel - T.heightAt(x + dx, z + dz) < 1) ok = false;
+      if (!ok) continue;
+      const dist = Math.hypot(x - v.x, z - v.z);
+      if (dist < bd) { bd = dist; best = { x, z, yaw: Math.atan2(v.x - x, v.z - z) + Math.PI / 2 }; }
+    }
+  }
+  return best ?? { x: v.x, z: v.z + 40, yaw: 0 };
+}
+
+function makeHud(root) {
+  const el = document.createElement('div');
+  el.className = 'boat-hud';
+  el.style.display = 'none';
+  el.innerHTML = `<div class="bh-speed">0 nós</div><div class="bh-bar"><i></i></div><div class="bh-lever">ponto morto</div><div class="bh-att"></div><div class="bh-keys">W/S alavanca · A/D leme · E sair</div>`;
+  if (!document.getElementById('boat-hud-css')) {
+    const st = document.createElement('style');
+    st.id = 'boat-hud-css';
+    st.textContent = `.boat-hud{position:fixed;right:24px;bottom:200px;min-width:220px;padding:10px 14px;border-radius:12px;
+background:rgba(20,22,26,.62);color:#f2efe8;font:13px/1.35 Inter,system-ui,sans-serif;text-align:center;backdrop-filter:blur(6px);pointer-events:none;z-index:20}
+.boat-hud .bh-speed{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.boat-hud .bh-bar{height:5px;margin:6px 0 4px;border-radius:3px;background:rgba(255,255,255,.15);overflow:hidden}
+.boat-hud .bh-bar i{display:block;height:100%;width:0;background:#e9b45a}
+.boat-hud .bh-bar.rev i{background:#7fb2d9}
+.boat-hud .bh-lever,.boat-hud .bh-att{opacity:.85;font-variant-numeric:tabular-nums}
+.boat-hud .bh-keys{margin-top:4px;opacity:.55;font-size:11px}`;
+    document.head.appendChild(st);
+  }
+  root.appendChild(el);
+  return el;
+}

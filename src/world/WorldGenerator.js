@@ -3,6 +3,8 @@ import { BIOMES, RIVERS } from '../config/biomes.js';
 import { Noise, smoothstep, lerp, clamp } from './Noise.js';
 import { RELIEF } from '../config/landmarks.js';
 import { prepareRelief, reliefAt } from './Relief.js';
+import { makeTerraceZone, terraceHeight } from './Terraces.js';
+import { makeRidge, ridgeLift, makeTrench, trenchDrop } from './Ridges.js';
 
 const BIOME_COUNT = BIOMES.length;
 
@@ -47,6 +49,12 @@ export class WorldGenerator {
 
     /** Zonas aplainadas (vilas, plantações). */
     this.flatZones = [];
+    /** Cidades em terraços (ver Terraces.js). */
+    this.terraceZones = [];
+    /** Escarpas em arco em volta de cidades (ver Ridges.js). */
+    this.ridges = [];
+    /** Rebaixos retangulares (lagos acima do nível do mar). */
+    this.trenches = [];
     this._w = new Float32Array(BIOME_COUNT);
   }
 
@@ -58,6 +66,35 @@ export class WorldGenerator {
     const h = height ?? clamp(this.height(x, z, null, true), 3, 60);
     this.flatZones.push({ x, z, radius, blend, height: h });
     return h;
+  }
+
+  /**
+   * Registra uma cidade em terraços. `base` padrão = altura natural do centro
+   * (entre 3 e 60 m). Devolve a zona (níveis, escada) para o construtor da vila.
+   * @param {Parameters<typeof makeTerraceZone>[0]} o
+   */
+  addTerraceZone(o) {
+    const base = o.base ?? clamp(this.height(o.x, o.z, null, true), 3, 60);
+    const zone = makeTerraceZone({ ...o, base });
+    this.terraceZones.push(zone);
+    return zone;
+  }
+
+  /**
+   * Registra uma escarpa (anel parcial elevado).
+   * @param {Parameters<typeof makeRidge>[0]} o
+   */
+  addRidge(o) {
+    const r = makeRidge(o);
+    this.ridges.push(r);
+    return r;
+  }
+
+  /** Registra um rebaixo retangular (ver Ridges.js). */
+  addTrench(o) {
+    const t = makeTrench(o);
+    this.trenches.push(t);
+    return t;
   }
 
   /** Preenche `out` (Float32Array de 7) com os pesos dos biomas. */
@@ -169,6 +206,9 @@ export class WorldGenerator {
           h = lerp(f.height + 0.12 * n.fbm(x / 9, z / 9, 2), h, t);
         }
       }
+      for (const tz of this.terraceZones) h = terraceHeight(tz, x, z, h);
+      for (const rg of this.ridges) h += ridgeLift(rg, x, z);
+      for (const tr of this.trenches) h -= trenchDrop(tr, x, z);
     }
 
     if (!this.ref?.hasHeightmap) h = this.applyRivers(x, z, h);
@@ -207,7 +247,27 @@ export class WorldGenerator {
     const d = Math.min(x + W2, W2 - x, z + D2 + northPush, D2 - z);
     const coast = 60 + 150 * (n.fbm(x / 500 + 40, z / 500 - 20, 3) * 0.5 + 0.5);
     h = lerp(1.4, h, smoothstep(coast, coast + 260, d)); // praias suaves
-    return lerp(-24 + 6 * n.fbm(x / 300, z / 300, 2), h, smoothstep(coast - 60, coast + 70, d));
+    h = lerp(-24 + 6 * n.fbm(x / 300, z / 300, 2), h, smoothstep(coast - 60, coast + 70, d));
+    // Centro-norte: a ilha fecha com falésias (só onde as montanhas iam até a borda; o resto fica igual).
+    const C = WORLD.northCliffs;
+    // Peso cheio logo que há empurrão: a falésia só altera os primeiros ~80 m, então não precisa de degradê
+    // (um degradê deixava terra alta + mar = borda ainda em terra na transição).
+    const wN = smoothstep(0, 0.12, northPush / 500);
+    if (C && wN > 0) h = lerp(h, this.northCliff(x, z + D2, h, C), wN);
+    return h;
+  }
+
+  /**
+   * Falésia rochosa com faixa de seixos no pé (litoral frio da taiga). Recebe a
+   * distância `d` até a borda norte; a terra fica intacta a partir de
+   * coast + coastVar + jag + face m.
+   */
+  northCliff(x, d, h, C) {
+    const n = this.noise;
+    const line = C.coast + C.coastVar * (n.fbm(x / 160 + 7, 3.3, 2) * 0.5 + 0.5) + C.jag * (n.fbm(x / 28 - 11, 9.1, 2) * 0.5 + 0.5);
+    const shelf = C.shelf + 0.6 * n.fbm(x / 12, d / 12, 1); // seixos irregulares
+    const top = lerp(shelf, h, smoothstep(line + 2, line + C.face, d)); // face da falésia
+    return lerp(C.seaFloor + 4 * n.fbm(x / 90, d / 90, 2), top, smoothstep(line - C.shore, line, d)); // mar raso → fundo
   }
 
   applyRivers(x, z, h) {

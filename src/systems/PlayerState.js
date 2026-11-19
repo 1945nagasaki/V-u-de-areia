@@ -1,9 +1,11 @@
 import { GAMEPLAY, STATUS_EFFECTS } from '../config/gameplay.js';
+import { ITEM_CATALOG } from '../config/items.js';
 
-/** Itens do inventário. */
+/** Itens do inventário: os de missão + o catálogo de sobrevivência (mochila). */
 export const ITEMS = {
-  pocao_cura_total: { name: 'Poção de Cura Total', description: 'Restaura toda a vida. Não cura doenças.' },
-  carta_recomendacao: { name: 'Carta de Recomendação', description: 'Escrita pelo Senhor da Vila Renascimento. O prefeito da Bússola do Sul confia nele.' },
+  pocao_cura_total: { name: 'Poção de Cura Total', icon: 'flask', kind: 'key', description: 'Restaura toda a vida. Não cura doenças.' },
+  carta_recomendacao: { name: 'Carta de Recomendação', icon: 'mail', kind: 'key', description: 'Escrita pelo Senhor da Vila Renascimento. O prefeito da Bússola do Sul confia nele.' },
+  ...ITEM_CATALOG,
 };
 
 /**
@@ -61,7 +63,7 @@ export class PlayerState {
 
   addItem(id, n = 1) {
     this.inventory.set(id, (this.inventory.get(id) ?? 0) + n);
-    this.emit('change');
+    this.emit('item-added', { id, n }); // (também dispara 'change')
   }
 
   hasItem(id) {
@@ -118,9 +120,27 @@ export class PlayerState {
     return true;
   }
 
-  /** Multiplica os modificadores ativos (ex.: 'speed', 'relicPower'). */
+  /**
+   * Modificadores do ambiente (debuffs climáticos), trocados a cada quadro
+   * pelo jogo: { speed, jump }. Entram junto com os dos efeitos.
+   * @param {Record<string, number>} mods
+   */
+  setEnvironmentModifiers(mods) {
+    this.envModifiers = mods;
+  }
+
+  /**
+   * Bônus permanentes da Árvore de Skills (ex.: { speed: 1.1 }). Entram junto
+   * com os dos efeitos e os do ambiente.
+   * @param {Record<string, number>} mods
+   */
+  setSkillModifiers(mods) {
+    this.skillModifiers = mods;
+  }
+
+  /** Multiplica os modificadores ativos (ex.: 'speed', 'relicPower'), os do ambiente e os das skills. */
   modifier(name) {
-    let m = 1;
+    let m = (this.envModifiers?.[name] ?? 1) * (this.skillModifiers?.[name] ?? 1);
     for (const e of this.effects) if (e.def.modifiers?.[name]) m *= e.def.modifiers[name];
     return m;
   }

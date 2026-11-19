@@ -10,25 +10,78 @@
  *   4. apoia no chão (y mínimo = 0) e centraliza em X/Z.
  *
  * `clips`: nome da animação do GLB para cada estado (só nos animados).
+ * `tint` / `emissive`: recolore o modelo (materiais copiados só para a espécie).
  * Espécie sem entrada aqui (suricato) usa o corpo procedural.
  */
-const base = `${import.meta.env.BASE_URL}assets/models/animals/`;
+const base = `${(import.meta.env?.BASE_URL ?? "/")}assets/models/animals/`;
 const file = (id) => ({ glb: `${base}${id}.glb`, glbJson: `${base}${id}.glb.json` });
+/** Movimento real (clipes do Sketchfab adaptados ao esqueleto do AutoRig por tools/anim/retarget.mjs). */
+const motion = (id) => ({ motion: `${(import.meta.env?.BASE_URL ?? "/")}assets/animations/animals/${id}.json` });
 
 /** Clipes dos animais animados da Quaternius (mesmo esqueleto "AnimalArmature"). */
 const QUATERNIUS = { idle: 'Idle', walk: 'Walk', run: 'Gallop', attack: 'Attack', death: 'Death', eat: 'Eating' };
 
+/**
+ * `rig`: esqueleto gerado pelo AutoRig (`src/render/AutoRig.js`) para modelos
+ * ESTÁTICOS — sem ele o modelo só se move inteiro. `kind`: 'quadruped' |
+ * 'biped' | 'bird' | 'scorpion'; `lateralLegs`: patas abertas para os lados
+ * (jacaré); `spineBones`/`tailBones`: quantos ossos na coluna/cauda.
+ * `rig: false` desliga. Modelos com `clips` já têm esqueleto próprio.
+ */
+const Q = { kind: 'quadruped' };
+
+/** Pacote "Realistic Animated Pack" (enviado pelo dono): estático, cabeça para +X → gira para +Z. */
+const RAP = { yaw: -Math.PI / 2 };
+
+/** Carregador: pasta do decodificador Draco (copiado de three/examples/jsm/libs/draco/gltf). */
+export const ANIMAL_LOADER = { dracoPath: `${(import.meta.env?.BASE_URL ?? "/")}draco/` };
+
+/*
+ * COMO ADICIONAR O MODELO DE UMA ESPÉCIE NOVA (camelo, víbora, girafa, urso,
+ * arara, avestruz, jacaré, cérbero hoje usam o corpo procedural):
+ *   1. ponha `<id>.glb` em `public/assets/models/animals/` (CC0/CC-BY; cite em CREDITS.md);
+ *   2. acrescente aqui: `camelo: { ...file('camelo'), length: 3.0 }`
+ *      (ou `height:` para bichos altos: `girafa: { ...file('girafa'), height: 5.2 }`);
+ *   3. se for animado, mapeie os clipes: `clips: { idle: 'Idle', walk: 'Walk', run: 'Run', attack: 'Attack', death: 'Death' }`
+ *      — o AnimalBody troca o clipe conforme o estado da IA (wander → walk, chase → run, attack → attack…);
+ *   4. se vier deitado/de costas, ajuste `rotation` / `yaw` (ver o topo deste arquivo).
+ * Não precisa mexer em mais nada: espécie com modelo usa o modelo, sem modelo usa o procedural.
+ * O `.glb.json` (cópia em base64) só é necessário se o servidor não entregar `.glb`:
+ *   node -e "const f=require('fs');f.writeFileSync('X.glb.json',JSON.stringify({glb:f.readFileSync('X.glb').toString('base64')}))"
+ */
 export const ANIMAL_MODELS = {
-  zebra: { ...file('zebra'), length: 2.4 },
-  leao: { ...file('leao'), length: 2.3 },
-  lobo: { ...file('lobo'), length: 1.5, clips: QUATERNIUS },
-  alce: { ...file('alce'), length: 2.3, clips: { ...QUATERNIUS, attack: 'Attack_Headbutt' } },
-  escorpiao: { ...file('escorpiao'), length: 1.7 },
-  onca: { ...file('onca'), length: 1.9 },
-  capivara: { ...file('capivara'), length: 1.2 },
-  hiena: { ...file('hiena'), length: 1.5 },
-  gorila: { ...file('gorila'), height: 1.6 },
-  leopardo: { ...file('leopardo'), length: 1.9 },
-  javali: { ...file('javali'), length: 1.4 },
-  corvo: { ...file('corvo'), length: 0.5 },
+  zebra: { ...file('zebra'), length: 2.4, rig: Q },
+  leao: { ...file('leao'), ...motion('leao'), ...RAP, length: 2.3, rig: Q },
+  lobo: { ...file('lobo'), ...RAP, length: 1.5, rig: Q },
+  alce: { ...file('alce'), ...RAP, length: 2.6, rig: Q },
+  escorpiao: { ...file('escorpiao'), length: 1.7, rig: { kind: 'scorpion' } },
+  onca: { ...file('onca'), length: 1.9, rig: Q },
+  capivara: { ...file('capivara'), length: 1.2, rig: Q },
+  hiena: { ...file('hiena'), ...RAP, length: 1.5, rig: Q },
+  gorila: { ...file('gorila'), height: 1.6, rig: { kind: 'quadruped', tail: false } },
+  leopardo: { ...file('leopardo'), length: 1.9, rig: Q },
+  javali: { ...file('javali'), ...RAP, length: 1.4, rig: Q },
+  corvo: { ...file('corvo'), length: 0.5, rig: { kind: 'bird', jaw: false } },
+  // ---- 3 espécies por bioma (ver CREDITS.md) ----
+  camelo: { ...file('camelo'), length: 3.0, rig: Q },
+  vibora: {
+    ...file('vibora'), length: 1.6,
+    clips: { idle: 'SnakeArmature|Snake_Idle', walk: 'SnakeArmature|Snake_Walk', run: 'SnakeArmature|Snake_Walk', attack: 'SnakeArmature|Snake_Attack' },
+    tint: 0xb89a68, // Quaternius vem verde: pinta de areia (víbora do deserto)
+  },
+  girafa: { ...file('girafa'), height: 5.2, rig: Q },
+  urso: { ...file('urso'), ...RAP, length: 2.2, rig: { kind: 'quadruped', tail: false } },
+  arara: { ...file('arara'), length: 0.85, rig: { kind: 'bird', jaw: false } },
+  avestruz: { ...file('avestruz'), height: 2.4, rig: { kind: 'biped', jaw: false } },
+  // yaw: o corpo deste modelo vem ~8° torto em relação ao próprio eixo (cauda curva): corrige para o focinho apontar para a frente.
+  jacare: { ...file('jacare'), ...motion('jacare'), yaw: -Math.PI / 2 - 0.14, length: 3.4, rig: { kind: 'quadruped', lateralLegs: true, spineBones: 4, tailBones: 4 } },
+  // Guardiões dos biomas e o macaco-monge (enviados pelo dono do jogo; comprimidos: malha simplificada,
+  // texturas 1024 px em WebP e Draco). Estáticos: o AutoRig monta o esqueleto dos quadrúpedes.
+  mamute: { ...file('mamute'), ...motion('mamute'), length: 6.2, rig: Q },
+  rinoceronte: { ...file('rinoceronte'), ...motion('rinoceronte'), length: 4.2, rig: Q },
+  hipoEsfolado: { ...file('hipopotamo'), ...motion('hipoEsfolado'), yaw: Math.PI / 2, length: 4.6, rig: Q },
+  serpente: { ...file('serpente'), length: 7.5, rig: false },
+  macacoMonge: { ...file('macacoMonge'), height: 1.35, rig: false },
+  // Cérbero: o lobo animado, maior, quase preto e com brilho vermelho (cão paranormal).
+  cerbero: { ...file('cerbero'), length: 2.6, clips: QUATERNIUS, tint: 0x1c1618, emissive: 0x2a0404 },
 };

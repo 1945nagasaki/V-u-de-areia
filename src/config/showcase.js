@@ -1,0 +1,48 @@
+/**
+ * "Novidades — ir até lá": atalhos no mapa (tecla M) que levam o jogador ao
+ * ponto certo para testar o que é novo, já virado para a coisa.
+ * Posição relativa ao centro da vila (dx, dz em metros; +z = sul).
+ * yaw da câmera: Math.PI = olhando para o norte, 0 = sul, +π/2 = leste, −π/2 = oeste.
+ */
+export const SHOWCASE = [
+  { village: 'coroaAlta', title: 'Cidadela do Cume-Leão — Portão do Pé',
+    hint: 'Segure W para subir a Escada pelos 5 terraços até o Topo.', dx: 3, dz: 138, yaw: Math.PI },
+  { village: 'coroaAlta', title: 'Cidadela do Cume-Leão — o Topo',
+    hint: 'Vista da Escada e da Avenida dos Leões. Use E no Gongo e no pedestal.', dx: -4, dz: -56, yaw: 0 },
+  { village: 'maoCerrada', title: 'Areia-Funda — Portão do Pedágio',
+    hint: 'Ande para dentro pela avenida até a Casa da Balança (cúpula).', dx: 150, dz: 0, yaw: -Math.PI / 2 },
+  { village: 'maoCerrada', title: 'Areia-Funda — Quadro dos Devedores',
+    hint: 'Aperte E na frente do muro de placas.', dx: -3, dz: 9, yaw: 0 },
+  { village: 'espelhoTurvo', title: 'Espelho-Turvo — ponte sobre o lago',
+    hint: 'Segure W para atravessar o lago pela ponte de corda.', dx: -36, dz: 70, yaw: Math.PI / 2 },
+  { village: 'espelhoTurvo', title: 'Espelho-Turvo — Casa de Lavagem',
+    hint: 'Aperte E em "Lavar-se": a barra de Sujeira zera.', dx: 0, dz: 129, yaw: 0 },
+  { village: 'espelhoTurvo', title: 'Espelho-Turvo — Ilhota do Erro',
+    hint: 'Pule pelas pedras de passagem até a ilhota.', dx: -28, dz: 0, yaw: Math.PI / 2 },
+  { village: 'brasaViva', title: 'Dique-Rubro — Porta da Calçada',
+    hint: 'Segure W: entre pelo Dique e suba a rampa da Ilha dos Pilares.', dx: -175, dz: 0, yaw: Math.PI / 2 },
+  { village: 'brasaViva', title: 'Dique-Rubro — as Mil Fornalhas',
+    hint: 'Fale (E) com Oyelu e Nkem entre as fornalhas acesas.', dx: 50, dz: -10, yaw: Math.PI / 2 },
+  { village: 'brasaViva', title: 'Dique-Rubro — Salão das Placas',
+    hint: 'Aperte E diante dos pilares para ler as placas de bronze; Toorn está na Ilha.', dx: -4, dz: 14, yaw: Math.PI },
+  { village: 'veuCarmesim', title: 'Paço das Faces — Muro das Faces',
+    hint: 'Os rostos olham de cima do muro. Segure W pelo Portão das Faces até a Praça do Véu.', dx: 3, dz: 145, yaw: Math.PI },
+  { village: 'veuCarmesim', title: 'Paço das Faces — Casa do Pai',
+    hint: 'Fale (E) com o Pai do Véu e com Ayowe Ilanji, de frente para a Praça.', dx: 12, dz: -2, yaw: Math.PI * 0.75 },
+  { village: 'veuCarmesim', title: 'Paço das Faces — Santuário da Última Face',
+    hint: 'Aperte E diante da porta alta e diga o seu nome.', dx: 2, dz: -64, yaw: Math.PI },
+  { village: 'mesaFarta', title: 'Mesa-Farta — a Grande Mesa',
+    hint: 'Os sete círculos do banquete. Fale (E) com Vraatsug, o Primeiro Anfitrião.', dx: 0, dz: 30, yaw: Math.PI },
+  { village: 'mesaFarta', title: 'Mesa-Farta — Celeiro-Mor e o Cinto Seco',
+    hint: 'Veja o capim morto em volta do celeiro. Fale (E) com Thiago, a Chave-Mestra.', dx: 20, dz: -70, yaw: Math.PI },
+  { village: 'mesaFarta', title: 'Mesa-Farta — Janela das Sobras',
+    hint: 'A fila de quem tem fome no Portão do Mingau. Fale (E) com Mãe Adjoa.', dx: 6, dz: 140, yaw: Math.PI },
+  { village: 'pousoLento', title: 'As Covas — o Olho Lento',
+    hint: 'O poço sagrado dos crocodilos. Não caia! Fale (E) com Nhara Kesi.', dx: 0, dz: 17, yaw: Math.PI },
+  { village: 'pousoLento', title: 'As Covas — a Roda e o Lugar de Ninguém',
+    hint: 'Aperte E no assento vazio do centro. Luiheid escuta sentado.', dx: -40, dz: 18, yaw: Math.PI },
+  { village: 'pousoLento', title: 'As Covas — Santuário da Costela',
+    hint: 'Ande devagar até a laje do norte: a Calma faz quem tem pressa sentar.', dx: 4, dz: -36, yaw: Math.PI },
+  { village: 'veuCarmesim', title: 'Tsen, o macaco-monge',
+    hint: 'Ele fica num galho de uma das três grandes árvores-osso da bacia (muda de árvore a cada dia). Aperte E.', dx: -125, dz: 102, yaw: 1.06 },
+];
