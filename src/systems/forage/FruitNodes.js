@@ -322,7 +322,24 @@ function stemGeo(s, y) {
 export function buildFruitGeometry(id, md) {
   const color = FRUITS[id]?.color ?? 0xffffff;
   const parts = [];
-  if (md.shape === 'sphere') {
+  if (id === 'manga') {
+    const mango = paint(new THREE.SphereGeometry(0.13, 16, 12), 0xffcb35);
+    const { position, color: colors } = mango.attributes;
+    const yellow = new THREE.Color(0xffcb35);
+    const blush = new THREE.Color(0xd34527);
+    const tint = new THREE.Color();
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i), y = position.getY(i), z = position.getZ(i);
+      const height = y / 0.13;
+      const taper = 0.87 + height * 0.18;
+      position.setXYZ(i, x * taper + 0.033 * height * height, y * 1.42, z * taper * 0.75);
+      const ripeness = THREE.MathUtils.smoothstep(0.72 * height + 0.55 * x / 0.13, -0.5, 0.85);
+      tint.copy(yellow).lerp(blush, ripeness);
+      colors.setXYZ(i, tint.r, tint.g, tint.b);
+    }
+    mango.computeVertexNormals();
+    parts.push(mango, stemGeo(md.stem, 0.173).translate(0.03, 0, 0));
+  } else if (md.shape === 'sphere') {
     parts.push(ellipsoid(md.radius, md.stretch, md.segments, color));
     if (md.stem) parts.push(stemGeo(md.stem, md.radius * md.stretch[1] * 0.9));
   } else if (md.shape === 'cluster') {
