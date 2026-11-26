@@ -220,6 +220,11 @@ export class ProgressionDirector {
   lightCampfire(c, silent = false) {
     if (c.lit) return;
     const g = this.game, L = CAMPFIRE.light;
+    // Restaurar uma fogueira salva não exige os materiais de novo.
+    if (!silent && (!(g.state.inventory.get('graveto') > 0) || !(g.state.inventory.get('pedra') > 0))) {
+      g.ui.toast('Você precisa de Graveto e Pedra para acender a fogueira');
+      return;
+    }
     c.lit = true;
     c.fire.ignite();
     c.light = g.fireLights.add({ x: c.x, y: c.fire.position.y + L.y, z: c.z, color: L.color, intensity: L.intensity, range: L.range, warm: true });
